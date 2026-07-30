@@ -1,0 +1,680 @@
+{
+  "source": "Bulbapedia supported-game leveling-up tables",
+  "generatedAt": "2026-07-18T02:12:45.578Z",
+  "excludedGames": [
+    "Let's Go Pikachu/Eevee",
+    "Legends: Z-A"
+  ],
+  "pokemon": {
+    "azelf": {
+      "title": "Azelf_(Pokémon)",
+      "moves": [
+        "Self-Destruct",
+        "Tri Attack",
+        "Snore",
+        "Safeguard",
+        "Iron Tail",
+        "Payback",
+        "Assurance",
+        "Psycho Cut",
+        "Wonder Room",
+        "Magic Room",
+        "Round",
+        "Ally Switch",
+        "Expanding Force"
+      ]
+    },
+    "bastiodon": {
+      "title": "Bastiodon_(Pokémon)",
+      "moves": [
+        "Wide Guard"
+      ]
+    },
+    "blaziken": {
+      "title": "Blaziken_(Pokémon)",
+      "moves": [
+        "Fire Punch",
+        "Ember",
+        "Flamethrower",
+        "Feather Dance"
+      ]
+    },
+    "breloom": {
+      "title": "Breloom_(Pokémon)",
+      "moves": [
+        "Spore"
+      ]
+    },
+    "brute-bonnet": {
+      "title": "Brute Bonnet_(Pokémon)",
+      "moves": [
+        "Sunny Day"
+      ]
+    },
+    "ceruledge": {
+      "title": "Ceruledge_(Pokémon)",
+      "moves": [
+        "Night Slash",
+        "Shadow Sneak",
+        "Quick Guard",
+        "Solar Blade"
+      ]
+    },
+    "cinccino": {
+      "title": "Cinccino_(Pokémon)",
+      "moves": [
+        "Slam",
+        "Swift",
+        "Encore",
+        "Helping Hand",
+        "Hyper Voice",
+        "Tickle",
+        "Rock Blast",
+        "Last Resort",
+        "After You",
+        "Echoed Voice",
+        "Baby-Doll Eyes"
+      ]
+    },
+    "clefable": {
+      "title": "Clefable_(Pokémon)",
+      "moves": [
+        "Pound",
+        "Growl",
+        "Sing",
+        "Defense Curl",
+        "Splash",
+        "Sweet Kiss",
+        "Charm",
+        "Encore",
+        "Moonlight",
+        "Follow Me",
+        "Cosmic Power",
+        "Gravity",
+        "Healing Wish",
+        "Copycat",
+        "After You",
+        "Stored Power",
+        "Disarming Voice"
+      ]
+    },
+    "combusken": {
+      "title": "Combusken_(Pokémon)",
+      "moves": [
+        "Flamethrower",
+        "Feather Dance"
+      ]
+    },
+    "cramorant": {
+      "title": "Cramorant_(Pokémon)",
+      "moves": [
+        "Belch"
+      ]
+    },
+    "dipplin": {
+      "title": "Dipplin_(Pokémon)",
+      "moves": [
+        "Infestation"
+      ]
+    },
+    "emboar": {
+      "title": "Emboar_(Pokémon)",
+      "moves": [
+        "Endure",
+        "Hammer Arm"
+      ]
+    },
+    "entei": {
+      "title": "Entei_(Pokémon)",
+      "moves": [
+        "Sacred Fire",
+        "Extreme Speed"
+      ]
+    },
+    "exeggutor": {
+      "title": "Exeggutor_(Pokémon)",
+      "moves": [
+        "Growth"
+      ]
+    },
+    "exeggutor-alola": {
+      "title": "Exeggutor_(Pokémon)",
+      "moves": [
+        "Growth"
+      ]
+    },
+    "flutter-mane": {
+      "title": "Flutter Mane_(Pokémon)",
+      "moves": [
+        "Sunny Day"
+      ]
+    },
+    "flygon": {
+      "title": "Flygon_(Pokémon)",
+      "moves": [
+        "Bite",
+        "Fissure",
+        "Dig",
+        "Crunch",
+        "Superpower",
+        "Astonish",
+        "Dragon Dance",
+        "Feint"
+      ]
+    },
+    "golurk": {
+      "title": "Golurk_(Pokémon)",
+      "moves": [
+        "Mud-Slap",
+        "Focus Punch"
+      ]
+    },
+    "gouging-fire": {
+      "title": "Gouging Fire_(Pokémon)",
+      "moves": [
+        "Double Kick",
+        "Ancient Power",
+        "Noble Roar"
+      ]
+    },
+    "grovyle": {
+      "title": "Grovyle_(Pokémon)",
+      "moves": [
+        "False Swipe",
+        "Fury Cutter",
+        "X-Scissor",
+        "Energy Ball"
+      ]
+    },
+    "hydrapple": {
+      "title": "Hydrapple_(Pokémon)",
+      "moves": [
+        "Yawn",
+        "Double Hit",
+        "Infestation"
+      ]
+    },
+    "incineroar": {
+      "title": "Incineroar_(Pokémon)",
+      "moves": [
+        "Scratch",
+        "Growl",
+        "Throat Chop"
+      ]
+    },
+    "infernape": {
+      "title": "Infernape_(Pokémon)",
+      "moves": [
+        "Taunt",
+        "Slack Off"
+      ]
+    },
+    "iron-bundle": {
+      "title": "Iron Bundle_(Pokémon)",
+      "moves": [
+        "Electric Terrain"
+      ]
+    },
+    "iron-hands": {
+      "title": "Iron Hands_(Pokémon)",
+      "moves": [
+        "Electric Terrain"
+      ]
+    },
+    "iron-leaves": {
+      "title": "Iron Leaves_(Pokémon)",
+      "moves": [
+        "Electric Terrain",
+        "Quash"
+      ]
+    },
+    "iron-moth": {
+      "title": "Iron Moth_(Pokémon)",
+      "moves": [
+        "Electric Terrain"
+      ]
+    },
+    "iron-thorns": {
+      "title": "Iron Thorns_(Pokémon)",
+      "moves": [
+        "Electric Terrain"
+      ]
+    },
+    "iron-valiant": {
+      "title": "Iron Valiant_(Pokémon)",
+      "moves": [
+        "Electric Terrain"
+      ]
+    },
+    "kommo-o": {
+      "title": "Kommo-o_(Pokémon)",
+      "moves": [
+        "Belly Drum"
+      ]
+    },
+    "leavanny": {
+      "title": "Leavanny_(Pokémon)",
+      "moves": [
+        "Bug Bite"
+      ]
+    },
+    "ludicolo": {
+      "title": "Ludicolo_(Pokémon)",
+      "moves": [
+        "Growl",
+        "Mist",
+        "Water Gun",
+        "Hydro Pump",
+        "Absorb",
+        "Mega Drain",
+        "Fury Swipes",
+        "Flail",
+        "Knock Off",
+        "Teeter Dance",
+        "Astonish",
+        "Energy Ball",
+        "Zen Headbutt"
+      ]
+    },
+    "lugia": {
+      "title": "Lugia_(Pokémon)",
+      "moves": [
+        "Dragon Rush"
+      ]
+    },
+    "marshtomp": {
+      "title": "Marshtomp_(Pokémon)",
+      "moves": [
+        "Rock Smash"
+      ]
+    },
+    "meowscarada": {
+      "title": "Meowscarada_(Pokémon)",
+      "moves": [
+        "Double Team",
+        "Trick"
+      ]
+    },
+    "mesprit": {
+      "title": "Mesprit_(Pokémon)",
+      "moves": [
+        "Tri Attack",
+        "Snore",
+        "Safeguard",
+        "Iron Tail",
+        "Psycho Cut",
+        "Wonder Room",
+        "Magic Room",
+        "Round",
+        "Ally Switch",
+        "Expanding Force"
+      ]
+    },
+    "metagross": {
+      "title": "Metagross_(Pokémon)",
+      "moves": [
+        "Explosion",
+        "Hone Claws"
+      ]
+    },
+    "minun": {
+      "title": "Minun_(Pokémon)",
+      "moves": [
+        "Nuzzle"
+      ]
+    },
+    "ninetales": {
+      "title": "Ninetales_(Pokémon)",
+      "moves": [
+        "Disable",
+        "Ember",
+        "Fire Spin",
+        "Confuse Ray",
+        "Fire Blast",
+        "Spite",
+        "Safeguard",
+        "Will-O-Wisp",
+        "Imprison",
+        "Extrasensory",
+        "Nasty Plot",
+        "Incinerate",
+        "Inferno"
+      ]
+    },
+    "ninetales-alola": {
+      "title": "Ninetales_(Pokémon)",
+      "moves": [
+        "Disable",
+        "Mist",
+        "Ice Beam",
+        "Aurora Beam",
+        "Confuse Ray",
+        "Spite",
+        "Powder Snow",
+        "Extrasensory",
+        "Nasty Plot",
+        "Ice Shard",
+        "Freeze-Dry",
+        "Aurora Veil"
+      ]
+    },
+    "ogerpon": {
+      "title": "Ogerpon_(Pokémon)",
+      "moves": [
+        "Double Kick",
+        "Counter",
+        "Retaliate",
+        "Horn Leech"
+      ]
+    },
+    "ogerpon-cornerstone-mask": {
+      "title": "Ogerpon_(Pokémon)",
+      "moves": [
+        "Double Kick",
+        "Counter",
+        "Retaliate",
+        "Horn Leech"
+      ]
+    },
+    "ogerpon-hearthflame-mask": {
+      "title": "Ogerpon_(Pokémon)",
+      "moves": [
+        "Double Kick",
+        "Counter",
+        "Retaliate",
+        "Horn Leech"
+      ]
+    },
+    "ogerpon-wellspring-mask": {
+      "title": "Ogerpon_(Pokémon)",
+      "moves": [
+        "Double Kick",
+        "Counter",
+        "Retaliate",
+        "Horn Leech"
+      ]
+    },
+    "pecharunt": {
+      "title": "Pecharunt_(Pokémon)",
+      "moves": [
+        "Defense Curl",
+        "Rollout",
+        "Mean Look"
+      ]
+    },
+    "plusle": {
+      "title": "Plusle_(Pokémon)",
+      "moves": [
+        "Nuzzle"
+      ]
+    },
+    "politoed": {
+      "title": "Politoed_(Pokémon)",
+      "moves": [
+        "Body Slam",
+        "Double-Edge",
+        "Water Gun",
+        "Bubble Beam",
+        "Hypnosis",
+        "Perish Song",
+        "Swagger",
+        "Hyper Voice",
+        "Mud Shot",
+        "Earth Power"
+      ]
+    },
+    "poliwrath": {
+      "title": "Poliwrath_(Pokémon)",
+      "moves": [
+        "Pound",
+        "Double-Edge",
+        "Water Gun",
+        "Hydro Pump",
+        "Belly Drum",
+        "Rain Dance",
+        "Mud Shot",
+        "Earth Power",
+        "Circle Throw"
+      ]
+    },
+    "quaquaval": {
+      "title": "Quaquaval_(Pokémon)",
+      "moves": [
+        "Counter"
+      ]
+    },
+    "rabsca": {
+      "title": "Rabsca_(Pokémon)",
+      "moves": [
+        "Safeguard",
+        "Psych Up"
+      ]
+    },
+    "raging-bolt": {
+      "title": "Raging Bolt_(Pokémon)",
+      "moves": [
+        "Ancient Power"
+      ]
+    },
+    "roaring-moon": {
+      "title": "Roaring Moon_(Pokémon)",
+      "moves": [
+        "Sunny Day",
+        "Jaw Lock",
+        "Breaking Swipe",
+        "Scale Shot"
+      ]
+    },
+    "sandslash-alola": {
+      "title": "Sandslash_(Pokémon)",
+      "moves": [
+        "Scratch",
+        "Mist",
+        "Blizzard",
+        "Defense Curl",
+        "Swift",
+        "Fury Swipes",
+        "Powder Snow",
+        "Rollout",
+        "Fury Cutter",
+        "Rapid Spin",
+        "Iron Defense",
+        "Gyro Ball",
+        "Metal Burst",
+        "Iron Head",
+        "Snowscape"
+      ]
+    },
+    "sandy-shocks": {
+      "title": "Sandy Shocks_(Pokémon)",
+      "moves": [
+        "Sunny Day"
+      ]
+    },
+    "sceptile": {
+      "title": "Sceptile_(Pokémon)",
+      "moves": [
+        "False Swipe",
+        "Fury Cutter",
+        "X-Scissor",
+        "Energy Ball",
+        "Shed Tail"
+      ]
+    },
+    "scream-tail": {
+      "title": "Scream Tail_(Pokémon)",
+      "moves": [
+        "Sunny Day"
+      ]
+    },
+    "shiftry": {
+      "title": "Shiftry_(Pokémon)",
+      "moves": [
+        "Whirlwind",
+        "Tackle",
+        "Absorb",
+        "Mega Drain",
+        "Growth",
+        "Razor Leaf",
+        "Harden",
+        "Explosion",
+        "Rollout",
+        "Swagger",
+        "Synthesis",
+        "Beat Up",
+        "Fake Out",
+        "Torment",
+        "Astonish",
+        "Extrasensory",
+        "Sucker Punch"
+      ]
+    },
+    "skeledirge": {
+      "title": "Skeledirge_(Pokémon)",
+      "moves": [
+        "Sing",
+        "Yawn"
+      ]
+    },
+    "slither-wing": {
+      "title": "Slither Wing_(Pokémon)",
+      "moves": [
+        "Sunny Day"
+      ]
+    },
+    "slowbro": {
+      "title": "Slowbro_(Pokémon)",
+      "moves": [
+        "Future Sight"
+      ]
+    },
+    "slowking": {
+      "title": "Slowking_(Pokémon)",
+      "moves": [
+        "Future Sight",
+        "Chilly Reception"
+      ]
+    },
+    "slowking-galar": {
+      "title": "Slowking_(Pokémon)",
+      "moves": [
+        "Toxic",
+        "Future Sight",
+        "Chilly Reception"
+      ]
+    },
+    "suicune": {
+      "title": "Suicune_(Pokémon)",
+      "moves": [
+        "Sheer Cold",
+        "Extreme Speed"
+      ]
+    },
+    "swampert": {
+      "title": "Swampert_(Pokémon)",
+      "moves": [
+        "Surf",
+        "Earthquake",
+        "Rock Smash",
+        "Hammer Arm"
+      ]
+    },
+    "trumbeak": {
+      "title": "Trumbeak_(Pokémon)",
+      "moves": [
+        "Echoed Voice"
+      ]
+    },
+    "ursaluna-bloodmoon": {
+      "title": "Ursaluna_(Pokémon)",
+      "moves": [
+        "Moonlight"
+      ]
+    },
+    "uxie": {
+      "title": "Uxie_(Pokémon)",
+      "moves": [
+        "Tri Attack",
+        "Snore",
+        "Safeguard",
+        "Iron Tail",
+        "Psycho Cut",
+        "Wonder Room",
+        "Magic Room",
+        "Round",
+        "Ally Switch",
+        "Expanding Force"
+      ]
+    },
+    "vibrava": {
+      "title": "Vibrava_(Pokémon)",
+      "moves": [
+        "Supersonic",
+        "Fissure",
+        "Crunch",
+        "Superpower",
+        "Astonish",
+        "Bulldoze"
+      ]
+    },
+    "victreebel": {
+      "title": "Victreebel_(Pokémon)",
+      "moves": [
+        "Stockpile",
+        "Swallow",
+        "Spit Up",
+        "Gastro Acid",
+        "Power Whip"
+      ]
+    },
+    "vikavolt": {
+      "title": "Vikavolt_(Pokémon)",
+      "moves": [
+        "Vise Grip",
+        "Dig",
+        "Mud-Slap",
+        "Iron Defense",
+        "X-Scissor",
+        "Bug Bite"
+      ]
+    },
+    "virizion": {
+      "title": "Virizion_(Pokémon)",
+      "moves": [
+        "Take Down"
+      ]
+    },
+    "walking-wake": {
+      "title": "Walking Wake_(Pokémon)",
+      "moves": [
+        "Sunny Day",
+        "Hone Claws"
+      ]
+    },
+    "yanmega": {
+      "title": "Yanmega_(Pokémon)",
+      "moves": [
+        "Hypnosis"
+      ]
+    },
+    "zangoose": {
+      "title": "Zangoose_(Pokémon)",
+      "moves": [
+        "Double Kick",
+        "Disable",
+        "Counter",
+        "Fury Swipes",
+        "Curse",
+        "Flail",
+        "Belly Drum",
+        "Feint",
+        "Night Slash",
+        "Double Hit",
+        "Quick Guard",
+        "Final Gambit"
+      ]
+    }
+  },
+  "missingPages": [],
+  "ambiguousAssignments": []
+}

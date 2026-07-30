@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Rival Saga Token QA</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="token-qa-browser.css?v=1">
+</head>
+<body data-busy="true">
+  <main class="qa-shell">
+    <header class="qa-header">
+      <div>
+        <span class="eyebrow">Isolated browser QA</span>
+        <h1 id="scenario-title">Loading scenario</h1>
+      </div>
+      <span id="save-state" class="save-state">Starting</span>
+    </header>
+
+    <section class="situation" aria-live="polite">
+      <span class="eyebrow">Situation</span>
+      <p id="situation-text">Preparing an isolated Token state.</p>
+    </section>
+
+    <nav id="action-bar" class="action-bar" aria-label="Scenario controls"></nav>
+
+    <section class="results" aria-labelledby="results-title">
+      <div class="results-heading">
+        <span class="eyebrow">Visible results</span>
+        <h2 id="results-title">Current state</h2>
+      </div>
+      <div id="result-grid" class="result-grid"></div>
+    </section>
+
+    <pre id="qa-error" class="qa-error" hidden></pre>
+  </main>
+
+  <script src="token-effect-contract.js?v=10"></script>
+  <script src="token-control-effects.js?v=4"></script>
+  <script src="token-control-controller.js?v=2"></script>
+  <script src="token-inventory-runtime.js?v=1"></script>
+  <script src="token-qa-browser.js?v=3"></script>
+</body>
+</html>

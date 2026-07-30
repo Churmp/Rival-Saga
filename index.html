@@ -1,0 +1,1900 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Rival Saga</title>
+    <link rel="icon" href="data:,">
+    <link rel="stylesheet" href="styles.css?v=306">
+    <script defer src="game-shell-contract.js?v=1"></script>
+    <script defer src="move-classification-data.js?v=5"></script>
+    <script defer src="shop-data.js?v=7"></script>
+    <script defer src="interaction-situation-lifecycle.js?v=2"></script>
+    <script defer src="provisional-declaration-runtime.js?v=2"></script>
+    <script defer src="encounter-token-runtime.js?v=1"></script>
+    <script defer src="token-effect-contract.js?v=8"></script>
+    <script defer src="token-control-effects.js?v=4"></script>
+    <script defer src="token-control-controller.js?v=2"></script>
+    <script defer src="token-result-summary.js?v=1"></script>
+    <script defer src="token-inventory-runtime.js?v=1"></script>
+    <script defer src="token-sandbox-session.js?v=1"></script>
+    <script defer src="shop-choice-data.js?v=2"></script>
+    <script defer src="item-reference-data.js?v=3"></script>
+    <script defer src="pokemon-balance-tiers.js?v=188"></script>
+    <script defer src="silph-data.js?v=3"></script>
+    <script defer src="app.js?v=395"></script>
+  </head>
+  <body>
+    <aside id="tokenSandboxBanner" class="token-sandbox-banner" role="status" aria-live="polite" hidden>
+      <div class="token-sandbox-banner-main">
+        <strong>SANDBOX MODE</strong>
+        <span id="tokenSandboxBannerScenario">Token Scenario</span>
+        <span id="tokenSandboxBannerSession">Session -</span>
+        <span id="tokenSandboxBannerPlayer">Player -</span>
+        <span id="tokenSandboxBannerRevision">Real revision -</span>
+      </div>
+      <p>Changes are isolated and are not live until a conflict-safe commit succeeds.</p>
+      <div class="token-sandbox-banner-actions">
+        <button id="tokenSandboxBannerDiscard" class="ghost-button sandbox-discard-button" type="button">Discard</button>
+        <button id="tokenSandboxBannerCommit" class="buy-button sandbox-commit-button" type="button">Commit</button>
+      </div>
+    </aside>
+    <section id="siteShellModal" class="site-shell-modal hidden" aria-labelledby="siteShellTitle">
+      <aside class="site-shell-sidebar" aria-label="Site navigation">
+        <div class="site-shell-brand">
+          <p class="eyebrow">Rival Saga Network</p>
+          <h2 id="siteShellTitle">Site Shell</h2>
+        </div>
+        <nav class="site-shell-nav">
+          <button class="site-shell-nav-button active" type="button" data-site-section="home">Home</button>
+          <button class="site-shell-nav-button" type="button" data-site-section="games">My Games</button>
+          <button class="site-shell-nav-button" type="button" data-site-section="rulebook">Rulebook</button>
+          <button class="site-shell-nav-button" type="button" data-site-section="patchNotes">Patch Notes</button>
+          <button class="site-shell-nav-button" type="button" data-site-section="profiles">Profiles</button>
+          <button class="site-shell-nav-button" type="button" data-site-section="forums">Forums</button>
+          <button class="site-shell-nav-button site-admin-nav" type="button" data-site-section="admin">Admin</button>
+        </nav>
+        <button id="closeSiteShell" class="ghost-button" type="button">Enter Current Game</button>
+      </aside>
+
+      <main class="site-shell-main">
+        <section id="siteHomePanel" class="site-shell-screen" data-site-screen="home">
+          <div class="site-shell-hero">
+            <div>
+              <p class="eyebrow">Dashboard</p>
+              <h2>Rival Saga</h2>
+              <p>Open your league game, check site updates, or jump into the rulebook.</p>
+            </div>
+            <button id="enterCurrentGame" class="buy-button" type="button">Open Rival Saga</button>
+          </div>
+          <div id="siteShellStatus" class="site-shell-status"></div>
+          <div class="site-dashboard-grid">
+            <article class="site-shell-card site-module-card">
+              <div>
+                <p class="eyebrow">Playable Module</p>
+                <h3>Rival Saga</h3>
+                <p>The full league game: player sheets, Action Phase, Battle Phase, shops, Pokedex, tokens, wheels, and logs.</p>
+              </div>
+              <button class="ghost-button mini-button" type="button" data-site-section-jump="games">View Games</button>
+            </article>
+            <article class="site-shell-card">
+              <h3>Rulebook</h3>
+              <p class="site-muted">Phase rules, token rules, perks, classes, and battle references will live here as the public source of truth.</p>
+              <button class="ghost-button mini-button" type="button" data-site-section-jump="rulebook">Open Rulebook</button>
+            </article>
+            <article class="site-shell-card">
+              <h3>Patch Notes</h3>
+              <p class="site-muted">Read-only ruleset history for normal users. Applying patches belongs to admin/host tools only.</p>
+              <button class="ghost-button mini-button" type="button" data-site-section-jump="patchNotes">Read Notes</button>
+            </article>
+          </div>
+        </section>
+
+        <section id="siteGamesPanel" class="site-shell-screen hidden" data-site-screen="games">
+          <div class="site-shell-hero">
+            <div>
+              <p class="eyebrow">My Games</p>
+              <h2>Game Library</h2>
+              <p>Open a Rival Saga table or create a local development game.</p>
+            </div>
+            <button id="refreshSiteShell" class="ghost-button mini-button" type="button">Refresh</button>
+          </div>
+          <div id="siteGameLoadStatus" class="site-game-load-status" role="status" aria-live="polite"></div>
+          <div class="site-games-workbench">
+            <section class="site-shell-card site-game-library-card">
+              <div class="site-shell-section-header">
+              <h3>Games</h3>
+              <div class="site-game-page-controls">
+                <span class="site-game-filter-tabs" aria-label="Game library filter">
+                  <button id="siteGameFilterMine" class="site-filter-pill active" type="button">My Games</button>
+                  <button id="siteGameFilterAll" class="site-filter-pill" type="button">All</button>
+                </span>
+                <button id="siteGamePrevPage" class="site-icon-button" type="button" aria-label="Previous games page">&lt;</button>
+                <span id="siteGamePageLabel" class="site-game-page-label">Page 1 / 1</span>
+                  <button id="siteGameNextPage" class="site-icon-button" type="button" aria-label="Next games page">&gt;</button>
+                </div>
+              </div>
+              <div id="siteGameList" class="site-game-list"></div>
+            </section>
+            <aside class="site-game-tools-rail">
+              <section class="site-shell-card site-create-game-card">
+                <p class="eyebrow">New Table</p>
+                <h3>Create Game</h3>
+                <label>
+                  Game Name
+                  <input id="siteGameName" type="text" placeholder="Friday Table">
+                </label>
+                <label>
+                  Game ID
+                  <input id="siteGameId" type="text" placeholder="friday-table">
+                </label>
+                <label>
+                  Player Slots
+                  <input id="siteGameMaxPlayers" type="number" min="2" max="12" step="1" value="5">
+                </label>
+                <button id="createSiteGame" class="buy-button" type="button">Create Game</button>
+              </section>
+              <section class="site-shell-card site-join-game-card">
+                <p class="eyebrow">Invitation</p>
+                <h3>Join Game</h3>
+                <label>
+                  Game ID
+                  <input id="siteJoinGameId" type="text" placeholder="friday-table">
+                </label>
+                <p class="site-muted">Use a local game ID for now. Invitations and approvals can plug into this rail later.</p>
+                <button id="joinSiteGame" class="ghost-button" type="button">Join Game</button>
+              </section>
+            </aside>
+          </div>
+        </section>
+
+        <section id="siteGameLobbyPanel" class="site-shell-screen hidden" data-site-screen="gameLobby">
+          <div class="site-shell-hero">
+            <div>
+              <p class="eyebrow">Game Lobby</p>
+              <h2 id="siteLobbyTitle">Rival Saga Table</h2>
+              <p id="siteLobbyMeta">Waiting for players.</p>
+            </div>
+            <div class="site-lobby-actions">
+              <button id="backToSiteGames" class="ghost-button mini-button" type="button">Back To Games</button>
+              <button id="siteLobbyOpenGame" class="buy-button" type="button">Open Rival Saga</button>
+            </div>
+          </div>
+          <div id="siteLobbyStatus" class="site-shell-status"></div>
+          <section class="site-shell-card">
+            <div class="site-shell-section-header">
+              <h3>Players</h3>
+              <span id="siteLobbySeatCount" class="site-pill">0 / 5</span>
+            </div>
+            <div id="siteLobbyMemberList" class="site-lobby-member-list"></div>
+            <button id="siteLobbyJoinGame" class="ghost-button" type="button">Join This Game</button>
+            <div class="site-lobby-admin-actions">
+              <button id="siteLobbyClaimGame" class="ghost-button" type="button">Claim Existing Game</button>
+              <button id="siteLobbyAddTestAccounts" class="ghost-button" type="button">Fill With Test Accounts</button>
+            </div>
+          </section>
+        </section>
+
+        <section id="siteRulebookPanel" class="site-shell-screen hidden" data-site-screen="rulebook">
+          <div class="site-shell-hero">
+            <div>
+              <p class="eyebrow">Rulebook</p>
+              <h2>Rival Saga Reference</h2>
+              <p>A searchable rules hub comes later. For now, this is the public shell for rules content.</p>
+            </div>
+          </div>
+          <div class="site-dashboard-grid">
+            <article class="site-shell-card"><h3>Phase Rules</h3><p class="site-muted">Action Phase, Battle Phase, Shop Phase, and Gym/Series progression.</p></article>
+            <article class="site-shell-card"><h3>Token Rules</h3><p class="site-muted">Control, curses, protection, encounter, Game Corner, and future token rules.</p></article>
+            <article class="site-shell-card"><h3>Trainer Classes</h3><p class="site-muted">Class wheel, class effects, and interaction timing references.</p></article>
+            <article class="site-shell-card"><h3>Perks</h3><p class="site-muted">Perk rolling, tier odds, slot limits, uniqueness, and safety lever rules.</p></article>
+            <article class="site-shell-card"><h3>Battle Rules</h3><p class="site-muted">Team lock-in, brought-to-battle tracking, results, differential, and MVP logic.</p></article>
+            <article class="site-shell-card"><h3>Pokemon Index</h3><p class="site-muted">Battle tiers, unlock paths, forms, ownership, bans, and restrict status.</p></article>
+          </div>
+        </section>
+
+        <section id="sitePatchNotesPanel" class="site-shell-screen hidden" data-site-screen="patchNotes">
+          <div class="site-shell-hero">
+            <div>
+              <p class="eyebrow">Patch Notes</p>
+              <h2>Ruleset History</h2>
+              <p>Public notes only. Patch creation and application are admin-only until the patch system is designed and approved.</p>
+            </div>
+          </div>
+          <section class="site-shell-card">
+            <div class="site-shell-section-header">
+              <h3>Published Notes</h3>
+              <span class="site-pill">Read-only</span>
+            </div>
+            <div id="sitePublicPatchList" class="site-patch-list"></div>
+          </section>
+        </section>
+
+        <section id="siteProfilesPanel" class="site-shell-screen hidden" data-site-screen="profiles">
+          <div class="site-shell-hero">
+            <div>
+              <p class="eyebrow">Profiles</p>
+              <h2>Account Profile</h2>
+              <p>Use a private login ID and password, then show whatever display name you want around the site.</p>
+            </div>
+          </div>
+          <div class="site-profile-layout">
+            <section class="site-shell-card site-profile-current">
+              <p class="eyebrow">Current Account</p>
+              <div class="site-profile-avatar" aria-hidden="true">?</div>
+              <h3 id="siteCurrentProfileName">Not signed in</h3>
+              <p id="siteCurrentProfileMeta" class="site-muted">Create or log into a local profile.</p>
+              <button id="logoutSiteProfile" class="ghost-button mini-button" type="button">Log Out</button>
+            </section>
+            <section id="siteLoginCard" class="site-shell-card site-profile-form site-login-card">
+              <h3>Sign In / Create</h3>
+              <label>
+                Login ID
+                <input id="siteLoginId" type="text" autocomplete="username" placeholder="private-login-id">
+              </label>
+              <label>
+                Password
+                <input id="sitePassword" type="password" autocomplete="current-password" placeholder="Password">
+              </label>
+              <label>
+                Display Name
+                <input id="siteProfileName" type="text" placeholder="Visible account name">
+              </label>
+              <div class="site-profile-actions">
+                <button id="loginSiteProfile" class="ghost-button" type="button">Log In</button>
+                <button id="createSiteProfile" class="buy-button" type="button">Create Account</button>
+              </div>
+              <p id="siteProfileStatus" class="admin-status"></p>
+            </section>
+            <section id="siteAccountSettingsCard" class="site-shell-card site-account-settings-card">
+              <h3>Account Settings</h3>
+              <label>
+                Display Name
+                <input id="siteAccountDisplayName" type="text" placeholder="Visible account name">
+              </label>
+              <button id="updateSiteDisplayName" class="ghost-button" type="button">Update Display Name</button>
+              <p class="site-muted">Your login ID stays private. Only this display name appears around the site.</p>
+            </section>
+            <section class="site-shell-card">
+              <h3>Local Profiles</h3>
+              <label>
+                Switch Account
+                <select id="siteProfileSelect"></select>
+              </label>
+              <p class="site-muted">Login IDs are hidden from this list. Only display names appear here.</p>
+            </section>
+            <section class="site-shell-card site-profile-games-card">
+              <div class="site-shell-section-header">
+                <div>
+                  <p class="eyebrow">Memberships</p>
+                  <h3>Your Games</h3>
+                </div>
+                <span id="siteProfileGameCount" class="site-pill">0 games</span>
+              </div>
+              <div id="siteProfileGameList" class="site-profile-game-list"></div>
+            </section>
+          </div>
+        </section>
+
+        <section id="siteForumsPanel" class="site-shell-screen hidden" data-site-screen="forums">
+          <div class="site-shell-hero">
+            <div>
+              <p class="eyebrow">Forums</p>
+              <h2>Discussion</h2>
+              <p>Future home for league talk, rulings, announcements, and table-specific discussion.</p>
+            </div>
+          </div>
+          <section class="site-shell-card">
+            <h3>Coming Later</h3>
+            <p class="site-muted">This page is intentionally a shell. We need account/auth and game membership before real forums make sense.</p>
+          </section>
+        </section>
+
+        <section id="siteAdminPanel" class="site-shell-screen hidden" data-site-screen="admin">
+          <div class="site-shell-hero">
+            <div>
+              <p class="eyebrow">Admin</p>
+              <h2>League Manager</h2>
+              <p>Host-only tools for ruleset drafts and future migrations. Normal players should not see this page.</p>
+            </div>
+          </div>
+          <section class="site-shell-card site-admin-locked">
+            <h3>Admin Access Required</h3>
+            <p class="site-muted">Create/open a game as a profile owner, or use an admin profile, to access patch authoring tools.</p>
+          </section>
+          <section class="site-shell-card site-admin-tools">
+            <div class="site-shell-section-header">
+              <h3>Ruleset Patch Drafts</h3>
+              <button id="createRulesetPatchPlaceholder" class="ghost-button mini-button" type="button">Create Draft Patch</button>
+            </div>
+            <p class="admin-warning">Patch authoring is a scaffold only. Real patch packages, validation, migrations, and rollback still need a reviewed design pass.</p>
+            <div id="sitePatchList" class="site-patch-list"></div>
+          </section>
+        </section>
+      </main>
+    </section>
+    <header class="topbar">
+      <div class="brand-lockup">
+        <p class="eyebrow">Pokemon</p>
+        <h1>Rival Saga</h1>
+      </div>
+      <nav class="top-level-tabs" aria-label="Top-level sections">
+        <button class="top-level-tab active" type="button" data-page="playerHub">Player Hub</button>
+        <button class="top-level-tab" type="button" data-page="actionPhase">Action Phase</button>
+        <button class="top-level-tab" type="button" data-page="battlePhase">Battle Phase</button>
+        <button class="top-level-tab" type="button" data-page="leaderboard">Leaderboard</button>
+        <button class="top-level-tab" type="button" data-page="mvpRace">MVP Race</button>
+        <button class="top-level-tab" type="button" data-page="banlist">Pokedex</button>
+        <button class="top-level-tab" type="button" data-page="info">Info</button>
+      </nav>
+      <div class="phase-controls" aria-label="App controls">
+        <button id="siteShellToggle" class="ghost-button mini-button" type="button">Site Menu</button>
+        <button id="openAdminToolsTop" class="ghost-button mini-button admin-top-button" type="button">League Manager</button>
+        <button id="fieldIndicator" class="field-indicator" type="button" aria-label="No active field" title="No active field">
+          <span aria-hidden="true">F</span>
+        </button>
+        <div class="phase-status-card" aria-live="polite">
+          <button id="phaseAgendaToggle" class="phase-agenda-toggle" type="button" aria-expanded="false">
+            <span id="currentPhaseStatus">Kanto - Gym 1 - Start of Gym Phase</span>
+            <small id="phaseReminderText">Agenda</small>
+          </button>
+          <button id="advancePhase" class="ghost-button mini-button" type="button" onclick="advancePhase()">Start Battle Phase</button>
+          <div id="phaseAgendaPanel" class="phase-agenda-panel hidden">
+            <ul id="phaseAgendaList"></ul>
+            <p id="phaseAgendaOrder"></p>
+          </div>
+        </div>
+        <div class="top-theme-control">
+          <button id="globalThemeToggle" class="icon-button palette-button" type="button" aria-label="Choose global theme" title="Choose global theme">
+            <span class="palette-glyph" aria-hidden="true"></span>
+          </button>
+          <div id="globalThemeMenu" class="theme-menu hidden" aria-label="Global theme choices"></div>
+        </div>
+        <div class="hidden-admin-selects" aria-hidden="true">
+          <select id="seriesSelect" tabindex="-1"></select>
+          <select id="gymSelect" tabindex="-1"></select>
+        </div>
+      </div>
+    </header>
+    <div id="freeTestingBanner" class="free-testing-banner hidden" role="status">
+      Demo controls unlocked - profile locks, private prep, and turn order are ignored for testing.
+    </div>
+
+    <main class="layout">
+      <section class="workbench">
+        <section id="playerHubView">
+          <nav class="app-tabs" aria-label="Player Hub sections">
+            <button class="app-tab active" type="button" data-view="sheet">Player Sheet</button>
+            <button class="app-tab" type="button" data-view="teambuilder">Teambuilder</button>
+            <button class="app-tab" type="button" data-view="shop">Shop</button>
+          </nav>
+
+          <div id="playerHubTrainerCardSlot" class="trainer-card-slot">
+          <div class="player-summary">
+          <div class="identity-card" id="trainerCard">
+            <div class="trainer-banner-body">
+              <div class="trainer-profile-cluster">
+                <button id="trainerAvatarButton" class="trainer-avatar" type="button" aria-label="Choose trainer image">
+                  <img id="activeTrainerAvatar" alt="">
+                </button>
+                <input id="trainerAvatarInput" class="avatar-input" type="file" accept="image/*">
+                <div class="trainer-title-block">
+                  <p class="eyebrow">Trainer</p>
+                  <h2 id="activePlayerName"></h2>
+                  <p class="trainer-meta-line"><span id="activeTrainerClass"></span> - <span id="trainerMetaLine"></span></p>
+                  <div class="identity-actions">
+                    <button id="trainerPickerToggle" class="ghost-button mini-button" type="button">Change</button>
+                    <button id="themeToggle" class="icon-button palette-button" type="button" aria-label="Choose header theme" title="Choose header theme">
+                      <span class="palette-glyph" aria-hidden="true"></span>
+                    </button>
+                    <button id="playerNotificationsToggle" class="icon-button notification-toggle" type="button" aria-label="Open player notifications" title="Open player notifications">
+                      <span class="notification-glyph" aria-hidden="true">!</span>
+                      <span id="playerNotificationsBadge" class="notification-badge hidden" aria-hidden="true">0</span>
+                    </button>
+                    <button id="trainerProfileToggle" class="icon-button profile-toggle" type="button" aria-label="Customize trainer profile" title="Customize trainer profile">
+                      <span class="profile-glyph" aria-hidden="true">P</span>
+                    </button>
+                    <div id="playerNotificationsPanel" class="player-notifications-panel hidden" aria-label="Player notifications"></div>
+                    <div id="trainerProfilePanel" class="trainer-profile-panel hidden" aria-label="Trainer profile"></div>
+                  </div>
+                  <section id="activeBulletinQuestSection" class="trainer-quest-column hidden" aria-label="Bulletin Board quests">
+                    <h3>Quests</h3>
+                    <div id="activeBulletinQuests"></div>
+                  </section>
+                </div>
+              </div>
+
+              <div class="trainer-summary-group" aria-label="Records and saga">
+                <h3>Records / Saga</h3>
+                <div><span>Series Record</span><strong id="activeSeriesRecord"></strong></div>
+                <div><span>Overall Record</span><strong id="activeRecord"></strong></div>
+                <div><span>Saga Points</span><strong id="activeSagaPoints"></strong></div>
+              </div>
+
+              <div class="trainer-summary-group" aria-label="Resources">
+                <h3>Resources</h3>
+                <div><span>Balance</span><strong id="activeBalance"></strong></div>
+                <div class="momentum-stat">
+                  <span>Momentum</span>
+                  <strong id="activeMomentum"></strong>
+                </div>
+                <div>
+                  <span>Badge Points</span>
+                  <strong id="activeBadgePoints"></strong>
+                </div>
+              </div>
+
+              <div class="trainer-summary-group trainer-shop-group" aria-label="Action progress">
+                <h3>Action Progress</h3>
+                <div>
+                  <span>TM Level</span>
+                  <strong id="activeTmAccess"></strong>
+                </div>
+                <div>
+                  <span>Item Level</span>
+                  <strong id="activeItemAccess"></strong>
+                </div>
+                <div>
+                  <span>Ranger Credits</span>
+                  <strong id="activeRangerCredits"></strong>
+                </div>
+              </div>
+
+              <div class="trainer-summary-group trainer-class-group" aria-label="Trainer class">
+                <h3>Trainer Class</h3>
+                <div class="trainer-class-picker-wrap"><span>Current Class</span><button id="activeTrainerClassDetail" class="trainer-class-trigger" type="button"></button></div>
+                <div><span>Origin</span><strong id="activeClassOrigin" class="editable-text" contenteditable="true" spellcheck="false" tabindex="0"></strong></div>
+              </div>
+
+              <section class="trainer-effect-column trainer-perks-column" aria-label="Perks">
+                <h3>Perks <button id="addPerk" class="round-control" type="button" aria-label="Add perk">+</button></h3>
+                <div id="activePerks" class="mini-pill-list vertical"></div>
+              </section>
+
+              <section class="trainer-effect-column" aria-label="Buffs">
+                <h3>Buffs <button id="addBuff" class="round-control" type="button" aria-label="Add buff">+</button></h3>
+                <div id="activeBuffs" class="mini-pill-list vertical"></div>
+              </section>
+
+              <section class="trainer-effect-column" aria-label="Nerfs">
+                <h3>Nerfs <button id="addNerf" class="round-control" type="button" aria-label="Add nerf">+</button></h3>
+                <div id="activeNerfs" class="mini-pill-list vertical"></div>
+              </section>
+            </div>
+            <div id="trainerMenu" class="trainer-menu hidden" aria-label="Trainer choices"></div>
+            <div id="themeMenu" class="theme-menu hidden" aria-label="Theme choices"></div>
+          </div>
+          </div>
+          </div>
+
+          <section id="shopView" class="hidden">
+          <nav class="tabs" aria-label="Shop categories">
+            <button class="tab active" type="button" data-shop="items">Items</button>
+            <button class="tab" type="button" data-shop="tms">TMs</button>
+            <button class="tab" type="button" data-shop="utility">Utility</button>
+            <button class="tab" type="button" data-shop="tokens">Tokens</button>
+          </nav>
+
+          <header id="tokenShopHeader" class="token-shop-header hidden">
+            <div class="token-shop-brand">
+              <span class="token-shop-emblem" aria-hidden="true">T</span>
+              <div>
+                <p class="eyebrow">League Storefront</p>
+                <h2>Token Shop</h2>
+                <p>Purchase tactical tokens to shape encounters, curses, control effects, and the board state.</p>
+              </div>
+            </div>
+            <div class="token-shop-stats" aria-label="Token shop summary">
+              <article>
+                <span>Balance</span>
+                <strong id="tokenShopBalance"></strong>
+              </article>
+              <article>
+                <span>Visible</span>
+                <strong id="tokenShopVisibleCount"></strong>
+              </article>
+            </div>
+          </header>
+
+          <section id="tokenShopChips" class="token-shop-chips hidden" aria-label="Token category filters">
+            <button class="token-shop-chip active" type="button" data-token-shop-filter="all">All</button>
+            <button class="token-shop-chip" type="button" data-token-shop-filter="control">Control</button>
+            <button class="token-shop-chip" type="button" data-token-shop-filter="curses">Curses</button>
+            <button class="token-shop-chip" type="button" data-token-shop-filter="encounter">Encounter</button>
+          </section>
+
+          <section class="shop-toolbar" aria-label="Shop filters">
+            <div class="shop-filter-group shop-filter-search">
+              <span class="shop-filter-group-label">Find</span>
+              <label>
+                Search
+                <input id="searchInput" type="search" placeholder="Name or effect">
+              </label>
+            </div>
+            <div id="shopTierFilterGroup" class="shop-filter-group shop-filter-access">
+              <span class="shop-filter-group-label">Access</span>
+              <label>
+                Minimum tier
+                <select id="tierFilter"></select>
+              </label>
+            </div>
+            <div class="shop-filter-group shop-filter-price">
+              <span class="shop-filter-group-label">Price Range</span>
+              <div class="shop-filter-pair">
+                <label>
+                  Min
+                  <input id="minPriceFilter" type="number" min="0" step="1" placeholder="0">
+                </label>
+                <label>
+                  Max
+                  <input id="maxPriceFilter" type="number" min="0" step="1" placeholder="Any">
+                </label>
+              </div>
+            </div>
+            <div id="tmMoveFilters" class="shop-filter-group shop-filter-move hidden">
+              <span class="shop-filter-group-label">Move</span>
+              <div class="shop-filter-pair">
+                <label>
+                  Type
+                  <select id="tmTypeFilter"></select>
+                </label>
+                <label>
+                  Category
+                  <select id="tmDamageClassFilter">
+                    <option value="All">All</option>
+                    <option value="Physical">Physical</option>
+                    <option value="Special">Special</option>
+                    <option value="Status">Status</option>
+                  </select>
+                </label>
+              </div>
+            </div>
+            <div class="shop-filter-group shop-filter-sort">
+              <span class="shop-filter-group-label">Order</span>
+              <label>
+                Sort by
+                <select id="shopSortSelect">
+                  <option value="price-asc">Price: Low to High</option>
+                  <option value="price-desc">Price: High to Low</option>
+                  <option value="name-asc">Name: A to Z</option>
+                  <option value="name-desc">Name: Z to A</option>
+                  <option value="tier-asc">Item Tier</option>
+                  <option value="type-asc" data-tm-sort>Move Type</option>
+                  <option value="power-desc" data-tm-sort>Base Power: High to Low</option>
+                  <option value="power-asc" data-tm-sort>Base Power: Low to High</option>
+                </select>
+              </label>
+            </div>
+          </section>
+
+          <section id="shopGrid" class="shop-grid" aria-live="polite"></section>
+          </section>
+
+          <section id="teambuilderView" class="teambuilder-view hidden">
+            <header class="teambuilder-hero">
+              <div>
+                <p class="eyebrow">Team Prep</p>
+                <h2>Teambuilder</h2>
+                <p>Build from your Rival Saga roster, Natural movepools, owned TMs, and carried items.</p>
+              </div>
+              <div id="teambuilderSummary" class="teambuilder-summary" aria-label="Teambuilder summary"></div>
+            </header>
+
+            <div class="teambuilder-layout">
+              <section class="teambuilder-panel teambuilder-roster-panel">
+                <div class="panel-header compact-panel-header">
+                  <div>
+                    <p class="eyebrow">Roster Pool</p>
+                    <h3 id="teambuilderRosterTitle">Available Pokemon</h3>
+                  </div>
+                  <div class="teambuilder-roster-header-actions">
+                    <div id="teambuilderRosterViewSwitch" class="teambuilder-roster-view-switch" role="tablist" aria-label="Pokemon pool view">
+                      <button class="active" type="button" data-teambuilder-roster-view="roster" role="tab" aria-selected="true">Roster</button>
+                      <button type="button" data-teambuilder-roster-view="database" role="tab" aria-selected="false">Database</button>
+                    </div>
+                    <span id="teambuilderRosterCount" class="counter"></span>
+                  </div>
+                </div>
+                <div id="teambuilderRoster" class="teambuilder-roster"></div>
+                <section id="teambuilderSpeciesBrowser" class="teambuilder-species-browser" aria-label="Pokemon species browser"></section>
+              </section>
+
+              <section class="teambuilder-panel teambuilder-build-panel">
+                <div class="panel-header compact-panel-header">
+                  <div>
+                    <p class="eyebrow">Battle Draft</p>
+                    <h3 id="teambuilderDraftTitle">Current Draft</h3>
+                  </div>
+                  <span id="teambuilderValidation" class="teambuilder-validation"></span>
+                </div>
+                <div id="teambuilderSlots" class="teambuilder-slots"></div>
+              </section>
+
+            </div>
+          </section>
+
+          <section id="actionsView" class="actions-view hidden" aria-hidden="true">
+          <div class="action-board">
+            <section class="action-panel">
+              <p class="eyebrow">Action Builder</p>
+              <form id="actionForm" class="action-form">
+                <label>
+                  Action
+                  <select id="actionMode">
+                    <option value="add">Add</option>
+                    <option value="use">Use</option>
+                    <option value="trade">Trade</option>
+                    <option value="steal">Steal</option>
+                    <option value="destroy">Destroy</option>
+                  </select>
+                </label>
+                <label>
+                  Type
+                  <select id="actionType">
+                    <option value="pokemon">Pokemon</option>
+                    <option value="token">Token</option>
+                    <option value="item">Item</option>
+                    <option value="tm">TM</option>
+                    <option value="perk">Perk / Buff</option>
+                  </select>
+                </label>
+                <label id="usableEffectWrap" class="hidden">
+                  Usable Effect
+                  <select id="usableEffect"></select>
+                </label>
+                <label>
+                  Name / Target Asset
+                  <input id="actionName" type="text" placeholder="Eevee, Arena Trap, Berry Juice">
+                </label>
+                <label id="targetPlayerWrap">
+                  Target Player
+                  <select id="targetPlayer"></select>
+                </label>
+                <label>
+                  Notes
+                  <input id="actionNotes" type="text" placeholder="Optional context">
+                </label>
+                <button id="actionSubmit" class="buy-button" type="submit">Apply Action</button>
+              </form>
+            </section>
+            <section class="action-panel">
+              <p class="eyebrow">Preview</p>
+              <h3 id="actionPreview"></h3>
+              <p class="description" id="actionHelp"></p>
+            </section>
+          </div>
+          </section>
+
+          <section id="sheetView" class="sheet-view hidden">
+          <header class="player-sheet-heading">
+            <div>
+              <p class="eyebrow">Trainer Assets</p>
+              <h2>Player Sheet</h2>
+            </div>
+            <div class="player-sheet-overview" aria-label="Player sheet totals">
+              <span><strong id="playerSheetPokemonTotal">0</strong> Pokemon</span>
+              <span><strong id="playerSheetItemTotal">0</strong> Items</span>
+              <span><strong id="playerSheetTmTotal">0</strong> TMs</span>
+              <span><strong id="playerSheetTokenTotal">0</strong> Tokens</span>
+            </div>
+          </header>
+          <div class="sheet-layout">
+            <article class="sheet-panel pokemon-panel">
+              <div class="panel-header">
+                <div>
+                  <p class="eyebrow">Pokemon</p>
+                </div>
+                <div class="inline-actions">
+                  <span id="pokemonCount" class="counter"></span>
+                  <button id="addPokemonFromSheet" class="circle-add-button" type="button" aria-label="Add Pokemon" title="Add Pokemon">+</button>
+                </div>
+              </div>
+              <div id="pokemonRows" class="pokemon-rows"></div>
+            </article>
+
+            <aside class="sheet-side-stack">
+              <article class="sheet-panel resource-sheet-panel">
+                <details open>
+                  <summary>
+                    <span><small>Inventory</small><strong>Items</strong></span>
+                    <span id="sheetItemCount" class="resource-sheet-count">0 total</span>
+                  </summary>
+                  <div id="sheetItems" class="inventory-table resource-inventory-grid"></div>
+                </details>
+              </article>
+              <article class="sheet-panel resource-sheet-panel">
+                <details open>
+                  <summary>
+                    <span><small>Move Library</small><strong>TMs</strong></span>
+                    <span id="sheetTmCount" class="resource-sheet-count">0 total</span>
+                  </summary>
+                  <div id="sheetTms" class="inventory-table resource-inventory-grid"></div>
+                </details>
+              </article>
+              <article class="sheet-panel resource-sheet-panel">
+                <details open>
+                  <summary>
+                    <span><small>Effects</small><strong>Tokens</strong></span>
+                    <span id="sheetTokenCount" class="resource-sheet-count">0 total</span>
+                  </summary>
+                  <div class="resource-sheet-actions">
+                    <button id="addTokenFromSheet" class="ghost-button mini-button" type="button">Add Token</button>
+                  </div>
+                  <div id="sheetTokens" class="inventory-table resource-inventory-grid"></div>
+                </details>
+              </article>
+            </aside>
+
+            <article class="sheet-panel wide">
+              <p class="eyebrow">Opponent Intel</p>
+              <div id="opponentIntel" class="opponent-list"></div>
+            </article>
+          </div>
+          </section>
+        </section>
+
+        <section id="actionPhaseView" class="action-phase-view hidden">
+          <div id="actionPhaseTrainerCardSlot" class="trainer-card-slot"></div>
+          <header class="page-title">
+            <h2>Action Phase</h2>
+            <p id="actionPhaseContext"></p>
+          </header>
+          <section class="leaderboard-panel action-status-panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Selected Trainer</p>
+                <h2 id="actionPhasePlayerName"></h2>
+              </div>
+              <span id="actionPhaseRemaining" class="team-lock-status"></span>
+            </div>
+            <div class="action-phase-status-grid">
+              <div>
+                <span>Actions Used</span>
+                <strong id="actionPhaseUsed"></strong>
+              </div>
+              <div>
+                <span>Visited</span>
+                <strong id="actionPhaseVisited"></strong>
+              </div>
+              <div>
+                <span>Whole Table</span>
+                <strong id="actionPhaseTableStatus"></strong>
+              </div>
+            </div>
+            <div id="actionTurnRail" class="action-turn-rail" aria-label="Action Phase turn order"></div>
+            <p id="actionPhaseWarning" class="battle-rule-warning hidden"></p>
+          </section>
+          <section class="action-map-layout">
+            <div class="leaderboard-panel action-map-panel">
+              <div class="panel-header">
+                <div>
+                  <p class="eyebrow">Location Board</p>
+                  <h2>Choose A Location</h2>
+                </div>
+                <span class="team-lock-status">3 actions per trainer</span>
+              </div>
+              <div id="actionLocationBoard" class="action-location-board"></div>
+            </div>
+            <aside class="leaderboard-panel action-detail-panel">
+              <div class="panel-header">
+                <div>
+                  <p class="eyebrow">Location Details</p>
+                  <h2 id="actionLocationTitle">Select a location</h2>
+                </div>
+              </div>
+              <p id="actionLocationDescription" class="description">Choose a map location to preview its action before confirming.</p>
+              <div id="actionLocationMeta" class="action-location-meta"></div>
+              <div class="split-actions">
+                <button id="cancelActionVisit" class="ghost-button" type="button">Clear</button>
+              </div>
+            </aside>
+          </section>
+        </section>
+
+        <section id="leaderboardView" class="leaderboard-view hidden">
+          <header class="leaderboard-title">
+            <h2>LEADERBOARD</h2>
+          </header>
+
+          <section class="standings-race" aria-label="Overall leaderboard race">
+            <div id="leaderboardStandings" class="race-lanes"></div>
+          </section>
+
+          <header class="section-title">
+            <h2>Series Breakdown</h2>
+          </header>
+
+          <section class="leaderboard-panel">
+            <div class="table-wrap wide-table">
+              <table class="series-table">
+                <thead id="seriesLeaderboardHead"></thead>
+                <tbody id="seriesLeaderboardBody"></tbody>
+              </table>
+            </div>
+          </section>
+        </section>
+
+        <section id="mvpRaceView" class="mvp-race-view hidden">
+          <header class="page-title">
+            <h2>MVP Race</h2>
+          </header>
+          <section class="mvp-toolbar" aria-label="MVP Race filters">
+            <label>
+              Search
+              <input id="mvpSearch" type="search" placeholder="Pokemon name">
+            </label>
+            <label>
+              Trainer
+              <select id="mvpTrainerFilter"></select>
+            </label>
+            <label>
+              Series
+              <select id="mvpSeriesFilter"></select>
+            </label>
+            <label>
+              Gym
+              <select id="mvpGymFilter"></select>
+            </label>
+            <label>
+              Status
+              <select id="mvpStatusFilter">
+                <option value="all">All statuses</option>
+                <option value="Active">Active</option>
+                <option value="Released">Released</option>
+                <option value="Recovered">Recovered</option>
+                <option value="Removed">Removed</option>
+              </select>
+            </label>
+            <label>
+              Sort
+              <select id="mvpSort">
+                <option value="score">MVP Score</option>
+                <option value="kills">Kills</option>
+                <option value="deaths">Deaths</option>
+                <option value="firstCaught">First Caught</option>
+                <option value="name">Pokemon</option>
+              </select>
+            </label>
+          </section>
+          <section class="leaderboard-panel mvp-card-panel">
+            <div id="mvpCardGrid" class="mvp-card-grid" aria-live="polite"></div>
+          </section>
+          <section class="leaderboard-panel mvp-battle-viewer">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Battle History Viewer</p>
+                <h2>Pokemon Performance</h2>
+              </div>
+            </div>
+            <div class="mvp-battle-toolbar" aria-label="Battle history filters">
+              <label>
+                Series
+                <select id="mvpBattleSeries"></select>
+              </label>
+              <label>
+                Pokemon
+                <select id="mvpBattlePokemon"></select>
+              </label>
+            </div>
+            <div id="mvpBattleGymGrid" class="mvp-battle-gym-grid" aria-label="Gym battle history"></div>
+            <div id="mvpBattleSummary" class="mvp-battle-summary-grid"></div>
+            <div id="mvpBattleDetails" class="mvp-battle-detail-list"></div>
+          </section>
+          <section class="leaderboard-panel">
+            <div class="panel-header">
+              <h2>Pokemon Log</h2>
+            </div>
+            <div id="pokemonLogList" class="compact-log"></div>
+          </section>
+        </section>
+
+        <section id="battlePhaseView" class="battle-phase-view hidden">
+          <div id="battlePhaseTrainerCardSlot" class="trainer-card-slot"></div>
+          <header class="page-title">
+            <div>
+              <p class="eyebrow">Competitive Stage</p>
+              <h2>Battle Phase</h2>
+              <p id="battlePhaseContext"></p>
+            </div>
+          </header>
+          <nav id="battlePhaseRail" class="battle-phase-rail" aria-label="Battle Phase progress"></nav>
+          <section id="teamLockView" class="leaderboard-panel team-lock-view">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Locked Team Authority</p>
+                <h2>Trainer Overview</h2>
+              </div>
+              <span id="teamLockStatus" class="team-lock-status"></span>
+            </div>
+            <div id="teamLockCards" class="team-lock-grid"></div>
+          </section>
+          <section id="battleSubstepView" class="leaderboard-panel battle-substep-view hidden">
+            <div class="battle-substep-copy">
+              <p id="battleSubstepEyebrow" class="eyebrow">Sabotage</p>
+              <h2 id="battleSubstepTitle">Sabotage Is Active</h2>
+              <p id="battleSubstepCopy">Teams are locked and hidden.</p>
+              <p id="battleSubstepDetail" class="battle-substep-detail"></p>
+              <div id="battleRevisionWindowList" class="battle-revision-window-list"></div>
+            </div>
+            <div class="battle-substep-actions">
+              <button id="revealTeamPreview" class="buy-button" type="button">Reveal Team Preview</button>
+            </div>
+          </section>
+          <div class="battle-phase-workspace">
+            <section id="battleRecordingView" class="battle-recording-panel hidden">
+              <div id="battleCompleteState" class="battle-complete-state leaderboard-panel hidden">
+                <p class="eyebrow">Gym Complete</p>
+                <h2>Gym Complete</h2>
+                <p>All 10 battles have been recorded.</p>
+                <p>Review results or finalize the gym.</p>
+                <div class="inline-actions">
+                  <button id="completeFinalizeGymResults" class="buy-button" type="button">Finalize Gym Results</button>
+                  <button id="reviewBattleSchedule" class="ghost-button" type="button">Review/Edit Scheduled Battles</button>
+                </div>
+              </div>
+              <form id="battleForm" class="battle-form leaderboard-panel">
+                <div class="panel-header">
+                  <div>
+                    <p class="eyebrow">Battle Recording</p>
+                    <h2>Record Battle</h2>
+                  </div>
+                  <div class="inline-actions">
+                    <span id="battleLabelPreview" class="battle-label-preview"></span>
+                    <button id="editLockedTeams" class="ghost-button" type="button">View in Teambuilder</button>
+                  </div>
+                </div>
+                <div class="manual-battle-selects hidden">
+                  <select id="battlePlayer1" aria-label="Player 1"></select>
+                  <select id="battlePlayer2" aria-label="Player 2"></select>
+                </div>
+                <div class="battle-card-layout">
+                  <div class="battle-player-card p1">
+                    <p class="eyebrow">Player 1</p>
+                    <h3 id="battlePlayer1Name">Player 1</h3>
+                    <span id="battlePlayer1Sub"></span>
+                    <div id="battlePlayer1TeamStrip" class="battle-matchup-team-strip"></div>
+                  </div>
+                  <div class="battle-center-card">
+                    <label>
+                      Winner
+                      <select id="battleWinner"></select>
+                    </label>
+                    <div id="battleDifferentialPreview" class="battle-differential-preview"></div>
+                  </div>
+                  <div class="battle-player-card p2">
+                    <p class="eyebrow">Player 2</p>
+                    <h3 id="battlePlayer2Name">Player 2</h3>
+                    <span id="battlePlayer2Sub"></span>
+                    <div id="battlePlayer2TeamStrip" class="battle-matchup-team-strip"></div>
+                  </div>
+                </div>
+                <div class="battle-team-stat-grid">
+                  <div class="battle-team-stat-column">
+                    <span>Player 1 Battle Team</span>
+                    <div id="battleP1Stats" class="battle-stat-entry-list"></div>
+                  </div>
+                  <div class="battle-team-stat-column">
+                    <span>Player 2 Battle Team</span>
+                    <div id="battleP2Stats" class="battle-stat-entry-list"></div>
+                  </div>
+                </div>
+                <label>
+                  Notes
+                  <textarea id="battleNotes" placeholder="Optional battle notes"></textarea>
+                </label>
+                <button class="buy-button" type="submit">Save Battle Record</button>
+              </form>
+            </section>
+            <div class="battle-side-stack">
+              <section class="leaderboard-panel battle-order-panel">
+                <div class="panel-header">
+                  <div>
+                    <p class="eyebrow">Battle Order</p>
+                    <h2>Generated Schedule</h2>
+                  </div>
+                  <button id="regenerateBattleSchedule" class="ghost-button" type="button">Regenerate</button>
+                </div>
+                <div id="seedOrderDisplay" class="seed-order-display"></div>
+                <div id="battleScheduleList" class="battle-schedule-list"></div>
+              </section>
+              <section class="leaderboard-panel gym-results-panel">
+                <div class="panel-header">
+                  <div>
+                    <p class="eyebrow">Gym Results</p>
+                    <h2>Placement Preview</h2>
+                  </div>
+                  <span id="gymBattleProgress" class="team-lock-status"></span>
+                </div>
+                <div id="gymResultsPreview" class="gym-results-preview"></div>
+                <button id="finalizeGymResults" class="buy-button" type="button">Finalize Gym Results</button>
+              </section>
+              <section class="leaderboard-panel">
+                <div class="panel-header">
+                  <h2>Current Battle Records</h2>
+                  <button id="clearCurrentGymBattles" class="danger-button" type="button">Clear Current Gym</button>
+                </div>
+                <div id="battleRecordsList" class="battle-records"></div>
+              </section>
+              <section class="leaderboard-panel">
+                <div class="panel-header">
+                  <h2>Battle Log</h2>
+                </div>
+                <div class="battle-open-controls">
+              <label>
+                Series
+                <select id="battleLogSeries"></select>
+              </label>
+              <label>
+                Gym
+                <select id="battleLogGym"></select>
+              </label>
+              <button id="openBattlePhase" class="ghost-button" type="button">Open Battle Phase</button>
+                </div>
+                <div id="battleHistory" class="battle-history"></div>
+              </section>
+            </div>
+          </div>
+        </section>
+
+        <section id="banlistView" class="banlist-view hidden">
+          <header class="page-title">
+            <h2>Pokedex</h2>
+            <p>Global Pokemon status, ownership, tiers, and form policy</p>
+          </header>
+          <section class="leaderboard-panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Pokedex</p>
+                <h2>All Known Pokemon</h2>
+              </div>
+            </div>
+            <div id="pokemonIndexFilters" class="pokemon-index-filters"></div>
+            <p id="pokemonIndexCount" class="pokemon-index-count"></p>
+            <div id="currentBanlistBody" class="banlist-card-grid"></div>
+          </section>
+          <section class="leaderboard-panel">
+            <div class="panel-header">
+              <h2>Ban History</h2>
+            </div>
+            <div id="banlistHistoryBody" class="banlist-history-grid"></div>
+          </section>
+        </section>
+
+        <section id="infoView" class="info-view hidden">
+          <header class="page-title">
+            <h2>Info</h2>
+            <p>Rules, perks, tokens, trainer classes, and Rival Saga reference material</p>
+          </header>
+          <section class="info-grid">
+            <article class="leaderboard-panel info-panel info-perk-panel">
+              <div class="panel-header">
+                <div>
+                  <p class="eyebrow">Perk System</p>
+                  <h2>Perk Rolls</h2>
+                </div>
+                <div class="inline-actions">
+                  <button id="manualPerkRoll" class="buy-button" type="button">Roll 3 Perks</button>
+                  <button id="syncPerkRolls" class="ghost-button" type="button">Check Thresholds</button>
+                </div>
+              </div>
+              <div class="info-control-row">
+                <label>
+                  Player
+                  <select id="infoPerkPlayer"></select>
+                </label>
+                <div id="infoPerkStatus" class="info-stat-strip"></div>
+              </div>
+              <div id="infoPendingPerkRolls" class="perk-roll-list"></div>
+              <div id="infoPerkSafety" class="info-rule-card"></div>
+            </article>
+            <article class="leaderboard-panel info-panel info-battle-tier-panel">
+              <div class="panel-header">
+                <div>
+                  <p class="eyebrow">Quick Roller</p>
+                  <h2>Battle Tier Pokemon</h2>
+                </div>
+                <button id="rollBattleTierPokemon" class="buy-button" type="button">Roll Pokemon</button>
+              </div>
+              <div class="info-control-row battle-tier-roll-controls">
+                <label>
+                  Battle Tier
+                  <select id="infoBattleTierSelect"></select>
+                </label>
+                <div id="infoBattleTierStats" class="info-stat-strip"></div>
+              </div>
+              <div id="infoBattleTierResult" class="battle-tier-roll-result"></div>
+            </article>
+            <article class="leaderboard-panel info-panel">
+              <div class="panel-header">
+                <div>
+                  <p class="eyebrow">Reference</p>
+                  <h2>Perk Library</h2>
+                </div>
+              </div>
+              <div id="infoPerkLibrary" class="perk-library"></div>
+            </article>
+            <article class="leaderboard-panel info-panel info-rules-panel">
+              <div class="panel-header">
+                <div>
+                  <p class="eyebrow">Rulebook</p>
+                  <h2>Rules Index</h2>
+                </div>
+              </div>
+              <div id="infoRulesIndex" class="info-rules-index"></div>
+            </article>
+          </section>
+        </section>
+      </section>
+
+      <aside class="details-column">
+        <button id="activityLogTab" class="activity-log-tab" type="button" aria-controls="activityLogDrawer" aria-expanded="false">Activity Log</button>
+        <section class="log-panel activity-panel">
+          <div class="panel-header">
+            <h2>Activity Log</h2>
+            <div class="inline-actions">
+              <button id="toggleActivityLog" class="ghost-button" type="button" aria-expanded="true">Close</button>
+              <button id="exportLog" class="ghost-button" type="button">Export</button>
+            </div>
+          </div>
+          <div id="activityLogContent" class="activity-log-content">
+            <div id="activityFilters" class="activity-filters" aria-label="Activity log filters"></div>
+            <div id="activityLog" class="activity-log"></div>
+          </div>
+        </section>
+      </aside>
+
+      <aside id="activityResponseColumn" class="activity-response-column">
+        <button id="activityResponseTab" class="activity-response-tab" type="button" aria-controls="activityResponseDrawer" aria-expanded="false">Advanced Controls</button>
+        <section id="activityResponseDrawer" class="activity-response-panel">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">Advanced / Repair</p>
+              <h2>Advanced Timing Controls</h2>
+            </div>
+            <button id="closeActivityResponseDrawer" class="ghost-button" type="button">Close</button>
+          </div>
+          <div id="activityResponseList" class="activity-response-list"></div>
+        </section>
+      </aside>
+
+      <aside id="liveRefereeColumn" class="live-referee-column" aria-label="Live Referee">
+        <section id="liveRefereePanel" class="live-referee-panel" aria-live="polite"></section>
+      </aside>
+
+      <section id="activityToastStack" class="activity-toast-stack" aria-live="polite"></section>
+
+      <aside id="opponentDrawerColumn" class="opponent-drawer-column">
+        <button id="opponentDrawerTab" class="opponent-drawer-tab" type="button" aria-controls="opponentDrawer" aria-expanded="false">Players</button>
+        <section id="opponentDrawer" class="opponent-drawer-panel">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">Player Intel</p>
+              <h2>Opponent Check</h2>
+            </div>
+            <button id="closeOpponentDrawer" class="ghost-button" type="button">Close</button>
+          </div>
+          <div id="opponentDrawerControls" class="opponent-drawer-controls"></div>
+          <div id="opponentDrawerContent" class="opponent-drawer-content"></div>
+        </section>
+      </aside>
+
+      <aside id="cartColumn" class="cart-column">
+        <button id="cartTab" class="cart-tab hidden" type="button" aria-controls="cartDrawer" aria-expanded="false">Cart</button>
+        <section id="cartDrawer" class="cart-panel">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">Pending Purchase</p>
+              <h2>Shopping Cart</h2>
+            </div>
+            <button id="closeCart" class="ghost-button" type="button">Close</button>
+          </div>
+          <div id="cartPlayer" class="cart-player"></div>
+          <div id="cartItems" class="cart-items"></div>
+          <div id="cartSummary" class="cart-summary"></div>
+          <div id="cartWarning" class="cart-warning"></div>
+          <div class="split-actions">
+            <button id="finalizeCart" class="buy-button" type="button">Finalize Purchase</button>
+            <button id="clearCart" class="ghost-button" type="button">Clear Cart</button>
+          </div>
+        </section>
+      </aside>
+
+      <aside id="wheelColumn" class="wheel-column">
+        <button id="wheelTab" class="wheel-tab hidden" type="button" aria-controls="wheelPanel" aria-expanded="false">Wheel</button>
+        <section id="wheelPanel" class="wheel-panel">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">Wheel Drawer</p>
+              <h2>Active Wheels</h2>
+            </div>
+            <button id="closeWheelPanel" class="ghost-button" type="button">Close</button>
+          </div>
+          <div id="wheelSessionList" class="wheel-session-list"></div>
+          <div id="wheelSessionDetail" class="wheel-session-detail">
+            <div class="panel-header compact">
+              <div>
+                <p class="eyebrow">Wheel Session</p>
+                <h3 id="wheelName">Wheel</h3>
+              </div>
+              <span id="wheelRollStatus" class="team-lock-status"></span>
+            </div>
+            <p id="wheelDescription" class="description"></p>
+            <div id="wheelMeta" class="wheel-meta"></div>
+            <div id="wheelVisual" class="wheel-visual" aria-hidden="true"></div>
+            <div id="wheelOutcomes" class="wheel-outcomes"></div>
+            <div class="wheel-result-row">
+              <div id="wheelLatestResult" class="wheel-latest-result"></div>
+              <label class="wheel-skip-toggle">
+                <input id="skipWheelAnimation" type="checkbox">
+                Skip Animation
+              </label>
+            </div>
+            <div class="split-actions">
+              <button id="spinWheel" class="buy-button" type="button">Spin</button>
+              <button id="finishWheelSession" class="ghost-button" type="button">Finish Session</button>
+            </div>
+            <div id="wheelHistory" class="wheel-history"></div>
+          </div>
+        </section>
+      </aside>
+
+      <aside id="randomPokemonColumn" class="random-pokemon-column">
+        <button id="randomPokemonTab" class="random-pokemon-tab hidden" type="button" aria-controls="randomPokemonPanel" aria-expanded="false">Pokemon Result</button>
+        <section id="randomPokemonPanel" class="random-pokemon-panel">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">Random Pokemon</p>
+              <h2>Pokemon Result</h2>
+            </div>
+            <button id="closeRandomPokemonPanel" class="ghost-button" type="button">Close</button>
+          </div>
+          <div id="randomPokemonSessionList" class="wheel-session-list"></div>
+          <div id="randomPokemonSessionDetail" class="random-pokemon-detail"></div>
+        </section>
+      </aside>
+
+      <button id="encounterTab" class="encounter-tab hidden" type="button" aria-controls="encounterOverlay" aria-expanded="false">Encounter</button>
+      <section id="encounterOverlay" class="encounter-overlay hidden" aria-label="Encounter Wheel">
+        <div class="encounter-modal">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">Encounter Wheel</p>
+              <h2 id="encounterTitle">Encounter Wheel</h2>
+            </div>
+            <button id="closeEncounterOverlay" class="ghost-button" type="button">Close</button>
+          </div>
+          <div id="encounterSessionList" class="wheel-session-list"></div>
+          <div id="encounterBody"></div>
+        </div>
+      </section>
+    </main>
+
+    <template id="shopCardTemplate">
+      <article class="shop-card">
+        <div>
+          <p class="tier-label"></p>
+          <h3></h3>
+          <p class="description"></p>
+        </div>
+        <div class="card-footer">
+          <strong class="price"></strong>
+          <div class="purchase-controls">
+            <button class="buy-button" type="button">Add</button>
+            <button class="ghost-button" type="button">Buy Now</button>
+          </div>
+        </div>
+      </article>
+    </template>
+
+    <div id="pokemonActionMenu" class="pokemon-action-menu hidden" aria-label="Pokemon actions"></div>
+
+    <div id="moneyLedgerModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="moneyLedgerTitle">
+      <section class="admin-tools-modal money-ledger-modal">
+        <div class="panel-header">
+          <div>
+            <p class="eyebrow">Balance History</p>
+            <h2 id="moneyLedgerTitle">Money Ledger</h2>
+          </div>
+          <button id="closeMoneyLedger" class="ghost-button" type="button">Close</button>
+        </div>
+        <div id="moneyLedgerSummary" class="money-ledger-summary"></div>
+        <div id="moneyLedgerEntries" class="money-ledger-list"></div>
+      </section>
+    </div>
+
+    <div id="addTokenModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="addTokenTitle">
+      <section class="admin-tools-modal add-token-modal">
+        <div class="panel-header">
+          <div>
+            <p class="eyebrow">Inventory Repair</p>
+            <h2 id="addTokenTitle">Add Token</h2>
+          </div>
+          <button id="closeAddTokenModal" class="ghost-button" type="button">Close</button>
+        </div>
+        <p class="admin-warning">Adds a token to the selected trainer's real inventory for testing and repair.</p>
+        <div id="addTokenOptions" class="add-token-options"></div>
+      </section>
+    </div>
+
+    <div id="activationOverlay" class="modal-backdrop hidden">
+      <section class="activation-overlay" role="dialog" aria-modal="true" aria-labelledby="activationTitle">
+        <div class="panel-header">
+          <div>
+            <p class="eyebrow">Effect Activation</p>
+            <h2 id="activationTitle">Activate Effect</h2>
+          </div>
+          <button id="cancelActivation" class="ghost-button" type="button">Cancel</button>
+        </div>
+        <div class="activation-grid">
+          <section class="activation-step">
+            <p class="eyebrow">Activator</p>
+            <strong id="activationActor"></strong>
+          </section>
+          <section class="activation-step">
+            <p class="eyebrow">Effect</p>
+            <strong id="activationEffect"></strong>
+            <span id="activationEffectType"></span>
+          </section>
+          <label>
+            Target Type
+            <select id="activationTargetType">
+              <option value="player">Player</option>
+              <option value="pokemon">Pokemon</option>
+              <option value="pokemon-species">Pokemon Name</option>
+              <option value="item">Item</option>
+              <option value="token">Token</option>
+              <option value="none">No target</option>
+            </select>
+          </label>
+          <label id="activationTargetPlayerWrap">
+            Target Player
+            <select id="activationTargetPlayer"></select>
+          </label>
+          <label id="activationTargetPokemonWrap" class="hidden">
+            Target Pokemon
+            <select id="activationTargetPokemon"></select>
+          </label>
+          <label id="activationSpeciesWrap" class="hidden">
+            Pokemon Name
+            <input id="activationSpeciesSearch" type="text" placeholder="Type a Pokemon name">
+            <div id="activationSpeciesResults" class="activation-species-results"></div>
+          </label>
+          <label id="activationTargetNameWrap">
+            Target Selection
+            <input id="activationTargetName" type="text" placeholder="Pokemon, item, token, or target detail">
+          </label>
+          <label>
+            Optional Choices
+            <input id="activationChoices" type="text" placeholder="Mode, option, roll, condition">
+          </label>
+          <label>
+            Duration
+            <input id="activationDuration" type="text" placeholder="Instant, battle, gym, series">
+          </label>
+        </div>
+        <section class="activation-summary">
+          <p class="eyebrow">Confirmation</p>
+          <p id="activationSummary"></p>
+        </section>
+        <div class="split-actions">
+          <button id="applyActivation" class="buy-button" type="button">Apply Activation</button>
+          <button id="cancelActivationSecondary" class="ghost-button" type="button">Cancel</button>
+        </div>
+      </section>
+    </div>
+
+    <div id="rerollTargetModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="rerollTargetTitle">
+      <section class="activation-overlay reroll-target-modal">
+        <div class="panel-header">
+          <div>
+            <p class="eyebrow">Player Interaction</p>
+            <h2 id="rerollTargetTitle">Use Reroll Token</h2>
+          </div>
+          <button id="closeRerollTargetModal" class="ghost-button" type="button">Close</button>
+        </div>
+        <p id="rerollTargetIntro" class="activation-summary">Choose a pending result to reroll.</p>
+        <div id="rerollTargetList" class="reroll-target-list"></div>
+      </section>
+    </div>
+
+    <div id="evolutionModal" class="modal-backdrop hidden">
+      <section class="crop-modal evolution-modal" role="dialog" aria-modal="true" aria-labelledby="evolutionTitle">
+        <div class="panel-header">
+          <div>
+            <p class="eyebrow">Evolution</p>
+            <h2 id="evolutionTitle">Choose Evolution</h2>
+          </div>
+          <button id="cancelEvolution" class="ghost-button" type="button">Cancel</button>
+        </div>
+        <p id="evolutionPrompt" class="description"></p>
+        <div id="evolutionOptions" class="evolution-options"></div>
+        <div class="split-actions">
+          <button id="manualEvolution" class="ghost-button" type="button">Enter Manually</button>
+        </div>
+      </section>
+    </div>
+
+    <div id="phaseConfirmModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="phaseConfirmTitle">
+      <section class="crop-modal phase-confirm-modal">
+        <div class="panel-header">
+          <div>
+            <p class="eyebrow">Phase Advance</p>
+            <h2 id="phaseConfirmTitle">Advance Phase?</h2>
+          </div>
+          <button id="cancelPhaseAdvance" class="ghost-button" type="button" onclick="closePhaseAdvanceConfirm()">Cancel</button>
+        </div>
+        <p id="phaseConfirmMessage" class="description"></p>
+        <div id="phaseSeriesChoice" class="phase-series-choice hidden">
+          <label>
+            Next Series
+            <select id="phaseSeriesChoiceSelect"></select>
+          </label>
+          <button id="phaseRandomSeries" class="ghost-button" type="button">Random Series</button>
+        </div>
+        <div class="split-actions">
+          <button id="confirmPhaseAdvance" class="buy-button" type="button" onclick="confirmPhaseAdvance()">Confirm</button>
+          <button id="cancelPhaseAdvanceSecondary" class="ghost-button" type="button" onclick="closePhaseAdvanceConfirm()">Cancel</button>
+        </div>
+      </section>
+    </div>
+
+    <div id="pendingEventGuardModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="pendingEventGuardTitle">
+      <section class="crop-modal pending-event-guard-modal">
+        <div class="panel-header">
+          <div>
+            <p class="eyebrow">Response Window Open</p>
+            <h2 id="pendingEventGuardTitle">Timeline Paused</h2>
+          </div>
+          <button id="pendingEventGuardCancelTop" class="ghost-button" type="button">Cancel</button>
+        </div>
+        <p id="pendingEventGuardMessage" class="description"></p>
+        <div id="pendingEventGuardDetails" class="pending-event-guard-details"></div>
+        <div class="pending-event-guard-actions">
+          <button id="pendingEventGuardLiveReferee" class="ghost-button" type="button">Go To Live Referee</button>
+          <button id="pendingEventGuardTableControls" class="ghost-button" type="button">Open Advanced Controls</button>
+          <button id="pendingEventGuardOverride" class="buy-button" type="button">Finalize Anyway / Host Override</button>
+          <button id="pendingEventGuardCancel" class="ghost-button" type="button">Cancel</button>
+        </div>
+      </section>
+    </div>
+
+    <div id="avatarCropModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="avatarCropTitle">
+      <section class="crop-modal">
+        <div class="panel-header">
+          <div>
+            <p class="eyebrow">Trainer Image</p>
+            <h2 id="avatarCropTitle">Crop Avatar</h2>
+          </div>
+          <button id="cancelAvatarCrop" class="ghost-button" type="button">Cancel</button>
+        </div>
+        <div id="avatarCropViewport" class="crop-viewport">
+          <img id="avatarCropImage" alt="">
+          <div class="crop-ring" aria-hidden="true"></div>
+        </div>
+        <label class="crop-zoom">
+          Zoom
+          <input id="avatarZoom" type="range" min="1" max="3" step="0.01" value="1">
+        </label>
+        <div class="split-actions">
+          <button id="saveAvatarCrop" class="buy-button" type="button">Use Image</button>
+          <button id="resetAvatarCrop" class="ghost-button" type="button">Reset</button>
+        </div>
+      </section>
+    </div>
+
+    <div id="adminToolsModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="adminToolsTitle">
+      <section class="admin-tools-modal">
+        <div class="panel-header">
+          <div>
+            <p class="eyebrow">League Manager</p>
+            <h2 id="adminToolsTitle">Ruleset / Repair</h2>
+          </div>
+          <button id="closeAdminTools" class="ghost-button" type="button">Close</button>
+        </div>
+        <p class="admin-warning">Ruleset tools edit Rival Saga content for this game. Repair tools fix one active save. Normal gameplay should still use confirmed events and undo.</p>
+        <div id="adminRulesetStatus" class="league-manager-status"></div>
+        <details class="admin-tool-section admin-tool-section-save">
+          <summary>Save / Load</summary>
+          <div class="split-actions">
+            <button id="exportSaveData" class="buy-button" type="button">Export Save Data</button>
+            <button id="createBackupSnapshot" class="ghost-button" type="button">Create Backup Snapshot</button>
+          </div>
+          <label class="admin-file-import">
+            Import JSON Save File
+            <input id="importSaveDataFile" type="file" accept="application/json,.json">
+          </label>
+          <textarea id="importSaveDataText" placeholder="Optional fallback: paste exported Rival Saga JSON here"></textarea>
+          <p id="adminImportStatus" class="admin-status"></p>
+          <button id="importSaveData" class="ghost-button" type="button">Import Pasted Save</button>
+        </details>
+        <details class="admin-tool-section admin-tool-section-save">
+          <summary>Game Backups / Restore</summary>
+          <select id="backupSnapshotSelect"></select>
+          <div class="split-actions">
+            <button id="restoreBackupSnapshot" class="ghost-button" type="button">Restore Selected Backup</button>
+            <button id="recalculateDerivedStats" class="ghost-button" type="button">Recalculate Derived Stats</button>
+          </div>
+          <p id="adminBackupStatus" class="admin-status"></p>
+        </details>
+        <details class="admin-tool-section admin-tool-section-debug">
+          <summary>Battle Phase Testing</summary>
+          <p class="admin-warning">Fills unrecorded current-gym battles for testing only. Requires Team Preview to be revealed.</p>
+          <button id="adminSimulateBattlePhase" class="ghost-button" type="button">Simulate Current Battle Phase</button>
+          <p id="adminBattleSimStatus" class="admin-status"></p>
+        </details>
+        <details class="admin-tool-section admin-tool-section-debug admin-tool-section-testing" open>
+          <summary>Testing Setup</summary>
+          <p class="admin-warning">Use these controls to test Rival Saga without being blocked by money, tokens, Pokemon, or turn order.</p>
+          <button id="adminMaxAllPlayersForTesting" class="buy-button admin-max-test-button" type="button">Max All Players For Testing</button>
+          <p id="adminMaxTestingStatus" class="admin-status"></p>
+          <div class="admin-repair-grid">
+            <label>
+              Acting As / Controlled Player
+              <select id="adminTestingActivePlayer"></select>
+            </label>
+            <label class="admin-checkbox-line">
+              <input id="adminIgnoreTurnOrder" type="checkbox">
+              Free Testing Mode: Ignore Turn Order
+            </label>
+            <button id="adminToggleFreeTesting" class="ghost-button" type="button">Toggle Free Testing Mode</button>
+          </div>
+          <p id="adminTestingOverrideStatus" class="admin-status"></p>
+          <h3>Add Test Resources</h3>
+          <div class="admin-repair-grid">
+            <label>
+              Player
+              <select id="adminTestResourcePlayer"></select>
+            </label>
+            <label>
+              Resource
+              <select id="adminTestResourceKind">
+                <option value="money-5000">+5000 money</option>
+                <option value="money-10000">+10000 money</option>
+                <option value="reroll-token">Reroll Token</option>
+                <option value="immunity">Immunity Token</option>
+                <option value="protection">Protection Token</option>
+                <option value="flame-curse">Flame Orb Curse</option>
+                <option value="toxic-curse">Toxic Orb Curse</option>
+                <option value="iron-ball-curse">Iron Ball Curse</option>
+                <option value="move-deleter">Move Deleter</option>
+                <option value="arena-trap">Arena Trap</option>
+                <option value="restrict-token">Restrict</option>
+                <option value="haze-curse">Haze</option>
+                <option value="clear-smog">Clear Smog</option>
+              </select>
+            </label>
+          </div>
+          <button id="adminGiveTestResource" class="ghost-button" type="button">Give Test Resource</button>
+          <p id="adminTestResourceStatus" class="admin-status"></p>
+          <h3>Create Common Test Events</h3>
+          <div class="admin-actions">
+            <button class="ghost-button mini-button" type="button" data-admin-test-event="encounter">Test: Encounter Result Pending</button>
+            <button class="ghost-button mini-button" type="button" data-admin-test-event="control">Test: Control Token Pending</button>
+            <button class="ghost-button mini-button" type="button" data-admin-test-event="curse">Test: Curse Pending</button>
+            <button class="ghost-button mini-button" type="button" data-admin-test-event="team-lock-curse">Test: Sabotage Curse Pending</button>
+            <button class="ghost-button mini-button" type="button" data-admin-test-event="class-effect">Test: Manual Class Effect Pending</button>
+          </div>
+          <p id="adminTestEventStatus" class="admin-status"></p>
+          <div class="admin-scenario-launcher">
+            <div class="admin-scenario-heading">
+              <div>
+                <span class="eyebrow">Advanced Testing</span>
+                <h3>Token Scenario Launcher</h3>
+              </div>
+              <strong id="adminScenarioModeBadge">REAL GAME</strong>
+            </div>
+            <p class="admin-warning">Launch creates an in-memory test copy. Nothing is saved or synced unless a revision-checked commit succeeds.</p>
+            <p class="admin-warning">Advanced Repair is experimental and is not safe for complex live chronology repair.</p>
+            <div class="admin-repair-grid admin-scenario-grid">
+              <label>
+                Scenario
+                <select id="adminTokenScenarioKind">
+                  <option value="normalControl">Normal Control Timing</option>
+                  <option value="actionActor">Action Phase Actor</option>
+                  <option value="targetedResponse">Targeted Response Window</option>
+                  <option value="nonTargetedResponse">Non-Targeted Response Window</option>
+                  <option value="nestedResponse">Nested Response Chain</option>
+                  <option value="teamBuilding">Team Building</option>
+                  <option value="teamLock">Team Lock</option>
+                  <option value="sabotage">Sabotage</option>
+                  <option value="teamPreview">Team Preview</option>
+                  <option value="rivalBattle">Rival Battle Phase</option>
+                  <option value="encounterBefore">Encounter Before Result</option>
+                  <option value="encounterResult">Encounter Result Pending</option>
+                  <option value="wheelManual">Wheel / Guided Result Pending</option>
+                  <option value="fieldActive">Field Already Active</option>
+                  <option value="lingeringActive">Lingering Effect Active</option>
+                  <option value="expiring">Token Effect About To Expire</option>
+                  <option value="invalidTarget">Invalid / Missing Target</option>
+                  <option value="insufficientMoney">Insufficient Money</option>
+                  <option value="severalResponses">Several Legal Responses</option>
+                </select>
+              </label>
+              <label>
+                Acting Player
+                <select id="adminTokenScenarioActor"></select>
+              </label>
+              <label>
+                Targeted Player
+                <select id="adminTokenScenarioTarget"></select>
+              </label>
+              <label>
+                Test Token
+                <select id="adminTokenScenarioToken"></select>
+              </label>
+              <label>
+                Relevant Possessions
+                <select id="adminTokenScenarioPossessions">
+                  <option value="selected">Selected Token Only</option>
+                  <option value="responses">Selected + Response Tokens</option>
+                  <option value="all">All Tokens</option>
+                  <option value="none">No Added Possessions</option>
+                </select>
+              </label>
+              <label>
+                Existing Persistent Effect
+                <select id="adminTokenScenarioPersistent">
+                  <option value="none">None</option>
+                  <option value="field">Active Drizzle Field</option>
+                  <option value="safeguard">Active Safeguard</option>
+                  <option value="restrict">Active Restrict</option>
+                </select>
+              </label>
+            </div>
+            <div class="split-actions admin-scenario-actions">
+              <button id="adminLaunchTokenScenario" class="buy-button" type="button">Launch Test Sandbox</button>
+              <button id="adminDiscardTokenScenario" class="ghost-button sandbox-discard-button" type="button" disabled>Discard Sandbox</button>
+              <button id="adminCommitTokenScenario" class="buy-button sandbox-commit-button" type="button" disabled>Commit Scenario</button>
+            </div>
+            <p id="adminTokenScenarioStatus" class="admin-status"></p>
+          </div>
+        </details>
+        <details class="admin-tool-section admin-tool-section-repair">
+          <summary>Game State Repair</summary>
+          <div class="admin-repair-grid">
+            <label>
+              Series
+              <select id="adminSeriesSelect"></select>
+            </label>
+            <label>
+              Gym
+              <select id="adminGymSelect"></select>
+            </label>
+            <label>
+              Phase
+              <select id="adminPhaseSelect">
+                <option value="start">Start of Gym Phase</option>
+                <option value="action">Action Phase</option>
+                <option value="battle">Battle Phase</option>
+                <option value="battle-results">Battle Results Phase</option>
+                <option value="shop">Shop Phase</option>
+              </select>
+            </label>
+            <button id="adminApplyPhase" class="ghost-button" type="button">Set Series/Gym/Phase</button>
+          </div>
+          <div class="admin-repair-grid">
+            <label>
+              Player
+              <select id="adminRepairPlayer"></select>
+            </label>
+            <label>
+              Field
+              <select id="adminRepairField">
+                <option value="money">Money</option>
+                <option value="sagaPoints">Saga Points</option>
+                <option value="momentum">Momentum</option>
+                <option value="tmLevel">TM Level</option>
+                <option value="itemLevel">Item Level</option>
+              </select>
+            </label>
+            <label>
+              Mode
+              <select id="adminRepairMode">
+                <option value="add">Add</option>
+                <option value="subtract">Subtract</option>
+                <option value="set">Set</option>
+              </select>
+            </label>
+            <label>
+              Amount
+              <input id="adminRepairAmount" type="number" step="1" placeholder="0">
+            </label>
+          </div>
+          <label>
+            Repair Note
+            <input id="adminRepairNote" type="text" placeholder="Required reason for manual repair">
+          </label>
+          <button id="adminApplyRepair" class="ghost-button" type="button">Apply Manual Repair</button>
+          <p id="adminRepairStatus" class="admin-status"></p>
+        </details>
+        <details class="admin-tool-section admin-tool-section-repair">
+          <summary>Action Count Repair</summary>
+          <p class="admin-warning">Repairs current Series/Gym Action Phase visit records. This is for debugging stuck action counts.</p>
+          <div class="admin-repair-grid">
+            <label>
+              Player
+              <select id="adminActionRepairPlayer"></select>
+            </label>
+            <label>
+              Set Actions Used
+              <input id="adminSetActionsUsed" type="number" min="0" max="3" step="1" placeholder="0">
+            </label>
+          </div>
+          <p id="adminActionRepairSummary" class="admin-status"></p>
+          <div class="admin-actions">
+            <button id="adminApplyActionsUsed" class="ghost-button" type="button">Set Actions Used</button>
+            <button id="adminResetPlayerActions" class="ghost-button" type="button">Reset Player Actions</button>
+            <button id="adminResetAllActions" class="ghost-button" type="button">Reset All Current Gym Actions</button>
+          </div>
+        </details>
+        <details class="admin-tool-section admin-tool-section-ruleset">
+          <summary>Ruleset Editor: Token Catalog</summary>
+          <p class="admin-warning">Edit token shop rules for this game ruleset. Purchases, inventory, activation, and cart logic continue to use normal gameplay paths.</p>
+          <div class="admin-repair-grid">
+            <label>
+              Token
+              <select id="adminTokenCatalogSelect"></select>
+            </label>
+            <label>
+              Name
+              <input id="adminTokenCatalogName" type="text" placeholder="Restrict">
+            </label>
+            <label>
+              Tier / Shelf
+              <input id="adminTokenCatalogTier" type="text" placeholder="Control">
+            </label>
+            <label>
+              Category
+              <input id="adminTokenCatalogCategory" type="text" placeholder="Control">
+            </label>
+            <label>
+              Token Type
+              <input id="adminTokenCatalogType" type="text" placeholder="control">
+            </label>
+            <label>
+              Price
+              <input id="adminTokenCatalogPrice" type="number" min="0" step="100" placeholder="0">
+            </label>
+            <label class="admin-checkbox-line">
+              <input id="adminTokenCatalogUnavailable" type="checkbox">
+              Unavailable / Not purchasable
+            </label>
+          </div>
+          <label>
+            Description
+            <textarea id="adminTokenCatalogDescription" rows="3" placeholder="Short shop description"></textarea>
+          </label>
+          <div class="admin-actions">
+            <button id="saveTokenCatalogEntry" class="ghost-button" type="button">Save Token Definition</button>
+            <button id="resetTokenCatalogEntry" class="ghost-button" type="button">Reset To Default</button>
+          </div>
+          <p id="adminTokenCatalogStatus" class="admin-status"></p>
+        </details>
+        <details class="admin-tool-section admin-tool-section-content">
+          <summary>Content Library: Token Art</summary>
+          <p class="admin-warning">Token art is now ruleset content. It is saved under the game's ruleset library, mirrored locally as a fallback, and survives Development Reset.</p>
+          <div class="admin-repair-grid">
+            <label>
+              Token
+              <select id="adminTokenImageSelect"></select>
+            </label>
+            <label>
+              Image URL / Path
+              <input id="adminTokenImageUrl" type="text" placeholder="assets/tokens/class-change.png">
+            </label>
+            <label class="admin-file-import">
+              Upload Image
+              <input id="adminTokenImageFile" type="file" accept="image/*">
+            </label>
+            <label>
+              Fit
+              <select id="adminTokenImageFit">
+                <option value="cover">Fill circle</option>
+                <option value="contain">Fit inside circle</option>
+              </select>
+            </label>
+            <label>
+              Zoom
+              <input id="adminTokenImageZoom" type="range" min="0.7" max="1.5" step="0.05" value="1">
+            </label>
+            <label>
+              Border Color
+              <input id="adminTokenImageBorder" type="color" value="#38bdf8">
+            </label>
+          </div>
+          <p class="admin-status">Drag the token image inside the circle to position it. Use zoom and fit to tune the crop.</p>
+          <div id="adminTokenImagePreview" class="token-image-preview"></div>
+          <div class="admin-actions">
+            <button id="saveTokenImage" class="ghost-button" type="button">Save Token Image</button>
+            <button id="resetTokenImage" class="ghost-button" type="button">Reset Token Image</button>
+          </div>
+          <p id="adminTokenImageStatus" class="admin-status"></p>
+        </details>
+        <details class="admin-tool-section admin-tool-section-content">
+          <summary>Content Library: Sprite Search / Preview</summary>
+          <p class="admin-warning">Debugs Rival Saga tier-list names that do not resolve to sprites. Aliases and variants change sprite lookup only, not tier assignment.</p>
+          <div class="admin-repair-grid">
+            <label>
+              Sprite Search
+              <input id="adminSpriteSearch" type="text" placeholder="minior">
+            </label>
+          </div>
+          <div class="admin-actions">
+            <button id="runSpriteSearch" class="ghost-button" type="button">Search / Preview</button>
+          </div>
+          <div id="spriteSearchResults" class="sprite-audit-results"></div>
+          <div class="split-actions">
+            <button id="runSpriteAudit" class="ghost-button" type="button">Run Sprite Audit</button>
+          </div>
+          <p id="spriteAuditStatus" class="admin-status"></p>
+          <div id="spriteAuditResults" class="sprite-audit-results"></div>
+          <div class="admin-repair-grid">
+            <label>
+              Pokemon Name
+              <input id="adminSpriteAliasName" type="text" placeholder="Farfetch'd-G">
+            </label>
+            <label>
+              Sprite Alias
+              <input id="adminSpriteAliasValue" type="text" placeholder="farfetchd-galar">
+            </label>
+          </div>
+          <div class="admin-actions">
+            <button id="previewSpriteAlias" class="ghost-button" type="button">Preview Alias</button>
+            <button id="saveSpriteAlias" class="ghost-button" type="button">Save Alias</button>
+          </div>
+          <div id="spriteAliasPreview" class="sprite-alias-preview"></div>
+          <div class="admin-divider"></div>
+          <h3>Sprite Variants</h3>
+          <p class="admin-warning">Use this for Pokemon like Minior that should randomly keep one of several sprite forms. One key per line.</p>
+          <div class="admin-repair-grid">
+            <label>
+              Pokemon Name
+              <input id="adminSpriteVariantName" type="text" placeholder="Minior">
+            </label>
+            <label>
+              Random Variant Sprites
+              <textarea id="adminSpriteVariantKeys" rows="6" placeholder="minior-red-meteor&#10;minior-blue-meteor&#10;minior-violet"></textarea>
+            </label>
+          </div>
+          <div class="admin-actions">
+            <button id="loadDefaultSpriteVariants" class="ghost-button" type="button">Load Built-In Defaults</button>
+            <button id="previewSpriteVariants" class="ghost-button" type="button">Preview Variants</button>
+            <button id="saveSpriteVariants" class="ghost-button" type="button">Save Variants</button>
+          </div>
+          <div id="spriteVariantPreview" class="sprite-alias-preview"></div>
+        </details>
+        <details class="admin-tool-section admin-tool-section-ruleset">
+          <summary>Ruleset Editor: Pokemon Tier Overrides</summary>
+          <p class="admin-warning">Use this to adjust Battle Tiers or acquisition families without code changes. These are ruleset-style overrides for the current game.</p>
+          <div class="admin-repair-grid">
+            <label>
+              Pokemon
+              <input id="adminTierPokemonName" type="text" placeholder="Darmanitan-Galar">
+            </label>
+            <label>
+              Acquisition Family
+              <select id="adminGameCornerTierOverride"></select>
+            </label>
+            <label>
+              Battle Tier
+              <select id="adminBalanceTierOverride"></select>
+            </label>
+          </div>
+          <div class="admin-actions">
+            <button id="previewTierOverride" class="ghost-button" type="button">Preview Current Values</button>
+            <button id="saveTierOverride" class="ghost-button" type="button">Save Tier Override</button>
+            <button id="clearTierOverride" class="ghost-button" type="button">Clear Override</button>
+          </div>
+          <p id="adminTierOverrideStatus" class="admin-status"></p>
+        </details>
+        <details class="admin-tool-section admin-tool-section-debug">
+          <summary>Development Tools</summary>
+          <h3>Development Reset</h3>
+          <p class="admin-warning">Destructive test tool. Normal gameplay should use confirmed events and undo.</p>
+          <button id="adminDevelopmentReset" class="danger-button" type="button">Reset Full Game/Test Data</button>
+        </details>
+      </section>
+    </div>
+
+  </body>
+</html>

@@ -1,0 +1,44 @@
+{
+  "name": "rival-saga",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Rival Saga live client prototype with a lightweight local backend.",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "simulate:series": "node scripts/simulate-series.js",
+    "import:encounters:hoenn": "node scripts/import-pokeapi-hoenn-encounters.js",
+    "import:build-data": "node scripts/import-pokeapi-build-data.js pokemon-build-data.js pokemon-build-data.js",
+    "generate:move-classification": "node scripts/generate-move-classification-data.js",
+    "audit:build-data": "node scripts/audit-build-learnsets.js",
+    "audit:tm-shop": "node scripts/audit-tm-shop-coverage.js",
+    "audit:docs": "node scripts/check-doc-links.js",
+    "generate:token-matrix": "node scripts/generate-token-effect-matrix.js",
+    "generate:token-coverage": "node scripts/generate-token-qa-coverage.js",
+    "generate:token-handoff": "node scripts/generate-token-final-handoff.js",
+    "audit:token-contract": "node scripts/generate-token-effect-matrix.js --check",
+    "test:control-tokens": "node --test scripts/test-control-token-foundation.js",
+    "test:token-controller": "node --test scripts/test-token-controller-integration.js",
+    "test:token-sandbox": "node --test scripts/test-token-sandbox.js",
+    "test:token-browser": "node --test scripts/test-token-browser.js",
+    "test:game-shell": "node --test scripts/test-game-shell-loading.js",
+    "test:battle-phase": "node --test scripts/test-battle-phase-authority.js",
+    "test:sabotage-flow": "node --test scripts/test-sabotage-effect-flow.js",
+    "test:action-operations": "node --test scripts/test-action-operation-contract.js",
+    "test:provisional-declarations": "node --test scripts/test-provisional-declaration-runtime.js scripts/test-provisional-declaration-server.js",
+    "test:live-referee-context": "node --test scripts/test-live-referee-controlled-context.js",
+    "test:live-referee-lifecycle": "node --test scripts/test-live-referee-lifecycle.js",
+    "test:live-referee-regressions": "node --test scripts/test-live-referee-token-regressions.js",
+    "test:token-inventory-runtime": "node --test scripts/test-token-inventory-runtime.js",
+    "test:token-results": "node --test scripts/test-token-result-summary.js",
+    "test:standard-curses": "node --test scripts/test-standard-curse-tokens.js",
+    "test:settled-token-rulings": "node --test scripts/test-settled-token-rulings.js",
+    "test:token-coverage": "node scripts/run-token-qa-coverage.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "devDependencies": {
+    "pokemon-showdown": "^0.11.10"
+  }
+}
