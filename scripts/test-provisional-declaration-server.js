@@ -39,7 +39,6 @@ function baseState({ tokenName = "Incinerate", tokenId = "incinerate" } = {}) {
     tokenConsumptions: [],
     log: [],
     lingeringStatuses: [],
-    fieldTokens: [],
     actionPhaseState: {
       selections: {
         "Kanto-G1": {

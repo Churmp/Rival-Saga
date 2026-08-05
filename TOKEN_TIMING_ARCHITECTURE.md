@@ -264,7 +264,7 @@ Team Lock addition:
 - Some protection effects may redirect or delay instead of canceling.
 - Some encounter tokens are pre-roll modifiers, while others are result-window modifiers.
 - Game Corner and insurance tokens may need special timing categories or subcategories later.
-- Field tokens are not covered by the four major timing categories yet; they should probably become `field` activations with their own pending event behavior.
+- Future Gym Modifiers require their own timing architecture before implementation; they are not Token effects.
 - Team Lock needs a first-class phase/timing marker before curse automation becomes reliable.
 - Existing save data may refer to old token ids such as `move-deleter-curse`; migration must preserve old inventory and status records.
 

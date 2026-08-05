@@ -226,7 +226,6 @@
     const fields = [
       ["players", "previousPlayers"],
       ["pokemonRecords", "previousPokemonRecords"],
-      ["fieldTokens", "previousFieldTokens"],
       ["lingeringStatuses", "previousLingeringStatuses"],
       ["tokenActivations", "previousTokenActivations"],
       ["playerNotifications", "previousPlayerNotifications"],

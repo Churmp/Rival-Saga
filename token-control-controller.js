@@ -215,18 +215,28 @@
     }
     if (definition.id === "unban-token") {
       const active = effects.activeSpeciesStatuses(state, speciesName, ["ban", "restrict"], effectOptions);
+      if (input.selectedStatusId && !active.some((status) => status.id === input.selectedStatusId)) {
+        return { ok: false, reason: "The selected Ban or Restrict is no longer active." };
+      }
+      if (!input.selectedStatusId && active.length > 1) {
+        return { ok: false, reason: "Choose the exact Ban or Restrict record to remove." };
+      }
       if (!active.length && !["Banned", "Restricted"].includes(legacyRuleStatus(state, speciesName, effectOptions))) {
         return { ok: false, reason: `${speciesName} has no active Ban or Restrict to remove.` };
       }
     }
     if (definition.id === "extra-ban-token") {
       if (!pokemon) return { ok: false, reason: "Choose a specific roster Pokemon as Extra Ban's declaration target." };
+      if (pokemon.rosterType !== "Active") return { ok: false, reason: "Extra Ban must target an exact Pokemon on an Active roster." };
       if (effects.speciesHasBanPhaseProtection(state, speciesName, effectOptions)) {
         return { ok: false, reason: `${speciesName} cannot be banned again during this phase because Substitute protected it.` };
       }
     }
     if (["arena-trap", "clear-smog", "rage-candy-bar", "wicked-blow", "substitute", "knock-off-curse", "devolve-token", ...STANDARD_CURSE_TOKEN_IDS].includes(definition.id) && !pokemon) {
       return { ok: false, reason: `Choose a specific roster Pokemon for ${definition.name}.` };
+    }
+    if (definition.id === "clear-smog" && pokemon.rosterType !== "Active") {
+      return { ok: false, reason: "Clear Smog must target an exact Pokemon on an Active roster." };
     }
     if (definition.id === "steal-token" && !pokemon) {
       return { ok: false, reason: "Choose a specific roster Pokemon to Steal." };
@@ -378,6 +388,23 @@
         return { ok: false, reason: "The selected ongoing effect is no longer active or eligible.", refund: true };
       }
     }
+    if (definition.id === "extra-ban-token" && (!pokemon || pokemon.rosterType !== "Active")) {
+      return { ok: false, reason: "The selected Extra Ban anchor is no longer on an Active roster.", refund: true };
+    }
+    if (definition.id === "clear-smog" && (!pokemon || pokemon.rosterType !== "Active")) {
+      return { ok: false, reason: "The selected Clear Smog target is no longer on an Active roster.", refund: true };
+    }
+    if (definition.id === "unban-token") {
+      const speciesName = String(activity?.payload?.speciesName || activity?.payload?.targetPokemonName || activity?.payload?.targetText || "").trim();
+      const active = effects.activeSpeciesStatuses(state, speciesName, ["ban", "restrict"], effectOptions);
+      const selectedStatusId = String(activity?.payload?.selectedStatusId || "").trim();
+      if (selectedStatusId && !active.some((status) => status.id === selectedStatusId)) {
+        return { ok: false, reason: "The selected Ban or Restrict disappeared before confirmation.", refund: true };
+      }
+      if (!selectedStatusId && active.length > 1) {
+        return { ok: false, reason: "The exact Ban or Restrict choice is missing.", refund: true };
+      }
+    }
     if (definition.id === "purge-curse" && typeof effectOptions.purgeTimingCheck === "function") {
       const timing = effectOptions.purgeTimingCheck();
       if (!timing?.ok) return { ok: false, reason: timing?.reason || "Purge is no longer legal for this Battle Phase.", refund: true };
@@ -459,7 +486,7 @@
     let resolution;
     let ruleChange = null;
     if (definition.id === "restrict-token") {
-      const expires = expiration(2);
+      const expires = expiration(6);
       resolution = effects.resolveRestrict(state, {
         ...source,
         speciesName,
@@ -470,7 +497,7 @@
         excludedRosterInstanceIds: activity.payload?.excludedRosterInstanceIds || [],
         hasLegacyRestriction: legacyRuleStatus(state, speciesName, effectOptions) === "Restricted"
       }, effectOptions);
-      if (resolution.result === "resolved") ruleChange = { speciesName, action: "Restricted", status: resolution.status, durationGyms: 2 };
+      if (resolution.result === "resolved") ruleChange = { speciesName, action: "Restricted", status: resolution.status, durationGyms: 6 };
     } else if (definition.id === "unban-token") {
       const expires = expiration(6);
       resolution = effects.resolveUnban(state, {
@@ -478,6 +505,7 @@
         speciesName,
         ...expires,
         eventId: activity.id,
+        selectedStatusId: activity.payload?.selectedStatusId || "",
         hasLegacyRestriction: ["Banned", "Restricted"].includes(legacyRuleStatus(state, speciesName, effectOptions))
       }, effectOptions);
       if (resolution.result === "resolved") ruleChange = { speciesName, action: "Unbanned", status: resolution.status, durationGyms: 6 };
@@ -788,6 +816,7 @@
           targetPokemonName: legality.pokemon?.name || input.targetPokemonName || legality.speciesName,
           targetOwnerPlayerId: legality.pokemon?.trainerId || input.targetPlayerId || "",
           speciesName: legality.speciesName,
+          selectedStatusId: input.selectedStatusId || "",
           selectedRosterInstanceId: legality.pokemon?.id || input.selectedRosterInstanceId || "",
           selectedRosterInstanceIds: unique([
             ...(input.targetPokemonIds || input.selectedRosterInstanceIds || []),

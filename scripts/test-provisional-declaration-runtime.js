@@ -5,6 +5,7 @@ const test = require("node:test");
 
 const lifecycle = require("../interaction-situation-lifecycle.js");
 const runtime = require("../provisional-declaration-runtime.js");
+const tokenContract = require("../token-effect-contract.js");
 
 function actionState() {
   return {
@@ -222,9 +223,31 @@ test("[PD-RUNTIME-011] active situations and required-choice blockers close ever
   assert.equal(requiredChoice.reason, "A required choice is still open.");
 });
 
-test("[PD-RUNTIME-012] Gym Start preparation, Team Preview, and unfinished payout never leak ordinary Control", () => {
-  assert.equal(ordinaryTiming(setPhase(actionState(), "start", "preGym")).open, false);
+test("[PD-RUNTIME-012] Gym Start preparation opens Control while Gym Start, Team Preview, and unfinished payout remain closed", () => {
+  const preparation = ordinaryTiming(setPhase(actionState(), "start", "preGym"));
+  assert.equal(preparation.open, true);
+  assert.equal(preparation.context, runtime.ORDINARY_CONTROL_CONTEXTS.GYM_START_PREPARATION);
   assert.equal(ordinaryTiming(setPhase(actionState(), "start", "gymStart")).open, false);
   assert.equal(ordinaryTiming(setPhase(actionState(), "battle", "teamPreview")).open, false);
   assert.equal(ordinaryTiming(setPhase(actionState(), "battle-results", "gymPayout"), { battlePayoutComplete: false }).open, false);
+});
+
+test("[PD-RUNTIME-013] Restrict is declared through every materially distinct ordinary Control context", () => {
+  const expected = [
+    runtime.ORDINARY_CONTROL_CONTEXTS.GYM_START_PREPARATION,
+    runtime.ORDINARY_CONTROL_CONTEXTS.ACTION_OPEN,
+    runtime.ORDINARY_CONTROL_CONTEXTS.TEAM_BUILDING,
+    runtime.ORDINARY_CONTROL_CONTEXTS.SHOP,
+    runtime.ORDINARY_CONTROL_CONTEXTS.POST_BATTLE
+  ];
+  assert.deepEqual(tokenContract.definitionFor("restrict-token").legalControlContexts, expected);
+  const states = [
+    ordinaryTiming(setPhase(actionState(), "start", "preGym")),
+    ordinaryTiming(setPhase(actionState(), "action", "action")),
+    ordinaryTiming(setPhase(actionState(), "battle", "teamBuild")),
+    ordinaryTiming(setPhase(actionState(), "shop", "shopping")),
+    ordinaryTiming(setPhase(actionState(), "battle-results", "gymPayout"), { battlePayoutComplete: true })
+  ];
+  assert.deepEqual(states.map((entry) => entry.context), expected);
+  assert.equal(states.every((entry) => entry.open), true);
 });

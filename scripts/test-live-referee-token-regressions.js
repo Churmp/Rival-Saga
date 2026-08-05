@@ -14,12 +14,10 @@ test("[LRR-001] exact inventory records require a canonical Token effect", () =>
   assert.equal(contract.inventoryDefinitionFor({ id: "owned-toxic-1", name: "Toxic Curse", type: "TOKEN" })?.id, "toxic-curse");
   assert.equal(contract.inventoryDefinitionFor({ id: "owned-toxic-2", canonicalId: "toxic-curse", type: "TOKEN" })?.id, "toxic-curse");
   assert.equal(contract.inventoryDefinitionFor({ id: "protection-category", name: "Protection Token", type: "TOKEN" }), null);
-  assert.equal(contract.inventoryDefinitionFor({ id: "electric-field-token", name: "Electric Field Token", type: "TOKEN" }), null);
-  assert.equal(contract.inventoryDefinitionFor({ id: "grassy-field-token", name: "Grassy Field Token", type: "TOKEN" }), null);
   assert.equal(contract.inventoryDefinitionFor({ id: "curse-category", name: "Curses", type: "TOKEN" }), null);
 });
 
-test("[LRR-002] Sabotage legality belongs to Curse contracts, not Control or Field categories", () => {
+test("[LRR-002] Sabotage legality belongs to Curse contracts, not Control categories", () => {
   ["toxic-curse", "iron-ball-curse", "flame-curse", "silencing-curse", "imprison-curse"].forEach((id) => {
     const definition = contract.definitionFor(id);
     assert.equal(definition.timingWindows.includes("sabotage"), true, `${id} should expose its explicit Sabotage Curse window.`);
@@ -27,11 +25,11 @@ test("[LRR-002] Sabotage legality belongs to Curse contracts, not Control or Fie
     assert.equal(definition.timingPermissions.sabotageCurseWindow, true);
   });
   assert.equal(contract.definitionFor("wicked-blow").timingWindows.includes("sabotage"), false);
-  assert.equal(contract.definitionFor("payday-field").timingWindows.includes("sabotage"), false);
+  assert.equal(contract.definitionFor("payday-field"), null);
 });
 
 test("[LRR-003] blocked inventory effects fail while completed exact-inventory responses remain usable", () => {
-  assert.equal(contract.activationUsabilityFor("devolve-token").ok, false);
+  assert.equal(contract.activationUsabilityFor("foresight-curse").ok, false);
   assert.equal(contract.activationUsabilityFor("seven-tools").ok, true);
   assert.equal(contract.activationUsabilityFor("counterspell").ok, true);
   assert.equal(contract.activationUsabilityFor("toxic-curse").ok, true);

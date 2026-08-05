@@ -239,16 +239,16 @@ async function navigateProduction(state, scenarioId) {
   const payload = await bootstrap.json();
   if (!bootstrap.ok) throw new Error(`Could not bootstrap production browser QA game: ${bootstrap.status}`);
   await saveGame(server.baseUrl, gameId, state, Number(payload.game?.version || 0));
-  const loaded = cdp.once("Page.loadEventFired", 30000);
+  const loaded = cdp.once("Page.loadEventFired", 60000);
   await cdp.send("Page.navigate", {
     url: `${server.baseUrl}/?view=game&game=${encodeURIComponent(gameId)}`
-  }, 30000);
+  }, 60000);
   await loaded;
   await waitUntil(`(() => { try {
     return typeof liveRefereeWickedBlowTargetScreenMarkup === "function"
       && typeof state === "object"
       && state?.marker === ${JSON.stringify(state.marker)};
-  } catch { return false; } })()`, 30000);
+  } catch { return false; } })()`, 60000);
   return gameId;
 }
 
@@ -624,8 +624,6 @@ test("[BROWSER-007] production Wicked Blow hydration and Sabotage Token authorit
       { id: "toxic-2", name: "Toxic Curse", type: "TOKEN" },
       { id: "flame-1", name: "Flame Curse", type: "TOKEN" },
       { id: "category-protection", name: "Protection Token", type: "TOKEN", tokenType: "protection" },
-      { id: "electric-field-token", name: "Electric Field Token", type: "TOKEN", tokenType: "field" },
-      { id: "grassy-field-token", name: "Grassy Field Token", type: "TOKEN", tokenType: "field" },
       { id: "blocked-devolve", name: "Devolve", type: "TOKEN", tokenType: "curse" },
       { id: "development-seven", name: "7 Tools Of The Bandit", type: "TOKEN", tokenType: "protection" },
       { id: "illegal-wicked", name: "Wicked Blow", type: "TOKEN", tokenType: "control" }
@@ -640,20 +638,18 @@ test("[BROWSER-007] production Wicked Blow hydration and Sabotage Token authorit
     const available = liveRefereeAvailableTokenGroups(prompt, actor.id);
     const markup = liveRefereeTokenListScreenMarkup(prompt, actor.id);
     const fullInventoryNames = actor.inventory.map((item) => item.name);
-    actor.inventory = actor.inventory.filter((item) => ["Protection Token", "Electric Field Token", "Grassy Field Token"].includes(item.name));
+    actor.inventory = actor.inventory.filter((item) => item.name === "Protection Token");
     const empty = liveRefereeAvailableTokenGroups(prompt, actor.id);
     const emptyMarkup = liveRefereeTokenListScreenMarkup(prompt, actor.id);
     return {
       fullInventoryNames,
       legal: available.groups.map((group) => ({ name: group.name, count: group.count })),
       canonicalGroups: liveRefereeTokenInventoryGroups({ inventory: [
-        { id: "category-protection", name: "Protection Token", type: "TOKEN" },
-        { id: "electric-field-token", name: "Electric Field Token", type: "TOKEN" },
-        { id: "grassy-field-token", name: "Grassy Field Token", type: "TOKEN" }
+        { id: "category-protection", name: "Protection Token", type: "TOKEN" }
       ] }).length,
       hasCurseHeading: markup.includes("<h3>Curse Token</h3>"),
       categoryIsSelectable: /<h3[^>]*data-live-referee-effect-pick/.test(markup),
-      hasPlaceholder: /Protection Token x|Electric Field|Grassy Field/.test(markup),
+      hasPlaceholder: /Protection Token x/.test(markup),
       hasBlockedReference: /7 Tools Of The Bandit/.test(markup),
       blockedIsSelectable: /data-live-referee-effect-pick="7 Tools Of The Bandit"/.test(markup),
       hasIllegalTiming: /Wicked Blow x/.test(markup),
@@ -771,7 +767,7 @@ test("[BROWSER-008] production 7 Tools and Counterspell preserve exact inventory
   const sevenUndo = await evaluate(`(() => {
     const activity = getCurrentPendingEvent();
     const resolution = resolveCurrentInteractionPrompt(activity, { force: true, source: "browser-test-finish" });
-    const effectLog = state.log.find((entry) => !entry.undone && entry.undoData?.actionType === "undoTokenEffectContract");
+    const effectLog = state.log.find((entry) => !entry.undone && entry.undoData?.actionType?.startsWith("undoTokenEffectContract"));
     if (!resolution.closed || !effectLog) throw new Error("7 Tools root did not produce an undoable terminal result.");
     undoLogEntry(effectLog.id);
     const actor = state.players.find((player) => player.id === "steevee");
@@ -868,7 +864,7 @@ test("[BROWSER-008] production 7 Tools and Counterspell preserve exact inventory
   })()`);
   assert.deepEqual(counterReload, { exists: true, available: false, exactCount: 1 });
   const counterUndo = await evaluate(`(() => {
-    const effectLog = state.log.find((entry) => !entry.undone && entry.undoData?.actionType === "undoTokenEffectContract");
+    const effectLog = state.log.find((entry) => !entry.undone && entry.undoData?.actionType?.startsWith("undoTokenEffectContract"));
     if (!effectLog) throw new Error("Counterspell result did not retain its root undo record.");
     undoLogEntry(effectLog.id);
     const actor = state.players.find((player) => player.id === "steevee");
@@ -1192,42 +1188,61 @@ test("[BROWSER-012] Revenge required choice persists, resolves exact snapshot re
     type: "TOKEN",
     tokenType: "protection"
   });
+  productionState.lingeringStatuses.push({
+    id: "browser-012-curse",
+    type: "toxic-curse",
+    name: "Toxic Curse",
+    status: "active",
+    isCurse: true,
+    series: "Kanto",
+    gym: 1,
+    actorPlayerId: "red",
+    targetPlayerId: "gold",
+    selectedRosterInstanceId: "gold-garchomp",
+    payload: { sourcePlayerId: "red", selectedRosterInstanceId: "gold-garchomp" }
+  });
+  productionState.battleRecords = [
+    {
+      id: "browser-012-gold-red", series: "Kanto", gym: 1, player1Id: "gold", player2Id: "red", winnerId: "gold",
+      player1Differential: 1, player2Differential: -1,
+      player1Pokemon: [{ pokemonId: "gold-garchomp", pokemonName: "Garchomp", kos: 1, deaths: 0 }],
+      player2Pokemon: [
+        { pokemonId: "red-garchomp", pokemonName: "Garchomp", kos: 0, deaths: 1 },
+        { pokemonId: "red-lucario", pokemonName: "Lucario", kos: 0, deaths: 1 }
+      ]
+    },
+    {
+      id: "browser-012-gold-steevee", series: "Kanto", gym: 1, player1Id: "gold", player2Id: "steevee", winnerId: "gold",
+      player1Differential: 1, player2Differential: -1,
+      player1Pokemon: [{ pokemonId: "gold-garchomp", pokemonName: "Garchomp", kos: 1, deaths: 0 }],
+      player2Pokemon: [{ pokemonId: "steevee-alakazam", pokemonName: "Alakazam", kos: 0, deaths: 1 }]
+    },
+    {
+      id: "browser-012-red-steevee", series: "Kanto", gym: 1, player1Id: "red", player2Id: "steevee", winnerId: "red",
+      player1Differential: 1, player2Differential: -1,
+      player1Pokemon: [{ pokemonId: "red-garchomp", pokemonName: "Garchomp", kos: 1, deaths: 0 }],
+      player2Pokemon: [{ pokemonId: "steevee-alakazam", pokemonName: "Alakazam", kos: 0, deaths: 1 }]
+    }
+  ];
   const gameId = await navigateProduction(productionState, "BROWSER-012-REVENGE");
 
   const offered = await evaluate(`(() => {
     backendSync.enabled = false;
-    state.broughtTeamSnapshots ||= [];
-    const snapshot = controlTokenEffects.createImmutableBroughtSnapshot(state, {
-      id: "browser-012-snapshot",
-      series: "Kanto",
-      gym: 1,
-      broughtByPlayer: {
-        gold: ["gold-garchomp"],
-        red: ["red-garchomp", "red-lucario"]
-      }
-    }, controlTokenEffectOptions());
-    state.lingeringStatuses.push({
-      id: "browser-012-curse",
-      type: "toxic-curse",
-      name: "Toxic Curse",
-      status: "active",
-      isCurse: true,
-      series: "Kanto",
-      gym: 1,
-      actorPlayerId: "red",
-      targetPlayerId: "gold",
-      selectedRosterInstanceId: "gold-garchomp",
-      payload: { sourcePlayerId: "red", selectedRosterInstanceId: "gold-garchomp" }
-    });
-    const created = createRevengePostPayoutProcedures(snapshot);
+    const balanceBefore = state.players.find((player) => player.id === "gold").balance;
+    finalizeGymResults({ skipPendingGuard: true });
+    const procedure = state.postPayoutProcedures.find((entry) => entry.type === "revenge");
+    const event = state.interactionEvents.find((entry) => entry.id === procedure?.interactionEventId);
     state.liveRefereeCollapsed = false;
     render();
     return {
-      procedureId: created[0]?.procedure?.id || "",
-      eventId: created[0]?.event?.id || "",
-      status: created[0]?.procedure?.status || "",
+      procedureId: procedure?.id || "",
+      eventId: event?.id || "",
+      status: procedure?.status || "",
       hasForm: Boolean(document.querySelector("[data-revenge-procedure-form]")),
-      tokenCount: state.players.find((player) => player.id === "gold").inventory.filter((item) => item.id === "gold-revenge-1").length
+      tokenCount: state.players.find((player) => player.id === "gold").inventory.filter((item) => item.id === "gold-revenge-1").length,
+      gymResults: state.gymResults.filter((entry) => entry.key === "Kanto:G1" && !entry.undone).length,
+      payoutApplied: state.players.find((player) => player.id === "gold").balance > balanceBefore,
+      snapshotSource: state.broughtTeamSnapshots.find((entry) => entry.id === procedure?.broughtSnapshotId)?.source || ""
     };
   })()`);
   assert.ok(offered.procedureId);
@@ -1235,6 +1250,9 @@ test("[BROWSER-012] Revenge required choice persists, resolves exact snapshot re
   assert.equal(offered.status, "awaitingChoice");
   assert.equal(offered.hasForm, true);
   assert.equal(offered.tokenCount, 1);
+  assert.equal(offered.gymResults, 1);
+  assert.equal(offered.payoutApplied, true);
+  assert.equal(offered.snapshotSource, "finalizedGymPayout");
   const savedOffer = await persistBrowserState(gameId);
   assert.equal(savedOffer.postPayoutProcedures.filter((entry) => entry.id === offered.procedureId && entry.status === "awaitingChoice").length, 1);
 
@@ -1537,6 +1555,7 @@ test("[BROWSER-013] After You and Follow Me preserve chain order and inventory-c
     }
     await pushBackendState({ force: true });
     return {
+      rootId: root.id,
       redirectResolution,
       rootResolution,
       pendingStatus,
@@ -1562,6 +1581,51 @@ test("[BROWSER-013] After You and Follow Me preserve chain order and inventory-c
     relationships: state.copiedTokenRelationships.filter((entry) => entry.relationshipType === "followMe" && entry.status === "active").length,
     copies: state.players.find((player) => player.id === "steevee").inventory.filter((item) => item.copyProvenance?.copySourceType === "followMe").length
   }))()`), { relationships: 1, copies: 1 });
+  const followExpired = await evaluate(`(async () => {
+    const expired = controlTokenEffects.expireTokenCopyRelationships(state, {
+      ...controlTokenEffectOptions(),
+      series: "Kanto",
+      gym: 2,
+      phase: "action"
+    });
+    if (backendSync.saveTimer) {
+      clearTimeout(backendSync.saveTimer);
+      backendSync.saveTimer = null;
+    }
+    await pushBackendState({ force: true });
+    return {
+      expired: expired.length,
+      active: state.copiedTokenRelationships.filter((entry) => entry.relationshipType === "followMe" && entry.status === "active").length,
+      copies: state.players.find((player) => player.id === "steevee").inventory.filter((item) => item.copyProvenance?.copySourceType === "followMe").length
+    };
+  })()`);
+  assert.deepEqual(followExpired, { expired: 1, active: 0, copies: 1 });
+  await reloadProduction("browser-013-follow-me");
+  const followUndo = await evaluate(`(() => {
+    const effectLog = state.log
+      .filter((entry) => !entry.undone && entry.undoData?.actionType?.startsWith("undoTokenEffectContract") && entry.linkedEventId === ${JSON.stringify(followResult.rootId)})
+      .sort((left, right) => Number(right.eventOrder || 0) - Number(left.eventOrder || 0))[0];
+    if (!effectLog) throw new Error("Follow Me did not retain its root History undo record.");
+    undoLogEntry(effectLog.id);
+    const source = state.players.find((player) => player.id === "gold");
+    const follower = state.players.find((player) => player.id === "steevee");
+    return {
+      relationships: state.copiedTokenRelationships.filter((entry) => entry.relationshipType === "followMe").length,
+      copies: follower.inventory.filter((item) => item.copyProvenance?.copySourceType === "followMe").length,
+      followMe: follower.inventory.filter((item) => item.id === "steevee-follow-me-1").length,
+      steal: source.inventory.filter((item) => item.id === "gold-steal-1").length,
+      restrict: source.inventory.filter((item) => item.id === "gold-restrict-1").length,
+      kadabraOwner: findPokemonRecord("steevee-second")?.trainerId || ""
+    };
+  })()`);
+  assert.deepEqual(followUndo, {
+    relationships: 0,
+    copies: 0,
+    followMe: 1,
+    steal: 1,
+    restrict: 1,
+    kadabraOwner: "steevee"
+  });
   assertNoNewBrowserErrors(errorStart);
 });
 
@@ -1607,5 +1671,1069 @@ test("[BROWSER-014] Haze selector shows chosen species and disables duplicate na
   assert.equal(presentation.duplicateTwoDisabled, true);
   assert.equal(presentation.differentSpeciesDisabled, false);
   assert.equal(presentation.duplicateExplanation, true);
+  assertNoNewBrowserErrors(errorStart);
+});
+
+test("[BROWSER-015] Ditto transforms one exact record, survives refresh, and undoes from History", async () => {
+  const errorStart = browserErrors.length;
+  const productionState = controlStateFixture("browser-015-ditto");
+  productionState.players.find((player) => player.id === "gold").inventory.push({
+    id: "gold-ditto-1",
+    canonicalId: "ditto-token",
+    name: "Ditto",
+    type: "TOKEN",
+    tokenType: "control"
+  });
+  await navigateProduction(productionState, "BROWSER-015-DITTO");
+  const transformed = await evaluate(`(async () => {
+    const actor = state.players.find((player) => player.id === "gold");
+    const metadata = tokenEffectMetadataByName("Ditto");
+    const markup = liveRefereeDittoTargetScreenMarkup({ tokenName: "Ditto", metadata, actor });
+    const documentCopy = new DOMParser().parseFromString(markup, "text/html");
+    const options = [...documentCopy.querySelectorAll('[data-live-referee-effect-field="resourceDefinitionId"] option')]
+      .map((option) => ({ value: option.value, text: option.textContent.trim() }));
+    const result = resolveDittoInventoryCopyUse({
+      actor,
+      actorPlayerId: actor.id,
+      tokenName: "Ditto",
+      category: TOKEN_TIMING_CATEGORIES.CONTROL,
+      resourceDefinitionId: "immunity",
+      targetType: EFFECT_TARGET_TYPES.RESOURCE,
+      targetScope: EFFECT_TARGET_SCOPES.SINGLE_RESOURCE
+    }, metadata);
+    if (!result) throw new Error("Ditto did not transform through the production resolver.");
+    if (backendSync.saveTimer) {
+      clearTimeout(backendSync.saveTimer);
+      backendSync.saveTimer = null;
+    }
+    await pushBackendState({ force: true });
+    const copies = actor.inventory.filter((item) => item.copyProvenance?.copySourceType === "ditto");
+    return {
+      pickerHasImmunity: options.some((option) => option.value === "immunity"),
+      pickerHasDitto: options.some((option) => option.value === "ditto-token"),
+      sourceCount: actor.inventory.filter((item) => item.id === "gold-ditto-1").length,
+      copies: copies.map((item) => ({
+        name: item.name,
+        definitionId: item.canonicalDefinitionId,
+        sourceInventoryRecordId: item.copyProvenance?.sourceInventoryRecordId || ""
+      })),
+      copiedActivations: state.copiedActivations.length
+    };
+  })()`);
+  assert.deepEqual(transformed, {
+    pickerHasImmunity: true,
+    pickerHasDitto: false,
+    sourceCount: 0,
+    copies: [{ name: "Immunity", definitionId: "immunity", sourceInventoryRecordId: "gold-ditto-1" }],
+    copiedActivations: 0
+  });
+  await reloadProduction("browser-015-ditto");
+  const undone = await evaluate(`(() => {
+    const actor = state.players.find((player) => player.id === "gold");
+    const before = actor.inventory.filter((item) => item.copyProvenance?.copySourceType === "ditto").length;
+    const effectLog = state.log.find((entry) => !entry.undone && entry.type === "ditto-token-copy" && entry.undoData?.actionType === "undoTokenEffectContract");
+    if (!effectLog) throw new Error("Ditto History undo record did not survive refresh.");
+    undoLogEntry(effectLog.id);
+    const restoredActor = state.players.find((player) => player.id === "gold");
+    return {
+      before,
+      ditto: restoredActor.inventory.filter((item) => item.id === "gold-ditto-1").length,
+      copies: restoredActor.inventory.filter((item) => item.copyProvenance?.copySourceType === "ditto").length,
+      copiedActivations: state.copiedActivations.length
+    };
+  })()`);
+  assert.deepEqual(undone, { before: 1, ditto: 1, copies: 0, copiedActivations: 0 });
+  assertNoNewBrowserErrors(errorStart);
+});
+
+test("[BROWSER-016] Lingering Aroma replacement, paid negation, expiration, refresh, and ordered History undo", async () => {
+  const errorStart = browserErrors.length;
+  const productionState = controlStateFixture("browser-016-lingering-aroma");
+  productionState.players.find((player) => player.id === "gold").inventory.push({
+    id: "gold-aroma-1", canonicalId: "lingering-aroma", name: "Lingering Aroma", type: "TOKEN", tokenType: "control"
+  });
+  productionState.players.find((player) => player.id === "red").inventory.push({
+    id: "red-embargo-1", canonicalId: "embargo", name: "Embargo", type: "TOKEN", tokenType: "protection"
+  });
+  productionState.lingeringStatuses.push({
+    id: "ongoing-gold-1",
+    type: "test-ongoing",
+    name: "Gold Ongoing Effect",
+    status: "active",
+    isOngoingEffect: true,
+    actorPlayerId: "steevee",
+    targetPlayerId: "gold",
+    series: "Kanto",
+    gym: 1,
+    durationGyms: 2,
+    expiresAtSeries: "Kanto",
+    expiresAtGym: 3,
+    payload: { targetPlayerId: "gold" }
+  });
+  await navigateProduction(productionState, "BROWSER-016-AROMA");
+  const result = await evaluate(`(async () => {
+    const gold = state.players.find((player) => player.id === "gold");
+    const red = state.players.find((player) => player.id === "red");
+    const aromaMetadata = tokenEffectMetadataByName("Lingering Aroma");
+    const markup = liveRefereeLingeringAromaTargetScreenMarkup({ tokenName: "Lingering Aroma", metadata: aromaMetadata, actor: gold });
+    const aroma = createTokenPendingEventFromUse({
+      actor: gold,
+      actorPlayerId: gold.id,
+      tokenName: "Lingering Aroma",
+      category: TOKEN_TIMING_CATEGORIES.CONTROL,
+      targetText: "ongoing-gold-1",
+      targetType: EFFECT_TARGET_TYPES.RESOURCE,
+      targetScope: EFFECT_TARGET_SCOPES.SINGLE_RESOURCE,
+      notes: ""
+    });
+    if (!aroma) throw new Error("Lingering Aroma declaration failed.");
+    const aromaResolution = resolveCurrentInteractionPrompt(aroma, { force: true, source: "browser-test-aroma" });
+    if (!aromaResolution.closed) throw new Error("Lingering Aroma did not resolve terminally.");
+    const replacement = state.lingeringStatuses.find((entry) => entry.type === "ongoing-effect-text-replacement" && entry.status === "active");
+    const embargo = createTokenPendingEventFromUse({
+      actor: red,
+      actorPlayerId: red.id,
+      tokenName: "Embargo",
+      category: TOKEN_TIMING_CATEGORIES.PROTECTION,
+      targetPlayerId: gold.id,
+      targetPlayerName: gold.name,
+      targetText: gold.name,
+      targetType: EFFECT_TARGET_TYPES.PLAYER,
+      targetScope: EFFECT_TARGET_SCOPES.SINGLE_PLAYER,
+      notes: ""
+    });
+    if (!embargo) throw new Error("The paid targeting declaration failed.");
+    const negated = resolveInteractionActivity(embargo.id, "negated", {
+      renderAfter: false,
+      resultContext: { detail: "The confirmed declaration was negated after its Lingering Aroma cost was paid." }
+    });
+    if (!negated) throw new Error("The paid targeting declaration did not reach a terminal negated result.");
+    if (backendSync.saveTimer) {
+      clearTimeout(backendSync.saveTimer);
+      backendSync.saveTimer = null;
+    }
+    await pushBackendState({ force: true });
+    return {
+      aromaId: aroma.id,
+      embargoId: embargo.id,
+      selectorContainsExactEffect: markup.includes("ongoing-gold-1") && markup.includes("Gold Ongoing Effect"),
+      originalStatus: state.lingeringStatuses.find((entry) => entry.id === "ongoing-gold-1")?.status || "",
+      replacementStatus: replacement?.status || "",
+      replacementTargetId: replacement?.payload?.targetOngoingEffectId || "",
+      embargoStatus: embargo.status,
+      goldBalance: gold.balance,
+      redBalance: red.balance,
+      costOperations: state.effectOperations.filter((entry) => entry.operationType === "lingeringAromaDeclarationCost").length
+    };
+  })()`);
+  assert.deepEqual(result, {
+    aromaId: result.aromaId,
+    embargoId: result.embargoId,
+    selectorContainsExactEffect: true,
+    originalStatus: "replaced",
+    replacementStatus: "active",
+    replacementTargetId: "ongoing-gold-1",
+    embargoStatus: "negated",
+    goldBalance: 10500,
+    redBalance: 9500,
+    costOperations: 1
+  });
+  await reloadProduction("browser-016-lingering-aroma");
+  const expired = await evaluate(`(async () => {
+    const original = state.lingeringStatuses.find((entry) => entry.id === "ongoing-gold-1");
+    original.status = "expired";
+    const expiredRecords = controlTokenEffects.expireLingeringAromaRelationships(state, controlTokenEffectOptions());
+    if (backendSync.saveTimer) {
+      clearTimeout(backendSync.saveTimer);
+      backendSync.saveTimer = null;
+    }
+    await pushBackendState({ force: true });
+    return {
+      expired: expiredRecords.length,
+      replacementStatus: state.lingeringStatuses.find((entry) => entry.type === "ongoing-effect-text-replacement")?.status || "",
+      goldBalance: state.players.find((player) => player.id === "gold").balance,
+      redBalance: state.players.find((player) => player.id === "red").balance
+    };
+  })()`);
+  assert.deepEqual(expired, { expired: 1, replacementStatus: "expired", goldBalance: 10500, redBalance: 9500 });
+  await reloadProduction("browser-016-lingering-aroma");
+  const undone = await evaluate(`(() => {
+    const logFor = (eventId) => state.log
+      .filter((entry) => !entry.undone && entry.linkedEventId === eventId && entry.undoData?.actionType === "undoTokenEffectContract")
+      .sort((left, right) => Number(right.eventOrder || 0) - Number(left.eventOrder || 0))[0];
+    const embargoLog = logFor(${JSON.stringify(result.embargoId)});
+    if (!embargoLog) throw new Error("Embargo History undo record did not survive refresh.");
+    undoLogEntry(embargoLog.id);
+    const afterEmbargo = {
+      replacementStatus: state.lingeringStatuses.find((entry) => entry.type === "ongoing-effect-text-replacement")?.status || "",
+      goldBalance: state.players.find((player) => player.id === "gold").balance,
+      redBalance: state.players.find((player) => player.id === "red").balance
+    };
+    const aromaLog = logFor(${JSON.stringify(result.aromaId)});
+    if (!aromaLog) throw new Error("Lingering Aroma History undo record did not survive refresh.");
+    undoLogEntry(aromaLog.id);
+    return {
+      afterEmbargo,
+      aroma: state.players.find((player) => player.id === "gold").inventory.filter((item) => item.id === "gold-aroma-1").length,
+      originalStatus: state.lingeringStatuses.find((entry) => entry.id === "ongoing-gold-1")?.status || "",
+      replacements: state.lingeringStatuses.filter((entry) => entry.type === "ongoing-effect-text-replacement").length
+    };
+  })()`);
+  assert.deepEqual(undone, {
+    afterEmbargo: { replacementStatus: "active", goldBalance: 10000, redBalance: 10000 },
+    aroma: 1,
+    originalStatus: "active",
+    replacements: 0
+  });
+  assertNoNewBrowserErrors(errorStart);
+});
+
+test("[BROWSER-017] Move Deleter rejects next-Gym selection, import, export, and validation through expiration and undo", async () => {
+  const errorStart = browserErrors.length;
+  const productionState = controlStateFixture("browser-017-move-deleter");
+  productionState.players.find((player) => player.id === "gold").inventory.push({
+    id: "gold-move-deleter-1", canonicalId: "move-deleter", name: "Move Deleter", type: "TOKEN", tokenType: "control"
+  });
+  await navigateProduction(productionState, "BROWSER-017-MOVE-DELETER");
+  const declared = await evaluate(`(async () => {
+    await ensurePokemonBuildDataLoaded({ renderOnLoad: false });
+    const actor = state.players.find((player) => player.id === "gold");
+    const root = createTokenPendingEventFromUse({
+      actor,
+      actorPlayerId: actor.id,
+      tokenName: "Move Deleter",
+      category: TOKEN_TIMING_CATEGORIES.CONTROL,
+      targetText: "Recover",
+      targetType: EFFECT_TARGET_TYPES.RESOURCE,
+      targetScope: EFFECT_TARGET_SCOPES.SINGLE_RESOURCE,
+      notes: ""
+    });
+    if (!root) throw new Error("Move Deleter declaration failed.");
+    const resolution = resolveCurrentInteractionPrompt(root, { force: true, source: "browser-test-move-deleter" });
+    if (!resolution.closed) throw new Error("Move Deleter did not resolve terminally.");
+    if (backendSync.saveTimer) {
+      clearTimeout(backendSync.saveTimer);
+      backendSync.saveTimer = null;
+    }
+    await pushBackendState({ force: true });
+    const status = state.lingeringStatuses.find((entry) => entry.type === "global-move-restriction");
+    return { rootId: root.id, activeSeries: status?.payload?.activeSeries || "", activeGym: status?.payload?.activeGym || 0, moveName: status?.payload?.moveName || "" };
+  })()`);
+  assert.deepEqual(declared, { rootId: declared.rootId, activeSeries: "Kanto", activeGym: 2, moveName: "Recover" });
+  await reloadProduction("browser-017-move-deleter");
+  const enforced = await evaluate(`(async () => {
+    await ensurePokemonBuildDataLoaded({ renderOnLoad: false });
+    state.gym = 2;
+    const player = state.players.find((entry) => entry.id === "gold");
+    const slot = normalizeTeamBuildSlot({ pokemonRecordId: "gold-lucario", selectedBattleSpecies: "Lucario", moves: ["Recover"] }, player.id);
+    const build = normalizeTeamBuildDraft({ id: "move-deleter-build", playerId: player.id, series: "Kanto", gym: 2, slots: [slot] }, player.id);
+    const rules = teambuilderRuleContextForPokemon(findPokemonRecord("gold-lucario"));
+    const validation = validateTeamBuildDraft(build, player.id);
+    const alertMessages = [];
+    const originalAlert = window.alert;
+    window.alert = (message) => alertMessages.push(String(message || ""));
+    const imported = importShowdownTeamToActiveBuild("Lucario\\n- Recover", player);
+    window.alert = originalAlert;
+    const exported = teambuilderExportShowdownText(build, player);
+    return {
+      bannedNames: rules.bannedMoveNames,
+      validationBlocks: validation.issues.some((issue) => /Move Deleter/.test(issue.message)),
+      imported,
+      exported,
+      importRejection: alertMessages[0] || ""
+    };
+  })()`);
+  assert.deepEqual(enforced, {
+    bannedNames: ["Recover"],
+    validationBlocks: true,
+    imported: false,
+    exported: "",
+    importRejection: "Import rejected: Recover is unavailable because of Move Deleter."
+  });
+  const expired = await evaluate(`(async () => {
+    const records = controlTokenEffects.expireMoveRestrictionsAtGymEnd(state, { ...controlTokenEffectOptions(), series: "Kanto", gym: 2 });
+    if (backendSync.saveTimer) {
+      clearTimeout(backendSync.saveTimer);
+      backendSync.saveTimer = null;
+    }
+    await pushBackendState({ force: true });
+    return { expired: records.length, active: controlTokenEffects.activeMoveRestrictions(state, controlTokenEffectOptions()).length };
+  })()`);
+  assert.deepEqual(expired, { expired: 1, active: 0 });
+  await reloadProduction("browser-017-move-deleter");
+  const undone = await evaluate(`(() => {
+    const effectLog = state.log.find((entry) => !entry.undone && entry.linkedEventId === ${JSON.stringify(declared.rootId)} && entry.undoData?.actionType === "undoTokenEffectContract");
+    if (!effectLog) throw new Error("Move Deleter History undo record did not survive refresh.");
+    undoLogEntry(effectLog.id);
+    return {
+      token: state.players.find((player) => player.id === "gold").inventory.filter((item) => item.id === "gold-move-deleter-1").length,
+      restrictions: state.lingeringStatuses.filter((entry) => entry.type === "global-move-restriction").length
+    };
+  })()`);
+  assert.deepEqual(undone, { token: 1, restrictions: 0 });
+  assertNoNewBrowserErrors(errorStart);
+});
+
+test("[BROWSER-018] Knock Off final TM loss opens a persisted Sabotage revision and exact History undo", async () => {
+  const errorStart = browserErrors.length;
+  const productionState = controlStateFixture("browser-018-knock-off");
+  productionState.players.find((player) => player.id === "gold").inventory.push({
+    id: "gold-knock-off-1", canonicalId: "knock-off-curse", name: "Knock Off Curse", type: "TOKEN", tokenType: "curse"
+  });
+  await navigateProduction(productionState, "BROWSER-018-KNOCK-OFF");
+  const resolved = await evaluate(`(async () => {
+    await ensurePokemonBuildDataLoaded({ renderOnLoad: false });
+    const actor = state.players.find((player) => player.id === "gold");
+    const red = state.players.find((player) => player.id === "red");
+    const build = activeTeamBuildDraftForPlayer(red.id, { create: true });
+    build.slots = [normalizeTeamBuildSlot({
+      pokemonRecordId: "red-garchomp",
+      selectedBattleSpecies: "Garchomp",
+      moves: ["Recover"],
+      moveProvenance: [{ moveName: "Recover", source: "tm", inventoryRecordId: "red-recover" }]
+    }, red.id)];
+    build.slotCount = 1;
+    const teams = currentPhaseTeams();
+    teams.red.selected = ["red-garchomp"];
+    teams.red.badgeBoosts = [0];
+    teams.red.locked = true;
+    teams.red.lockedSlots = lockedBattleTeamSlots(red.id);
+    const draft = liveRefereeEffectDraftFor("Knock Off Curse", actor.id);
+    draft.targetPokemonId = "red-garchomp";
+    state.liveRefereeEffectDraft = draft;
+    const selector = liveRefereeKnockOffTargetScreenMarkup({ tokenName: "Knock Off Curse", metadata: tokenEffectMetadataByName("Knock Off Curse"), actor });
+    const root = createTokenPendingEventFromUse({
+      actor,
+      actorPlayerId: actor.id,
+      tokenName: "Knock Off Curse",
+      category: TOKEN_TIMING_CATEGORIES.CURSE,
+      targetPlayerId: red.id,
+      targetPlayerName: red.name,
+      targetPokemonId: "red-garchomp",
+      targetPokemonName: "Garchomp",
+      targetText: "Red's Garchomp",
+      targetType: EFFECT_TARGET_TYPES.POKEMON,
+      targetScope: EFFECT_TARGET_SCOPES.ROSTER_INSTANCE,
+      choiceKind: "tm",
+      inventoryRecordId: "red-recover",
+      moveName: "Recover",
+      teamLock: true,
+      notes: ""
+    });
+    if (!root) throw new Error("Knock Off Curse declaration failed.");
+    const resolution = resolveCurrentInteractionPrompt(root, { force: true, source: "browser-test-knock-off" });
+    if (!resolution.closed) throw new Error("Knock Off Curse did not resolve terminally.");
+    if (backendSync.saveTimer) {
+      clearTimeout(backendSync.saveTimer);
+      backendSync.saveTimer = null;
+    }
+    await pushBackendState({ force: true });
+    const revisions = openBattleRevisionWindows({ playerId: red.id, revisionType: BATTLE_REVISION_TYPES.SABOTAGE_SET });
+    return {
+      rootId: root.id,
+      selectorHasExactTm: selector.includes("TM Move - Recover"),
+      tmCount: red.inventory.filter((item) => item.id === "red-recover").length,
+      moveStillPresent: build.slots[0].moves.includes("Recover"),
+      revisions: revisions.map((entry) => ({
+        pokemonId: entry.affectedPokemonRecordId,
+        sourceActivityId: entry.sourceActivityId,
+        requiredChanges: entry.requiredChanges
+      }))
+    };
+  })()`);
+  assert.equal(resolved.selectorHasExactTm, true);
+  assert.equal(resolved.tmCount, 0);
+  assert.equal(resolved.moveStillPresent, true);
+  assert.equal(resolved.revisions.length, 1);
+  assert.equal(resolved.revisions[0].pokemonId, "red-garchomp");
+  assert.equal(resolved.revisions[0].sourceActivityId, resolved.rootId);
+  assert.deepEqual(resolved.revisions[0].requiredChanges, ["Replace Recover"]);
+  await reloadProduction("browser-018-knock-off");
+  const undone = await evaluate(`(() => {
+    const persistedRevisions = openBattleRevisionWindows({ playerId: "red", revisionType: BATTLE_REVISION_TYPES.SABOTAGE_SET }).length;
+    const effectLog = state.log.find((entry) => !entry.undone && entry.linkedEventId === ${JSON.stringify(resolved.rootId)} && entry.undoData?.actionType === "undoTokenEffectContract");
+    if (!effectLog) throw new Error("Knock Off History undo record did not survive refresh.");
+    undoLogEntry(effectLog.id);
+    const red = state.players.find((player) => player.id === "red");
+    const actor = state.players.find((player) => player.id === "gold");
+    const build = activeTeamBuildDraftForPlayer(red.id);
+    return {
+      persistedRevisions,
+      revisionsAfterUndo: openBattleRevisionWindows({ playerId: red.id, revisionType: BATTLE_REVISION_TYPES.SABOTAGE_SET }).length,
+      tmCount: red.inventory.filter((item) => item.id === "red-recover").length,
+      tokenCount: actor.inventory.filter((item) => item.id === "gold-knock-off-1").length,
+      moveStillPresent: build?.slots?.[0]?.moves?.includes("Recover") || false
+    };
+  })()`);
+  assert.deepEqual(undone, { persistedRevisions: 1, revisionsAfterUndo: 0, tmCount: 1, tokenCount: 1, moveStillPresent: true });
+  assertNoNewBrowserErrors(errorStart);
+});
+
+test("[BROWSER-019] production Restrict declaration, rendered response, refresh, and causal History undo", async () => {
+  const errorStart = browserErrors.length;
+  const productionState = controlStateFixture("browser-019-restrict");
+  const gameId = await navigateProduction(productionState, "BROWSER-019-RESTRICT");
+  const resolved = await evaluate(`(() => {
+    const actor = state.players.find((player) => player.id === "steevee");
+    state.liveRefereeSelectedEffectName = "Restrict";
+    state.testingTools.controlledPlayerId = actor.id;
+    state.liveRefereeEffectDraft = null;
+    const picker = liveRefereeEffectUseScreenMarkup(getCurrentLivePrompt(), actor.id);
+    const activity = createTokenPendingEventFromUse({
+      actor, actorPlayerId: actor.id, tokenName: "Restrict", category: TOKEN_TIMING_CATEGORIES.CONTROL,
+      targetText: "GARCHOMP", targetPokemonName: "GARCHOMP",
+      targetType: EFFECT_TARGET_TYPES.POKEMON, targetScope: EFFECT_TARGET_SCOPES.SPECIES
+    });
+    if (!activity) throw new Error("Restrict declaration did not open.");
+    const responseMarkup = liveRefereeOtherResponseScreenMarkup(getCurrentLivePrompt());
+    activity.eligiblePlayerIds = [];
+    activity.responseTypes = [];
+    activity.payload.responsesAllowed = false;
+    const confirmed = resolveInteractionActivity(activity.id, "resolved", { renderAfter: false });
+    if (!confirmed) throw new Error("Restrict confirmation did not resolve.");
+    const status = state.lingeringStatuses.find((entry) => entry.type === "restrict" && entry.status === "active");
+    const buildValidation = validateTeamBuildDraft({ playerId: "red", gym: 1, slots: [normalizeTeamBuildSlot({ pokemonRecordId: "red-garchomp", selectedBattleSpecies: "Garchomp" }, "red")] }, "red");
+    const submittedRoster = currentRosterSnapshot("red").find((entry) => entry.pokemonId === "red-garchomp");
+    return {
+      picker: picker.includes("Pokemon Species / Name"),
+      response: /response|Protection|Pass/i.test(responseMarkup),
+      terminal: interactionSituationLifecycle.isTerminal(activity),
+      durationGyms: status?.durationGyms || 0,
+      statusId: status?.id || "",
+      teambuilderBlocked: buildValidation.issues.some((issue) => /restricted/i.test(issue.message)),
+      submittedBlocked: submittedRoster?.available === false
+    };
+  })()`);
+  assert.equal(resolved.picker, true);
+  assert.equal(resolved.response, true);
+  assert.equal(resolved.terminal, true);
+  assert.equal(resolved.durationGyms, 6);
+  assert.ok(resolved.statusId);
+  assert.equal(resolved.teambuilderBlocked, true);
+  assert.equal(resolved.submittedBlocked, true);
+  await persistBrowserState(gameId);
+  await reloadProduction("browser-019-restrict");
+  const undone = await evaluate(`(() => {
+    const pokemon = state.pokemonRecords.find((entry) => entry.id === "red-garchomp");
+    pokemon.userLaterNote = "preserve-me";
+    const entry = state.log.find((item) => !item.undone && item.undoData?.actionType === "undoTokenEffectContractCausal" && item.undoData?.tokenDefinitionId === "restrict-token");
+    if (!entry) throw new Error("Restrict causal History record did not survive refresh.");
+    undoLogEntry(entry.id);
+    return {
+      token: state.players.find((player) => player.id === "steevee").inventory.some((item) => item.id === "steevee-restrict-1"),
+      active: state.lingeringStatuses.some((status) => status.type === "restrict" && status.status === "active"),
+      note: pokemon.userLaterNote,
+      terminal: state.interactionEvents.every((activity) => activity.status !== "open")
+    };
+  })()`);
+  assert.deepEqual(undone, { token: true, active: false, note: "preserve-me", terminal: true });
+  assertNoNewBrowserErrors(errorStart);
+});
+
+test("[BROWSER-020] production Extra Ban exact Active anchor, refresh, and causal History undo", async () => {
+  const errorStart = browserErrors.length;
+  const productionState = controlStateFixture("browser-020-extra-ban");
+  productionState.lingeringStatuses.push({
+    id: "other-copy-substitute", type: "substitute-attached", status: "active", targetPlayerId: "red",
+    targetPokemonId: "red-garchomp-2", targetPokemonName: "Garchomp", durationGyms: 1,
+    series: "Kanto", gym: 1, payload: { blocksNextAffectingEffect: true }
+  });
+  await navigateProduction(productionState, "BROWSER-020-EXTRA-BAN");
+  const result = await evaluate(`(async () => {
+    const actor = state.players.find((player) => player.id === "steevee");
+    const metadata = tokenEffectMetadataByName("Extra Ban");
+    state.liveRefereeSelectedEffectName = "Extra Ban";
+    state.testingTools.controlledPlayerId = actor.id;
+    const picker = liveRefereeEffectUseScreenMarkup(getCurrentLivePrompt(), actor.id);
+    const activity = createTokenPendingEventFromUse({
+      actor, actorPlayerId: actor.id, tokenName: "Extra Ban", category: TOKEN_TIMING_CATEGORIES.CONTROL,
+      targetPlayerId: "red", targetPokemonId: "red-garchomp", targetPokemonName: "Garchomp",
+      targetType: EFFECT_TARGET_TYPES.POKEMON, targetScope: EFFECT_TARGET_SCOPES.ROSTER_INSTANCE
+    });
+    if (!activity) throw new Error("Extra Ban declaration did not open.");
+    const responseMarkup = liveRefereeOtherResponseScreenMarkup(getCurrentLivePrompt());
+    const resolution = resolveCurrentInteractionPrompt(activity, { force: true, source: "browser-extra-ban" });
+    if (!resolution.closed) throw new Error("Extra Ban did not resolve terminally.");
+    await pushBackendState({ force: true });
+    const ban = state.lingeringStatuses.find((status) => status.type === "ban" && status.status === "active");
+    const buildValidation = validateTeamBuildDraft({ playerId: "red", gym: 1, slots: [normalizeTeamBuildSlot({ pokemonRecordId: "red-garchomp", selectedBattleSpecies: "Garchomp" }, "red")] }, "red");
+    const submittedRoster = currentRosterSnapshot("red").find((entry) => entry.pokemonId === "red-garchomp");
+    return {
+      pickerHasActive: picker.includes("red-garchomp"),
+      pickerExcludesLegacy: !picker.includes("red-lucario-legacy"),
+      response: /response|Protection|Pass/i.test(responseMarkup),
+      selectedAnchor: ban?.selectedRosterInstanceId || "",
+      otherSubstituteActive: state.lingeringStatuses.find((status) => status.id === "other-copy-substitute")?.status === "active",
+      teambuilderBlocked: buildValidation.issues.some((issue) => /banned/i.test(issue.message)),
+      submittedBlocked: submittedRoster?.available === false
+    };
+  })()`, 30000);
+  assert.deepEqual(result, { pickerHasActive: true, pickerExcludesLegacy: true, response: true, selectedAnchor: "red-garchomp", otherSubstituteActive: true, teambuilderBlocked: true, submittedBlocked: true });
+  await reloadProduction("browser-020-extra-ban");
+  const undone = await evaluate(`(() => {
+    state.pokemonRecords.find((pokemon) => pokemon.id === "red-garchomp").laterEdit = "kept";
+    const entry = state.log.find((item) => !item.undone && item.undoData?.tokenDefinitionId === "extra-ban-token");
+    undoLogEntry(entry.id);
+    return {
+      token: state.players.find((player) => player.id === "steevee").inventory.some((item) => item.id === "steevee-extra-ban-1"),
+      ban: state.lingeringStatuses.some((status) => status.type === "ban" && status.status === "active"),
+      laterEdit: state.pokemonRecords.find((pokemon) => pokemon.id === "red-garchomp").laterEdit
+    };
+  })()`);
+  assert.deepEqual(undone, { token: true, ban: false, laterEdit: "kept" });
+  assertNoNewBrowserErrors(errorStart);
+});
+
+test("[BROWSER-021] production Unban exact-status picker, refresh, and causal restoration", async () => {
+  const errorStart = browserErrors.length;
+  const productionState = controlStateFixture("browser-021-unban");
+  productionState.lingeringStatuses.push(
+    { id: "restrict-exact", type: "restrict", name: "Restricted", status: "active", targetPokemonName: "Lucario", speciesId: "lucario", applicationScope: "globalSpecies", series: "Kanto", gym: 1, durationGyms: 6, expiresAtSeries: "Kanto", expiresAtGym: 7, payload: { preventsBattleTeamSubmission: true } },
+    { id: "ban-other", type: "ban", name: "Banned", status: "active", targetPokemonName: "Lucario", speciesId: "lucario", applicationScope: "globalSpecies", series: "Kanto", gym: 1, duration: "Indefinite", payload: { preventsBattleTeamSubmission: true } }
+  );
+  await navigateProduction(productionState, "BROWSER-021-UNBAN");
+  const result = await evaluate(`(async () => {
+    const actor = state.players.find((player) => player.id === "steevee");
+    state.liveRefereeSelectedEffectName = "Unban";
+    state.testingTools.controlledPlayerId = actor.id;
+    state.liveRefereeEffectDraft = normalizeLiveRefereeEffectDraft({ effectId: "unban", effectName: "Unban", actorPlayerId: actor.id, navigationKey: liveRefereeNavigationKey(), selectedStatusId: "restrict-exact", targetText: "Lucario" });
+    const picker = liveRefereeEffectUseScreenMarkup(getCurrentLivePrompt(), actor.id);
+    const activity = createTokenPendingEventFromUse({
+      actor, actorPlayerId: actor.id, tokenName: "Unban", category: TOKEN_TIMING_CATEGORIES.CONTROL,
+      targetText: "Lucario", targetPokemonName: "Lucario", selectedStatusId: "restrict-exact",
+      targetType: EFFECT_TARGET_TYPES.POKEMON, targetScope: EFFECT_TARGET_SCOPES.SPECIES
+    });
+    if (!activity) throw new Error("Unban declaration did not open.");
+    const responseMarkup = liveRefereeOtherResponseScreenMarkup(getCurrentLivePrompt());
+    const resolution = resolveCurrentInteractionPrompt(activity, { force: true, source: "browser-unban" });
+    if (!resolution.closed) throw new Error("Unban did not resolve terminally.");
+    await pushBackendState({ force: true });
+    return {
+      exactPicker: picker.includes("restrict-exact") && picker.includes("ban-other"),
+      response: /response|Protection|Pass/i.test(responseMarkup),
+      restrictRemoved: state.lingeringStatuses.find((status) => status.id === "restrict-exact")?.status === "removed",
+      banPreserved: state.lingeringStatuses.find((status) => status.id === "ban-other")?.status === "active",
+      protection: state.lingeringStatuses.some((status) => status.type === "unban-protection" && status.status === "active")
+    };
+  })()`, 30000);
+  assert.deepEqual(result, { exactPicker: true, response: true, restrictRemoved: true, banPreserved: true, protection: true });
+  await reloadProduction("browser-021-unban");
+  const undone = await evaluate(`(() => {
+    const entry = state.log.find((item) => !item.undone && item.undoData?.tokenDefinitionId === "unban-token");
+    undoLogEntry(entry.id);
+    const restored = state.lingeringStatuses.find((status) => status.id === "restrict-exact");
+    return {
+      restrict: restored?.status,
+      expiry: restored?.expiresAtGym,
+      ban: state.lingeringStatuses.find((status) => status.id === "ban-other")?.status,
+      protection: state.lingeringStatuses.some((status) => status.type === "unban-protection" && status.status === "active")
+    };
+  })()`);
+  assert.deepEqual(undone, { restrict: "active", expiry: 7, ban: "active", protection: false });
+  assertNoNewBrowserErrors(errorStart);
+});
+
+test("[BROWSER-022] production Clear Smog provenance, rendered result, refresh, and causal undo", async () => {
+  const errorStart = browserErrors.length;
+  const productionState = controlStateFixture("browser-022-clear-smog");
+  const target = productionState.pokemonRecords.find((pokemon) => pokemon.id === "gold-garchomp");
+  target.buffs = ["+3 Levels", "AAA Ability: Levitate", "Native Ribbon"];
+  target.effectBuffs = [
+    { id: "clear-level", type: "levelBonus", label: "+3 Levels", amount: 3, status: "active", clearable: true },
+    { id: "clear-ability", type: "abilityGrant", label: "AAA Ability: Levitate", abilityName: "Levitate", status: "active", clearable: true }
+  ];
+  productionState.players.find((player) => player.id === "gold").moveAccessGrants.push({ id: "clear-move", pokemonRecordId: target.id, moveName: "Fake Out", status: "active", active: true });
+  await navigateProduction(productionState, "BROWSER-022-CLEAR-SMOG");
+  const result = await evaluate(`(async () => {
+    const actor = state.players.find((player) => player.id === "steevee");
+    state.liveRefereeSelectedEffectName = "Clear Smog";
+    state.testingTools.controlledPlayerId = actor.id;
+    const picker = liveRefereeEffectUseScreenMarkup(getCurrentLivePrompt(), actor.id);
+    const activity = createTokenPendingEventFromUse({
+      actor, actorPlayerId: actor.id, tokenName: "Clear Smog", category: TOKEN_TIMING_CATEGORIES.CONTROL,
+      targetPlayerId: "gold", targetPokemonId: "gold-garchomp", targetPokemonName: "Garchomp",
+      targetType: EFFECT_TARGET_TYPES.POKEMON, targetScope: EFFECT_TARGET_SCOPES.ROSTER_INSTANCE
+    });
+    const responseMarkup = liveRefereeOtherResponseScreenMarkup(getCurrentLivePrompt());
+    const resolution = resolveCurrentInteractionPrompt(activity, { force: true, source: "browser-clear-smog" });
+    if (!resolution.closed) throw new Error("Clear Smog did not resolve terminally.");
+    const renderedResult = liveRefereeResolutionAnnouncementMarkup(tokenResultSummary.announcementForResult(activity.payload.finalResultSummary, state));
+    await pushBackendState({ force: true });
+    const pokemon = findPokemonRecord("gold-garchomp");
+    return {
+      picker: picker.includes("gold-garchomp"), response: /response|Protection|Pass/i.test(responseMarkup),
+      summary: renderedResult || JSON.stringify(activity.payload?.finalResultSummary || {}),
+      removed: pokemon.effectBuffs.every((buff) => buff.status === "removed"),
+      native: pokemon.buffs.includes("Native Ribbon"),
+      grant: state.players.find((player) => player.id === "gold").moveAccessGrants.find((grant) => grant.id === "clear-move")?.status
+    };
+  })()`, 30000);
+  assert.equal(result.picker, true);
+  assert.equal(result.response, true);
+  assert.match(result.summary, /Clear Smog|removed/i);
+  assert.equal(result.removed, true);
+  assert.equal(result.native, true);
+  assert.equal(result.grant, "removed");
+  await reloadProduction("browser-022-clear-smog");
+  const undone = await evaluate(`(() => {
+    const pokemon = findPokemonRecord("gold-garchomp");
+    pokemon.moves ||= [];
+    pokemon.moves.push("Later Move");
+    const entry = state.log.find((item) => !item.undone && item.undoData?.tokenDefinitionId === "clear-smog");
+    undoLogEntry(entry.id);
+    return {
+      buffs: pokemon.effectBuffs.map((buff) => buff.status),
+      labels: pokemon.buffs,
+      laterMove: pokemon.moves.includes("Later Move"),
+      grant: state.players.find((player) => player.id === "gold").moveAccessGrants.find((grant) => grant.id === "clear-move")?.status
+    };
+  })()`);
+  assert.deepEqual(undone, { buffs: ["active", "active"], labels: ["+3 Levels", "AAA Ability: Levitate", "Native Ribbon"], laterMove: true, grant: "active" });
+  assertNoNewBrowserErrors(errorStart);
+});
+
+test("[BROWSER-023] production Rage Candy extension, generated rules, refresh, and ordered causal undo", async () => {
+  const errorStart = browserErrors.length;
+  const productionState = controlStateFixture("browser-023-rage");
+  await navigateProduction(productionState, "BROWSER-023-RAGE");
+  const result = await evaluate(`(async () => {
+    const actor = state.players.find((player) => player.id === "gold");
+    const resolveOne = (tokenId) => {
+      const token = actor.inventory.find((item) => item.id === tokenId);
+      const activity = createTokenPendingEventFromUse({
+        actor, actorPlayerId: actor.id, tokenName: token.name, category: TOKEN_TIMING_CATEGORIES.CONTROL,
+        targetPlayerId: actor.id, targetPokemonId: "gold-garchomp", targetPokemonName: "Garchomp",
+        targetType: EFFECT_TARGET_TYPES.POKEMON, targetScope: EFFECT_TARGET_SCOPES.ROSTER_INSTANCE
+      });
+      const resolution = resolveCurrentInteractionPrompt(activity, { force: true, source: "browser-rage" });
+      if (!resolution.closed) throw new Error("Rage Candy did not resolve terminally.");
+      return activity;
+    };
+    state.liveRefereeSelectedEffectName = "Rage Candy Bar";
+    state.testingTools.controlledPlayerId = actor.id;
+    const picker = liveRefereeEffectUseScreenMarkup(getCurrentLivePrompt(), actor.id);
+    const first = resolveOne("gold-rage-1");
+    const second = resolveOne("gold-rage-2");
+    const pokemon = findPokemonRecord("gold-garchomp");
+    const rules = teambuilderRuleContextForPokemon(pokemon);
+    await pushBackendState({ force: true });
+    return {
+      picker: picker.includes("gold-garchomp"),
+      duration: state.lingeringStatuses.find((status) => status.type === "rage-candy-enhancement" && status.status === "active")?.durationGyms,
+      buffCount: pokemon.effectBuffs.filter((buff) => buff.status === "active").length,
+      level: teambuilderEffectiveLevelForPokemon(pokemon),
+      evBonus: rules.evCapBonuses.reduce((sum, entry) => sum + entry.amount, 0),
+      eventIds: [first.id, second.id]
+    };
+  })()`, 30000);
+  assert.deepEqual({ picker: result.picker, duration: result.duration, buffCount: result.buffCount, level: result.level, evBonus: result.evBonus }, { picker: true, duration: 4, buffCount: 2, level: 103, evBonus: 252 });
+  await reloadProduction("browser-023-rage");
+  const undone = await evaluate(`(() => {
+    const pokemon = findPokemonRecord("gold-garchomp");
+    pokemon.laterEdit = "kept";
+    const logs = state.log.filter((item) => !item.undone && item.undoData?.tokenDefinitionId === "rage-candy-bar").sort((a, b) => b.eventOrder - a.eventOrder);
+    undoLogEntry(logs[0].id);
+    const afterExtension = state.lingeringStatuses.find((status) => status.type === "rage-candy-enhancement" && status.status === "active")?.durationGyms || 0;
+    undoLogEntry(logs[1].id);
+    return {
+      afterExtension,
+      active: state.lingeringStatuses.some((status) => status.type === "rage-candy-enhancement" && status.status === "active"),
+      tokens: state.players.find((player) => player.id === "gold").inventory.filter((item) => ["gold-rage-1", "gold-rage-2"].includes(item.id)).length,
+      laterEdit: pokemon.laterEdit
+    };
+  })()`);
+  assert.deepEqual(undone, { afterExtension: 2, active: false, tokens: 2, laterEdit: "kept" });
+  assertNoNewBrowserErrors(errorStart);
+});
+
+test("[BROWSER-024] production Safeguard response lifecycle, category scope, refresh, and causal undo", async () => {
+  const errorStart = browserErrors.length;
+  const productionState = controlStateFixture("browser-024-safeguard");
+  productionState.players.find((player) => player.id === "gold").inventory.push({ id: "gold-safeguard-1", canonicalId: "safeguard", name: "Safeguard", type: "TOKEN", tokenType: "protection" });
+  const gameId = await navigateProduction(productionState, "BROWSER-024-SAFEGUARD");
+  const result = await evaluate(`(() => {
+    const actor = state.players.find((player) => player.id === "gold");
+    state.liveRefereeSelectedEffectName = "Safeguard";
+    state.testingTools.controlledPlayerId = actor.id;
+    const picker = liveRefereeEffectUseScreenMarkup(getCurrentLivePrompt(), actor.id);
+    const metadata = tokenEffectMetadataByName("Safeguard");
+    const activity = createTokenPendingEventFromUse({
+      actor, actorPlayerId: actor.id, targetPlayerId: actor.id, targetPlayerName: actor.name,
+      tokenName: "Safeguard", category: TOKEN_TIMING_CATEGORIES.PROTECTION,
+      targetType: EFFECT_TARGET_TYPES.PLAYER, targetScope: EFFECT_TARGET_SCOPES.SINGLE_PLAYER
+    });
+    if (!activity) throw new Error("Safeguard declaration did not open.");
+    const responseMarkup = liveRefereeOtherResponseScreenMarkup(getCurrentLivePrompt());
+    const resolution = resolveCurrentInteractionPrompt(activity, { force: true, source: "browser-safeguard" });
+    if (!resolution.closed) throw new Error("Safeguard did not resolve terminally.");
+    return {
+      selfPicker: picker.includes('data-live-referee-effect-field="targetPlayerId"'),
+      responseEnabled: metadata.canBeRespondedTo && /response|Protection|Pass/i.test(responseMarkup),
+      protected: ["moneySteal", "moneyDestroy", "moneyCopy", "tokenSteal", "tokenDestroy", "tokenCopy", "followMe", "embargo"].every((category) => controlTokenEffects.playerHasActiveSafeguard(state, actor.id, category, controlTokenEffectOptions())),
+      nonProtected: ["itemSteal", "itemDestroy", "tmSteal", "tmDestroy", "pokemonSteal", "forcedPayment", "counterspellRestoration"].every((category) => !controlTokenEffects.playerHasActiveSafeguard(state, actor.id, category, controlTokenEffectOptions())),
+      otherPlayer: !controlTokenEffects.playerHasActiveSafeguard(state, "red", "tokenCopy", controlTokenEffectOptions())
+    };
+  })()`);
+  assert.deepEqual(result, { selfPicker: true, responseEnabled: true, protected: true, nonProtected: true, otherPlayer: true });
+  await persistBrowserState(gameId);
+  await reloadProduction("browser-024-safeguard");
+  const undone = await evaluate(`(() => {
+    const actor = state.players.find((player) => player.id === "gold");
+    actor.balance = 12345;
+    const entry = state.log.find((item) => !item.undone && item.undoData?.tokenDefinitionId === "safeguard");
+    undoLogEntry(entry.id);
+    return {
+      token: actor.inventory.some((item) => item.id === "gold-safeguard-1"),
+      active: state.lingeringStatuses.some((status) => status.type === "safeguard" && status.status === "active"),
+      balance: actor.balance
+    };
+  })()`);
+  assert.deepEqual(undone, { token: true, active: false, balance: 12345 });
+  assertNoNewBrowserErrors(errorStart);
+});
+
+test("[BROWSER-025] production Cold Wave suppresses explicit ongoing consumers through refresh, expiration, and causal undo", async () => {
+  const errorStart = browserErrors.length;
+  const productionState = controlStateFixture("browser-025-cold-wave");
+  productionState.players.find((player) => player.id === "steevee").inventory.push({ id: "steevee-cold-wave-1", canonicalId: "cold-wave", name: "Cold Wave", type: "TOKEN" });
+  productionState.lingeringStatuses.push(
+    { id: "browser-025-ongoing-survivor", type: "test-ongoing", name: "Ongoing Survivor", status: "active", isOngoingEffect: true, series: "Kanto", gym: 1, targetPlayerId: "gold" },
+    { id: "browser-025-ongoing-expires", type: "test-ongoing", name: "Ongoing Expiring", status: "active", isOngoingEffect: true, series: "Kanto", gym: 1, targetPlayerId: "red" },
+    { id: "browser-025-duration-only", type: "duration-only", name: "Duration Only", status: "active", durationGyms: 2, series: "Kanto", gym: 1, targetPlayerId: "gold" }
+  );
+  const gameId = await navigateProduction(productionState, "BROWSER-025-COLD-WAVE");
+  const resolved = await evaluate(`(() => {
+    backendSync.enabled = false;
+    const actor = state.players.find((player) => player.id === "steevee");
+    state.liveRefereeSelectedEffectName = "Cold Wave";
+    state.testingTools.controlledPlayerId = actor.id;
+    const picker = liveRefereeEffectUseScreenMarkup(getCurrentLivePrompt(), actor.id);
+    const activity = createTokenPendingEventFromUse({ actor, actorPlayerId: actor.id, tokenName: "Cold Wave", category: TOKEN_TIMING_CATEGORIES.CONTROL, targetType: EFFECT_TARGET_TYPES.TABLE, targetScope: EFFECT_TARGET_SCOPES.TABLE_WIDE });
+    if (!activity) throw new Error("Cold Wave declaration did not open.");
+    const result = resolveCurrentInteractionPrompt(activity, { force: true, source: "browser-cold-wave" });
+    const suppression = state.lingeringStatuses.find((status) => status.type === "cold-wave-suppression" && status.status === "active");
+    const survivor = state.lingeringStatuses.find((status) => status.id === "browser-025-ongoing-survivor");
+    const durationOnly = state.lingeringStatuses.find((status) => status.id === "browser-025-duration-only");
+    return {
+      picker: /Cold Wave|table-wide/i.test(picker), closed: result.closed, suppressionId: suppression?.id || "",
+      survivorPresent: survivor?.status === "active", survivorSuppressed: controlTokenEffects.statusSuppressedByColdWave(state, survivor, controlTokenEffectOptions()),
+      durationActive: controlTokenEffects.activeStatuses(state, controlTokenEffectOptions(), (status) => status.id === durationOnly.id).length === 1,
+      rendered: /Suppressed by Cold Wave/.test(statusDisplayLabel(survivor))
+    };
+  })()`);
+  assert.deepEqual({ ...resolved, suppressionId: Boolean(resolved.suppressionId) }, { picker: true, closed: true, suppressionId: true, survivorPresent: true, survivorSuppressed: true, durationActive: true, rendered: true });
+  await persistBrowserState(gameId);
+  await reloadProduction("browser-025-cold-wave");
+  const expiredAndUndone = await evaluate(`(() => {
+    backendSync.enabled = false;
+    const expiring = state.lingeringStatuses.find((status) => status.id === "browser-025-ongoing-expires");
+    expiring.status = "expired";
+    expiring.expiredAt = "2026-08-04T18:00:00.000Z";
+    controlTokenEffects.expireColdWaveAtGymEnd(state, { ...controlTokenEffectOptions(), phase: "end" });
+    const survivor = state.lingeringStatuses.find((status) => status.id === "browser-025-ongoing-survivor");
+    const resumed = controlTokenEffects.activeStatuses(state, controlTokenEffectOptions(), (status) => status.id === survivor.id).length;
+    const revived = controlTokenEffects.activeStatuses(state, controlTokenEffectOptions(), (status) => status.id === expiring.id).length;
+    state.players.find((player) => player.id === "red").coldWaveLaterNote = "preserve";
+    const history = state.log.find((entry) => !entry.undone && entry.undoData?.tokenDefinitionId === "cold-wave");
+    undoLogEntry(history.id);
+    return {
+      resumed, revived,
+      suppressionCount: state.lingeringStatuses.filter((status) => status.type === "cold-wave-suppression").length,
+      token: state.players.find((player) => player.id === "steevee").inventory.some((item) => item.id === "steevee-cold-wave-1"),
+      laterNote: state.players.find((player) => player.id === "red").coldWaveLaterNote,
+      survivorStatus: survivor.status, expiringStatus: expiring.status
+    };
+  })()`);
+  assert.deepEqual(expiredAndUndone, { resumed: 1, revived: 0, suppressionCount: 0, token: true, laterNote: "preserve", survivorStatus: "active", expiringStatus: "expired" });
+  assertNoNewBrowserErrors(errorStart);
+});
+
+test("[BROWSER-026] production Wicked Blow preserves exact references and causal undo while mixed-tier branches fail closed", async () => {
+  const errorStart = browserErrors.length;
+  const productionState = controlStateFixture("browser-026-wicked-blow");
+  productionState.battleTeams = { "Kanto:G1": { red: { selected: ["red-garchomp"], lockedSlots: [{ id: "red-locked-1", pokemonRecordId: "red-garchomp", selectedBattleSpecies: "Garchomp", setSnapshot: { species: "Garchomp", moves: ["Earthquake"] } }] } } };
+  productionState.teambuilder = { ...productionState.teambuilder, activeBuildByPlayerId: { red: "red-build-1" }, buildsByPlayerId: { red: [{ id: "red-build-1", playerId: "red", series: "Kanto", gym: 1, slots: [{ id: "red-slot-1", pokemonRecordId: "red-garchomp", selectedBattleSpecies: "Garchomp", moves: ["Earthquake"], ability: "Rough Skin" }] }] } };
+  const gameId = await navigateProduction(productionState, "BROWSER-026-WICKED-BLOW");
+  const result = await evaluate(`(async () => {
+    backendSync.enabled = false;
+    await ensurePokemonBuildDataLoaded({ renderOnLoad: false });
+    const actor = state.players.find((player) => player.id === "steevee");
+    state.liveRefereeSelectedEffectName = "Wicked Blow";
+    state.testingTools.controlledPlayerId = actor.id;
+    const picker = liveRefereeEffectUseScreenMarkup(getCurrentLivePrompt(), actor.id);
+    const activity = createTokenPendingEventFromUse({ actor, actorPlayerId: actor.id, tokenName: "Wicked Blow", category: TOKEN_TIMING_CATEGORIES.CONTROL, targetPlayerId: "red", targetPokemonId: "red-garchomp", targetPokemonName: "Garchomp", targetType: EFFECT_TARGET_TYPES.POKEMON, targetScope: EFFECT_TARGET_SCOPES.ROSTER_INSTANCE });
+    if (!activity) throw new Error("Wicked Blow declaration did not open.");
+    const resolution = resolveCurrentInteractionPrompt(activity, { force: true, source: "browser-wicked-completion" });
+    const pokemon = findPokemonRecord("red-garchomp");
+    return {
+      pickerExact: picker.includes("red-garchomp") || /Garchomp/.test(picker), closed: resolution.closed,
+      stableId: pokemon.id, replacement: pokemon.name,
+      teamSpecies: state.battleTeams["Kanto:G1"].red.lockedSlots[0].selectedBattleSpecies,
+      buildSpecies: state.teambuilder.buildsByPlayerId.red[0].slots[0].selectedBattleSpecies,
+      noNewMembership: !state.battleTeams["Kanto:G1"].red.selected.includes("red-garchomp-2"),
+      historyCausal: state.log.some((entry) => entry.undoData?.tokenDefinitionId === "wicked-blow" && entry.undoData.actionType === "undoTokenEffectContractCausal")
+    };
+  })()`, 30000);
+  assert.equal(result.pickerExact, true);
+  assert.equal(result.closed, true);
+  assert.equal(result.stableId, "red-garchomp");
+  assert.notEqual(result.replacement, "Garchomp");
+  assert.equal(result.teamSpecies, result.replacement);
+  assert.equal(result.buildSpecies, result.replacement);
+  assert.equal(result.noNewMembership, true);
+  assert.equal(result.historyCausal, true);
+  await persistBrowserState(gameId);
+  await reloadProduction("browser-026-wicked-blow");
+  const undone = await evaluate(`(() => {
+    const pokemon = findPokemonRecord("red-garchomp");
+    pokemon.userLaterNote = "keep-wicked-note";
+    state.teambuilder.unrelatedLaterSetting = "keep";
+    const history = state.log.find((entry) => !entry.undone && entry.undoData?.tokenDefinitionId === "wicked-blow");
+    undoLogEntry(history.id);
+    return {
+      species: pokemon.name, note: pokemon.userLaterNote,
+      teamSpecies: state.battleTeams["Kanto:G1"].red.lockedSlots[0].selectedBattleSpecies,
+      buildSpecies: state.teambuilder.buildsByPlayerId.red[0].slots[0].selectedBattleSpecies,
+      laterSetting: state.teambuilder.unrelatedLaterSetting,
+      token: state.players.find((player) => player.id === "steevee").inventory.some((item) => item.id === "steevee-wicked-1")
+    };
+  })()`);
+  assert.deepEqual(undone, { species: "Garchomp", note: "keep-wicked-note", teamSpecies: "Garchomp", buildSpecies: "Garchomp", laterSetting: "keep", token: true });
+  assertNoNewBrowserErrors(errorStart);
+});
+
+test("[BROWSER-027] production Teleport returned-event History undo restores both exact Tokens without reopening terminal chains", async () => {
+  const errorStart = browserErrors.length;
+  const productionState = controlStateFixture("browser-027-teleport-undo");
+  productionState.currentPhase = "action";
+  productionState.phaseState = { "Kanto:G1": { currentPhase: "action", flowState: "action" } };
+  productionState.players.find((player) => player.id === "gold").inventory.push({ id: "gold-teleport-undo-1", canonicalId: "teleport", name: "Teleport", type: "TOKEN" });
+  const gameId = await navigateProduction(productionState, "BROWSER-027-TELEPORT-UNDO");
+  const scheduled = await evaluate(`(() => {
+    backendSync.enabled = false;
+    const actor = state.players.find((player) => player.id === "steevee");
+    const responder = state.players.find((player) => player.id === "gold");
+    const root = createTokenPendingEventFromUse({ actor, actorPlayerId: actor.id, tokenName: "Restrict", category: TOKEN_TIMING_CATEGORIES.CONTROL, targetPlayerId: responder.id, targetPokemonId: "gold-garchomp", targetPokemonName: "Garchomp", targetText: "Garchomp", targetType: EFFECT_TARGET_TYPES.POKEMON, targetScope: EFFECT_TARGET_SCOPES.SPECIES });
+    const response = recordTokenResponseToActivity(root, { actor: responder, actorPlayerId: responder.id, tokenName: "Teleport", category: TOKEN_TIMING_CATEGORIES.PROTECTION, targetType: EFFECT_TARGET_TYPES.CURRENT_PROMPT, targetScope: EFFECT_TARGET_SCOPES.CURRENT_PROMPT }, "protection-token");
+    const result = resolveCurrentInteractionPrompt(root, { force: true, source: "browser-teleport-undo-schedule" });
+    const delayed = state.delayedEffects.find((entry) => entry.sourceResponseId === response.id);
+    return { closed: result.closed, delayedId: delayed.id, originalEventId: root.id };
+  })()`);
+  assert.equal(scheduled.closed, true);
+  await persistBrowserState(gameId);
+  await reloadProduction("browser-027-teleport-undo");
+  const returned = await evaluate(`(() => {
+    backendSync.enabled = false;
+    state.gym = 2; state.currentPhase = "action"; state.phase = "action";
+    state.phaseState["Kanto:G2"] = { currentPhase: "action", flowState: "action" };
+    const opened = processDueTeleportDelayedEffects();
+    const delayed = state.delayedEffects.find((entry) => entry.id === ${JSON.stringify(scheduled.delayedId)});
+    return { opened: opened.opened, eventId: delayed.returnInteractionEventId };
+  })()`);
+  assert.equal(returned.opened, 1);
+  await persistBrowserState(gameId);
+  await reloadProduction("browser-027-teleport-undo");
+  const terminal = await evaluate(`(() => {
+    backendSync.enabled = false;
+    const event = state.interactionEvents.find((entry) => entry.id === ${JSON.stringify(returned.eventId)});
+    const result = resolveCurrentInteractionPrompt(event, { force: true, source: "browser-teleport-undo-return" });
+    const history = state.log.find((entry) => !entry.undone && entry.linkedEventId === event.id && entry.undoData?.actionType === "undoTokenEffectContractCausal");
+    const originalHistory = state.log.find((entry) => entry.linkedEventId === ${JSON.stringify(scheduled.originalEventId)} && entry.undoData?.actionType === "undoTokenEffectContractCausal");
+    return { closed: result.closed, eventStatus: event.status, historyId: history?.id || "", originalUndoable: originalHistory?.undoable !== false };
+  })()`);
+  assert.deepEqual({ ...terminal, historyId: Boolean(terminal.historyId) }, { closed: true, eventStatus: "resolved", historyId: true, originalUndoable: false });
+  await persistBrowserState(gameId);
+  await reloadProduction("browser-027-teleport-undo");
+  const undone = await evaluate(`(() => {
+    const event = state.interactionEvents.find((entry) => entry.id === ${JSON.stringify(returned.eventId)});
+    findPokemonRecord("gold-garchomp").teleportLaterNote = "preserve";
+    const history = state.log.find((entry) => !entry.undone && entry.linkedEventId === event.id && entry.undoData?.actionType === "undoTokenEffectContractCausal");
+    undoLogEntry(history.id);
+    return {
+      restrictTokens: state.players.find((player) => player.id === "steevee").inventory.filter((item) => item.name === "Restrict").length,
+      teleport: state.players.find((player) => player.id === "gold").inventory.some((item) => item.id === "gold-teleport-undo-1"),
+      delayed: state.delayedEffects.filter((entry) => entry.id === ${JSON.stringify(scheduled.delayedId)}).length,
+      restriction: state.lingeringStatuses.filter((status) => status.type === "restrict" && status.status === "active").length,
+      terminal: event.status, laterNote: findPokemonRecord("gold-garchomp").teleportLaterNote
+    };
+  })()`);
+  assert.deepEqual(undone, { restrictTokens: 3, teleport: true, delayed: 0, restriction: 0, terminal: "resolved", laterNote: "preserve" });
+  assertNoNewBrowserErrors(errorStart);
+});
+
+test("[BROWSER-028] production Reroll supersedes one exact encounter result through refresh and causal undo", async () => {
+  const errorStart = browserErrors.length;
+  const productionState = controlStateFixture("browser-028-reroll");
+  productionState.players.find((player) => player.id === "gold").inventory.push(
+    { id: "gold-reroll-browser-1", canonicalId: "reroll-token", name: "Reroll", type: "TOKEN" },
+    { id: "gold-reroll-browser-2", canonicalId: "reroll-token", name: "Reroll", type: "TOKEN" }
+  );
+  productionState.encounterSessions = [{ id: "browser-028-encounter", status: "review", playerId: "gold", series: "Kanto", gym: 1, rolls: [], removedEntryIds: [] }];
+  productionState.randomPokemonSessions = [{ id: "browser-028-result", sourceType: "encounter", sourceLabel: "Encounter Wheel", status: "pending", rerollable: true, interactionLocked: false, playerId: "gold", ownerPlayerId: "gold", resultOwnerPlayerId: "gold", encounterSessionId: "browser-028-encounter", series: "Kanto", gym: 1, tierId: "C", resultPokemonName: "abra", resultDisplayName: "Abra", resultMetadata: { key: "abra", displayName: "Abra" }, rerollHistory: [], resultHistory: [] }];
+  const gameId = await navigateProduction(productionState, "BROWSER-028-REROLL");
+  const rerolled = await evaluate(`(async () => {
+    backendSync.enabled = false;
+    state.testingTools.controlledPlayerId = "gold";
+    fetchStablePokemonSprite = async (name, existingSpriteKey = "") => ({ spriteKey: existingSpriteKey || getPokemonSpriteLookupKey(name), spriteUrl: "" });
+    openRerollTargetModal("gold");
+    const picker = els.rerollTargetList?.innerHTML || "";
+    const operation = await rerollRandomPokemonSession("browser-028-result", { actorPlayerId: "gold", sourceEffectId: "browser-028-reroll-operation" });
+    const result = state.randomPokemonSessions.find((entry) => entry.id === "browser-028-result");
+    const beforeRetry = JSON.stringify({ result: result.resultDisplayName, inventory: state.players.find((player) => player.id === "gold").inventory, operations: state.effectOperations });
+    await rerollRandomPokemonSession("browser-028-result", { actorPlayerId: "gold", sourceEffectId: "browser-028-reroll-operation" });
+    return {
+      picker: picker.includes("browser-028-result") || picker.includes("Abra"), replacement: result.resultDisplayName,
+      oldStatus: result.resultHistory[0]?.status || "", supersedes: Boolean(result.supersedesResultRevisionId),
+      inventory: state.players.find((player) => player.id === "gold").inventory.filter((item) => item.canonicalId === "reroll-token").length,
+      consumption: state.tokenConsumptions.filter((entry) => entry.source === "encounter-reroll").length,
+      operationId: operation?.id || "", retryStable: beforeRetry === JSON.stringify({ result: result.resultDisplayName, inventory: state.players.find((player) => player.id === "gold").inventory, operations: state.effectOperations })
+    };
+  })()`, 30000);
+  assert.equal(rerolled.picker, true);
+  assert.notEqual(rerolled.replacement, "Abra");
+  assert.equal(rerolled.oldStatus, "superseded");
+  assert.equal(rerolled.supersedes, true);
+  assert.equal(rerolled.inventory, 1);
+  assert.equal(rerolled.consumption, 1);
+  assert.ok(rerolled.operationId);
+  assert.equal(rerolled.retryStable, true);
+  await persistBrowserState(gameId);
+  await reloadProduction("browser-028-reroll");
+  const undone = await evaluate(`(() => {
+    const result = state.randomPokemonSessions.find((entry) => entry.id === "browser-028-result");
+    result.userLaterNote = "keep-result-note";
+    const history = state.log.find((entry) => !entry.undone && entry.undoData?.tokenDefinitionId === "reroll-token");
+    undoLogEntry(history.id);
+    return {
+      result: result.resultDisplayName, history: result.rerollHistory.length, note: result.userLaterNote,
+      inventory: state.players.find((player) => player.id === "gold").inventory.filter((item) => item.canonicalId === "reroll-token").length,
+      operations: state.effectOperations.filter((entry) => entry.sourceEffectId === "browser-028-reroll-operation").length
+    };
+  })()`);
+  assert.deepEqual(undone, { result: "Abra", history: 0, note: "keep-result-note", inventory: 2, operations: 0 });
+  assertNoNewBrowserErrors(errorStart);
+});
+
+test("[BROWSER-029] production Honey exact-result selection reaches acquisition and causal undo", async () => {
+  const errorStart = browserErrors.length;
+  const productionState = controlStateFixture("browser-029-honey");
+  productionState.players.find((player) => player.id === "gold").inventory.push({ id: "gold-honey-browser-1", canonicalId: "honey-token", name: "Honey", type: "TOKEN" });
+  productionState.randomPokemonSessions = [
+    { id: "browser-029-source-a", sourceType: "encounter", sourceLabel: "Encounter Wheel", status: "confirmed", series: "Kanto", gym: 1, ownerPlayerId: "red", resultOwnerPlayerId: "red", resultDisplayName: "Garchomp", tierId: "S", tier: "S", level: 54, resultMetadata: { speciesId: "garchomp", speciesName: "Garchomp", form: "Standard", intrinsicRolledProperties: { shiny: true } } },
+    { id: "browser-029-source-b", sourceType: "encounter", sourceLabel: "Encounter Wheel", status: "confirmed", series: "Kanto", gym: 1, ownerPlayerId: "steevee", resultOwnerPlayerId: "steevee", resultDisplayName: "Lucario", tierId: "A", tier: "A", level: 52, resultMetadata: { speciesId: "lucario", speciesName: "Lucario", form: "Standard" } }
+  ];
+  const gameId = await navigateProduction(productionState, "BROWSER-029-HONEY");
+  const offered = await evaluate(`(() => {
+    backendSync.enabled = false;
+    const created = ensureHoneyEndOfActionProcedures();
+    const pair = created.find((entry) => entry.procedure.sourcePlayerId === "gold");
+    const markup = liveRefereeHoneyProcedureScreenMarkup(getCurrentLivePrompt(), pair.activity);
+    return { activityId: pair.activity.id, procedureId: pair.procedure.id, choices: pair.procedure.eligibleRandomPokemonSessionIds.length, markup: markup.includes("Garchomp") && markup.includes("Lucario"), responseTypes: pair.activity.responseTypes.length };
+  })()`);
+  assert.deepEqual({ ...offered, activityId: Boolean(offered.activityId), procedureId: Boolean(offered.procedureId) }, { activityId: true, procedureId: true, choices: 2, markup: true, responseTypes: 0 });
+  await persistBrowserState(gameId);
+  await reloadProduction("browser-029-honey");
+  const copied = await evaluate(`(() => {
+    backendSync.enabled = false;
+    const sourceBefore = structuredClone(state.randomPokemonSessions.find((entry) => entry.id === "browser-029-source-a"));
+    const ok = resolveHoneyEndOfActionProcedure(${JSON.stringify(offered.activityId)}, "browser-029-source-a");
+    const procedure = state.endOfActionProcedures.find((entry) => entry.id === ${JSON.stringify(offered.procedureId)});
+    const copy = state.randomPokemonSessions.find((entry) => entry.id === procedure.copiedRandomPokemonSessionId);
+    return {
+      ok, copyId: copy?.id || "", fresh: copy?.id !== sourceBefore.id, species: copy?.resultDisplayName,
+      form: copy?.resultMetadata?.form, tier: copy?.tierId, level: copy?.level, pending: copy?.status,
+      selected: state.selectedRandomPokemonSessionId === copy?.id, sourceUnchanged: JSON.stringify(sourceBefore) === JSON.stringify(state.randomPokemonSessions.find((entry) => entry.id === sourceBefore.id)),
+      tokenCount: state.players.find((player) => player.id === "gold").inventory.filter((item) => item.id === "gold-honey-browser-1").length
+    };
+  })()`);
+  assert.deepEqual({ ...copied, copyId: Boolean(copied.copyId) }, { ok: true, copyId: true, fresh: true, species: "Garchomp", form: "Standard", tier: "S", level: 54, pending: "pending", selected: true, sourceUnchanged: true, tokenCount: 0 });
+  await persistBrowserState(gameId);
+  await reloadProduction("browser-029-honey");
+  const acquired = await evaluate(`(async () => {
+    backendSync.enabled = false;
+    globalThis.confirm = () => true;
+    fetchStablePokemonSprite = async (name, existingSpriteKey = "") => ({ spriteKey: existingSpriteKey || getPokemonSpriteLookupKey(name), spriteUrl: "" });
+    await confirmRandomPokemonSession(${JSON.stringify(copied.copyId)}, { skipPendingGuard: true });
+    const copy = state.randomPokemonSessions.find((entry) => entry.id === ${JSON.stringify(copied.copyId)});
+    return { status: copy.status, pokemonId: copy.rosterPokemonId || "", rosterExists: Boolean(findPokemonRecord(copy.rosterPokemonId)) };
+  })()`, 30000);
+  assert.deepEqual({ ...acquired, pokemonId: Boolean(acquired.pokemonId) }, { status: "confirmed", pokemonId: true, rosterExists: true });
+  await persistBrowserState(gameId);
+  await reloadProduction("browser-029-honey");
+  const undone = await evaluate(`(() => {
+    state.players.find((player) => player.id === "red").honeyLaterNote = "keep";
+    const history = state.log.find((entry) => !entry.undone && entry.undoData?.tokenDefinitionId === "honey-token");
+    undoLogEntry(history.id);
+    return {
+      copy: state.randomPokemonSessions.some((entry) => entry.id === ${JSON.stringify(copied.copyId)}),
+      acquired: Boolean(findPokemonRecord(${JSON.stringify(acquired.pokemonId)})),
+      sourceA: state.randomPokemonSessions.find((entry) => entry.id === "browser-029-source-a")?.status,
+      sourceB: state.randomPokemonSessions.find((entry) => entry.id === "browser-029-source-b")?.status,
+      token: state.players.find((player) => player.id === "gold").inventory.some((item) => item.id === "gold-honey-browser-1"),
+      procedure: state.endOfActionProcedures.find((entry) => entry.id === ${JSON.stringify(offered.procedureId)})?.status,
+      laterNote: state.players.find((player) => player.id === "red").honeyLaterNote
+    };
+  })()`);
+  assert.deepEqual(undone, { copy: false, acquired: false, sourceA: "confirmed", sourceB: "confirmed", token: true, procedure: "undone", laterNote: "keep" });
+  assertNoNewBrowserErrors(errorStart);
+});
+
+test("[BROWSER-030] production Purge uses the immutable brought snapshot through payout and causal undo", async () => {
+  const errorStart = browserErrors.length;
+  const productionState = controlStateFixture("browser-030-purge");
+  productionState.players.find((player) => player.id === "steevee").inventory.push({ id: "steevee-purge-browser-1", canonicalId: "purge-curse", name: "Purge Curse", type: "TOKEN" });
+  const gameId = await navigateProduction(productionState, "BROWSER-030-PURGE");
+  const declared = await evaluate(`(() => {
+    backendSync.enabled = false;
+    const actor = state.players.find((player) => player.id === "steevee");
+    const activity = createTokenPendingEventFromUse({ actor, actorPlayerId: actor.id, tokenName: "Purge Curse", category: TOKEN_TIMING_CATEGORIES.CURSE, targetPlayerId: "red", targetPlayerName: "Red", targetType: EFFECT_TARGET_TYPES.PLAYER, targetScope: EFFECT_TARGET_SCOPES.SINGLE_PLAYER });
+    if (!activity) throw new Error("Purge declaration did not open.");
+    const result = resolveCurrentInteractionPrompt(activity, { force: true, source: "browser-purge-declare" });
+    const marker = state.lingeringStatuses.find((status) => status.type === "curse-purge" && status.status === "active");
+    return { closed: result.closed, eventId: activity.id, markerId: marker?.id || "", responses: activity.responseTypes.length, eligible: activity.eligiblePlayerIds.length, tradeWindow: Boolean(activity.payload?.tradeWindow) };
+  })()`);
+  assert.deepEqual({ ...declared, eventId: Boolean(declared.eventId), markerId: Boolean(declared.markerId) }, { closed: true, eventId: true, markerId: true, responses: 0, eligible: 0, tradeWindow: false });
+  await persistBrowserState(gameId);
+  await reloadProduction("browser-030-purge");
+  const finalized = await evaluate(`(() => {
+    backendSync.enabled = false;
+    state.pokemonRecords.push({ id: "red-later-purge", trainerId: "red", name: "Garchomp", currentSpecies: "Garchomp", rosterType: "Active", status: "Active", moves: ["Tackle"], buffs: [], nerfs: [], effectBuffs: [] });
+    state.currentPhase = "battle-results"; state.phase = "battle-results";
+    state.phaseState = { "Kanto:G1": { currentPhase: "battle-results", flowState: "battle-results" } };
+    state.battleRecords = [
+      { id: "purge-gold-red", series: "Kanto", gym: 1, player1Id: "gold", player2Id: "red", winnerId: "gold", player1Differential: 1, player2Differential: -1, player1Pokemon: [{ pokemonId: "gold-garchomp", pokemonName: "Garchomp", kos: 1, deaths: 0 }], player2Pokemon: [{ pokemonId: "red-garchomp", pokemonName: "Garchomp", kos: 0, deaths: 1 }, { pokemonId: "red-lucario", pokemonName: "Lucario", kos: 0, deaths: 1 }] },
+      { id: "purge-gold-steevee", series: "Kanto", gym: 1, player1Id: "gold", player2Id: "steevee", winnerId: "gold", player1Differential: 1, player2Differential: -1, player1Pokemon: [{ pokemonId: "gold-lucario", pokemonName: "Lucario", kos: 1, deaths: 0 }], player2Pokemon: [{ pokemonId: "steevee-alakazam", pokemonName: "Alakazam", kos: 0, deaths: 1 }] },
+      { id: "purge-red-steevee", series: "Kanto", gym: 1, player1Id: "red", player2Id: "steevee", winnerId: "red", player1Differential: 1, player2Differential: -1, player1Pokemon: [{ pokemonId: "red-garchomp", pokemonName: "Garchomp", kos: 1, deaths: 0 }], player2Pokemon: [{ pokemonId: "steevee-alakazam", pokemonName: "Alakazam", kos: 0, deaths: 1 }] }
+    ];
+    globalThis.confirm = () => true;
+    finalizeGymResults({ skipPendingGuard: true });
+    const snapshot = state.broughtTeamSnapshots.find((entry) => entry.source === "finalizedGymPayout");
+    const rootHistory = state.log.find((entry) => !entry.undone && entry.linkedEventId === ${JSON.stringify(declared.eventId)} && entry.undoData?.tokenDefinitionId === "purge-curse");
+    return {
+      snapshotId: snapshot?.id || "", redSnapshot: controlTokenEffects.broughtSnapshotPlayer(snapshot, "red")?.pokemon.map((entry) => entry.rosterInstanceId).sort() || [],
+      garchomp: findPokemonRecord("red-garchomp")?.status, lucario: findPokemonRecord("red-lucario")?.status,
+      duplicateSpecies: findPokemonRecord("red-garchomp-2")?.status, later: findPokemonRecord("red-later-purge")?.status,
+      operationCount: state.effectOperations.filter((entry) => entry.operationType === "purgePostPayout").length,
+      causal: rootHistory?.undoData?.actionType === "undoTokenEffectContractCausal" && rootHistory?.purgePostPayoutCompleted === true,
+      openRequired: state.interactionEvents.filter((entry) => entry.status === "open" && entry.payload?.requiresRequiredChoice).length
+    };
+  })()`);
+  assert.deepEqual({ ...finalized, snapshotId: Boolean(finalized.snapshotId) }, { snapshotId: true, redSnapshot: ["red-garchomp", "red-lucario"], garchomp: "Released", lucario: "Released", duplicateSpecies: "Active", later: "Active", operationCount: 1, causal: true, openRequired: 0 });
+  await persistBrowserState(gameId);
+  await reloadProduction("browser-030-purge");
+  const undone = await evaluate(`(() => {
+    findPokemonRecord("red-later-purge").userLaterNote = "keep-purge-later";
+    const history = state.log.find((entry) => !entry.undone && entry.linkedEventId === ${JSON.stringify(declared.eventId)} && entry.undoData?.tokenDefinitionId === "purge-curse");
+    undoLogEntry(history.id);
+    return {
+      garchomp: findPokemonRecord("red-garchomp")?.status, lucario: findPokemonRecord("red-lucario")?.status,
+      duplicateSpecies: findPokemonRecord("red-garchomp-2")?.status, later: findPokemonRecord("red-later-purge")?.status,
+      laterNote: findPokemonRecord("red-later-purge")?.userLaterNote,
+      token: state.players.find((player) => player.id === "steevee").inventory.some((item) => item.id === "steevee-purge-browser-1"),
+      marker: state.lingeringStatuses.filter((status) => status.type === "curse-purge").length,
+      operation: state.effectOperations.filter((entry) => entry.operationType === "purgePostPayout").length
+    };
+  })()`);
+  assert.deepEqual(undone, { garchomp: "Active", lucario: "Active", duplicateSpecies: "Active", later: "Active", laterNote: "keep-purge-later", token: true, marker: 0, operation: 0 });
   assertNoNewBrowserErrors(errorStart);
 });

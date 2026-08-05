@@ -44,6 +44,7 @@ const STATIC_FILES = new Set([
   "/pokemon-balance-tiers.js",
   "/pokemon-build-data.js",
   "/silph-data.js",
+  "/action-phase-balance.js",
   "/ARCHITECTURE.md",
   "/SAGA_TOKEN_RULES.md",
   "/README.md"
@@ -282,11 +283,25 @@ function isPlainObject(value) {
   return Boolean(value && typeof value === "object" && !Array.isArray(value));
 }
 
+const CANCELED_TOKEN_CONTENT_IDS = new Set([
+  "payday-field", "drizzle-field", "drought-field", "taunt-field",
+  "snow-warning-field", "sand-stream-field", "infestation-field", "surging-strikes-field",
+  "electric-field-token", "grassy-field-token", "field-kit"
+]);
+
+function isCanceledTokenContent(entry) {
+  const normalized = typeof entry === "string" ? { id: entry, name: entry } : entry || {};
+  const id = tokenArtKey(normalized.catalogId || normalized.id || normalized.name || normalized.tokenName || "");
+  return CANCELED_TOKEN_CONTENT_IDS.has(id)
+    || String(normalized.tokenType || "").toLowerCase() === "field"
+    || /-field-token$/.test(tokenArtKey(normalized.name || normalized.tokenName || ""));
+}
+
 function validateGameStateStructure(state) {
   const errors = [];
   if (!isPlainObject(state)) return ["state must be an object"];
   if (!Array.isArray(state.players) || !state.players.length) errors.push("state.players must contain at least one player");
-  ["pokemonRecords", "interactionEvents", "transactions", "log", "lingeringStatuses", "fieldTokens"].forEach((key) => {
+  ["pokemonRecords", "interactionEvents", "transactions", "log", "lingeringStatuses"].forEach((key) => {
     if (!Array.isArray(state[key])) errors.push(`state.${key} must be an array`);
   });
   try {
@@ -486,6 +501,22 @@ function compactGameStateForStorage(gameId, state, { compactUndoSnapshots = fals
     delete ruleset.tokenArtLibrary;
     changed = true;
   }
+  if (Object.prototype.hasOwnProperty.call(next, "fieldTokens")) {
+    delete next.fieldTokens;
+    changed = true;
+  }
+  (Array.isArray(next.players) ? next.players : []).forEach((player) => {
+    if (Array.isArray(player.inventory)) {
+      const inventory = player.inventory.filter((entry) => !isCanceledTokenContent(entry));
+      changed = inventory.length !== player.inventory.length || changed;
+      player.inventory = inventory;
+    }
+    if (Array.isArray(player.perks)) {
+      const perks = player.perks.filter((entry) => !isCanceledTokenContent(entry));
+      changed = perks.length !== player.perks.length || changed;
+      player.perks = perks;
+    }
+  });
   changed = stripPrivateForesightSetDataFromSharedPayload(next) || changed;
   if (compactUndoSnapshots) changed = compactUndoSnapshotsForStorage(next) || changed;
 
@@ -1016,6 +1047,14 @@ function activeRosterRecords(state, playerId = "") {
 }
 
 function serverDeclarationHasConstructiblePath(state, playerId, definition) {
+  if (definition.id === "unban-token") {
+    return tokenControlEffects.activeStatuses(state, {
+      series: state.series,
+      gym: Number(state.gym || 1),
+      phase: provisionalDeclarationRuntime.phaseFor(state),
+      seriesOrder: state.seriesOrder || []
+    }, (status) => ["ban", "restrict"].includes(status.type)).length > 0;
+  }
   if (definition.id === "lingering-aroma") {
     return tokenControlEffects.activeExplicitOngoingEffects(state).some((effect) => tokenControlEffects.ongoingEffectBenefitsPlayer(effect, playerId));
   }
@@ -1054,6 +1093,18 @@ function serverValidateDeclarationDraft(state, activity, definition, rawDraft) {
     targetPlayer = (state.players || []).find((player) => player.id === targetPokemon.trainerId) || null;
   } else if (definition.targetScope === "species") {
     if (!draft.targetText) return { ok: false, reason: "Choose a Pokemon species before confirming.", draft };
+    if (definition.id === "unban-token") {
+      const speciesKey = tokenControlEffects.defaultSpeciesKey(draft.targetText);
+      const selected = tokenControlEffects.activeStatuses(state, {
+        series: state.series,
+        gym: Number(state.gym || 1),
+        phase: provisionalDeclarationRuntime.phaseFor(state),
+        seriesOrder: state.seriesOrder || []
+      }, (status) => ["ban", "restrict"].includes(status.type)
+        && tokenControlEffects.defaultSpeciesKey(status.targetPokemonName || status.speciesId) === speciesKey)
+        .find((status) => status.id === draft.selectedStatusId);
+      if (!selected) return { ok: false, reason: "Choose one exact active Ban or Restrict record before confirming.", draft };
+    }
   } else if (definition.targetScope === "singlePlayer") {
     targetPlayer = (state.players || []).find((player) => player.id === draft.targetPlayerId) || null;
     if (!targetPlayer) return { ok: false, reason: "Choose a player before confirming.", draft };
@@ -1118,7 +1169,6 @@ function serverTokenRollbackSnapshot(state, excludedActivityId = "") {
   return {
     previousPlayers: cloneJson(state.players || []),
     previousPokemonRecords: cloneJson(state.pokemonRecords || []),
-    previousFieldTokens: cloneJson(state.fieldTokens || []),
     previousLingeringStatuses: cloneJson(state.lingeringStatuses || []),
     previousTokenActivations: cloneJson(state.tokenActivations || []),
     previousTokenConsumptions: cloneJson(state.tokenConsumptions || []),

@@ -383,7 +383,6 @@ const TOKEN_TIMING_CATEGORIES = Object.freeze({
   PROTECTION: "protection",
   ENCOUNTER: "encounter",
   CURSE: "curse",
-  FIELD: "field",
   MANUAL: "manual"
 });
 
@@ -481,7 +480,6 @@ const TOKEN_USE_TYPES = Object.freeze({
 
 const TOKEN_OBJECT_TYPES = Object.freeze({
   TOKEN: "token",
-  FIELD_TOKEN: "fieldToken",
   TICKET: "ticket",
   POINT: "point",
   KEY_ITEM: "keyItem"
@@ -497,7 +495,6 @@ const TOKEN_TIMING_WINDOWS = Object.freeze({
   TEAM_PREVIEW: "teamPreview",
   SABOTAGE: "sabotage",
   BATTLE_RESULTS: "battleResults",
-  FIELD_PLACEMENT: "fieldPlacement",
   MANUAL_HOST: "manualHost"
 });
 
@@ -516,7 +513,6 @@ const TOKEN_ACTIVATION_PATTERNS = Object.freeze({
 const TOKEN_PERSISTENCE_BUCKETS = Object.freeze({
   INSTANT: "instant",
   LINGERING_EFFECT: "lingeringEffect",
-  FIELD_STATE: "fieldState",
   STORED_MARKER: "storedMarker",
   PERMANENT_CHANGE: "permanentChange",
   NONE: "none"
@@ -531,7 +527,6 @@ const TOKEN_RESOLUTION_PAYLOADS = Object.freeze({
   REPLACEMENT: "replacement",
   COPY: "copy",
   WHEEL: "wheel",
-  FIELD_STATE: "fieldState",
   BUFF_NERF_APPLICATION: "buffNerfApplication",
   BATTLE_TRICK: "battleTrick"
 });
@@ -589,16 +584,6 @@ const TOKEN_TIMING_DEFAULTS = Object.freeze({
     preferredTimingWindow: TOKEN_PENDING_EVENT_TYPES.TEAM_LOCK_WINDOW,
     responseRole: "threat",
     livePromptType: TOKEN_PENDING_EVENT_TYPES.CURSE_TOKEN
-  }),
-  [TOKEN_TIMING_CATEGORIES.FIELD]: Object.freeze({
-    timingCategory: TOKEN_TIMING_CATEGORIES.FIELD,
-    useType: TOKEN_USE_TYPES.ACTIVATION,
-    createsPendingEvent: false,
-    requiresPendingEvent: false,
-    opensResponseWindow: false,
-    transactionsAllowed: false,
-    responseRole: "field",
-    livePromptType: "fieldToken"
   })
 });
 
@@ -1779,14 +1764,6 @@ const PERK_DEFINITIONS = Object.freeze([
     "uses": null
   },
   {
-    "id": "field-kit",
-    "name": "Field Kit",
-    "tier": "B",
-    "description": "Use A Field Token Without Owning It. (This Still Requires An Action)",
-    "isConsumable": true,
-    "uses": 3
-  },
-  {
     "id": "safari-guide",
     "name": "Safari Guide",
     "tier": "C",
@@ -1961,41 +1938,16 @@ const actionPhaseRules = Object.freeze({
       name: "Department Store",
       category: "shop",
       actionCost: 1,
-      summary: "Upgrade usable Item level, then shop for Items.",
-      effects: [
-        { type: "upgrade-shop-level", shop: "items" },
-        { type: "open-shop", shop: "items" }
-      ],
-      visitTracker: {
-        id: "itemDiscountStacks",
-        scope: "series",
-        effect: "Each Item Point increases this single Item discount by 10%, up to 50%. Separate discounts do not stack.",
-        maxStacks: 5
-      }
-    },
-    {
-      id: "move-dojo",
-      name: "Move Dojo",
-      category: "shop",
-      actionCost: 1,
-      summary: "Upgrade usable TM level, then shop for TMs.",
-      effects: [
-        { type: "upgrade-shop-level", shop: "tms" },
-        { type: "open-shop", shop: "tms" }
-      ],
-      visitTracker: {
-        id: "tmDiscountStacks",
-        scope: "series",
-        effect: "Each TM Point increases this single TM discount by 10%, up to 50%. Separate discounts do not stack.",
-        maxStacks: 5
-      }
+      visitLimit: { scope: "gym", count: 1 },
+      summary: "Sell one normal Item or TM, shop the full catalogs with up to $3,000 in 25% savings, and choose up to one Clearance product.",
+      effects: [{ type: "department-store-visit" }]
     },
     {
       id: "pokemon-breeder",
-      name: "Daycare",
+      name: "Pokémon Breeder / Day Care",
       category: "pokemon",
       actionCost: 1,
-      summary: "Pay 1500 to put a Pokemon in Daycare. Pickup and deposit can happen with the same action.",
+      summary: "Place up to two Pokémon in Day Care for $1,500 each; they return next Gym with +3 Levels and a TM.",
       cost: 1500,
       capacity: 2,
       effects: [
@@ -2038,21 +1990,17 @@ const actionPhaseRules = Object.freeze({
       name: "Graveyard",
       category: "pokemon",
       actionCost: 1,
-      summary: "Discard Pokemon, roll the Curse Wheel for each discard, and destroy matching-value tokens.",
-      effects: [
-        { type: "discard-pokemon" },
-        { type: "roll-wheel", wheel: "curse", rollsPerDiscard: 1 },
-        { type: "destroy-token-by-bst-value", dollarsPer100Bst: 1000 }
-      ]
+      summary: "Release any number of Pokémon, total their Destroy Value, and roll the Curse Wheel once per complete $6,000.",
+      effects: [{ type: "graveyard-destroy-value", dollarsPerRoll: 6000 }]
     },
     {
       id: "gamecorner",
-      name: "Gamecorner",
+      name: "Game Corner",
       category: "tokens",
       actionCost: 1,
-      summary: "Game Corner Tickets can only be used here. Pay 2000 per Gamble Wheel spin, up to 3 spins per action.",
+      summary: "Buy or use Tickets and play the $2,000 Slot Machine.",
       wheelId: "gameCornerGamble",
-      effects: [{ type: "gamble-wheel" }]
+      effects: [{ type: "slot-machine" }]
     },
     {
       id: "pc",
@@ -2091,14 +2039,10 @@ const actionPhaseRules = Object.freeze({
     },
     {
       id: "dragons-den",
-      name: "Dragons Den",
+      name: "Dragon's Den",
       category: "pokemon",
       actionCost: 1,
-      summary: "Leave a Pokemon for a tier-scaled stay to learn any move or gain almost any ability.",
-      baseCost: 2000,
-      costScaleByGameCornerTier: 2000,
-      baseBattlePhaseStay: 1,
-      stayScaleByGameCornerTier: 1,
+      summary: "Leave exactly one Pokémon for one Gym, then choose any legal move or an AAA-approved Ability.",
       effects: [{ type: "teach-move-or-ability" }]
     },
     {
@@ -2106,9 +2050,7 @@ const actionPhaseRules = Object.freeze({
       name: "Silph Co R&D",
       category: "pokemon",
       actionCost: 1,
-      summary: "Develop a Pokemon with tier-scaled cost. Roll 2 abilities and 4 moves, then choose one result.",
-      baseCost: 1000,
-      costScaleByGameCornerTier: 1000,
+      summary: "Develop up to three Pokémon at Battle Tier prices; each rolls 2 Abilities and 4 Moves and chooses one result.",
       effects: [{ type: "develop-pokemon", abilityRolls: 2, moveRolls: 4, chooseCount: 1 }]
     },
     {
@@ -2123,14 +2065,6 @@ const actionPhaseRules = Object.freeze({
       rewards: { Easy: 2000, Medium: 3000, Hard: 4000, Master: 5000 },
       completionBonus: "If all 3 are completed, visit the Bulletin Board again without using an action next gym."
     },
-    {
-      id: "field-token",
-      name: "Field Token",
-      category: "tokens",
-      actionCost: 1,
-      summary: "Placeholder for future Field Token action rules.",
-      implementationStatus: "Placeholder only. Confirming records the action visit for now."
-    }
   ]
 });
 
@@ -2257,7 +2191,7 @@ function createCleanInitialState() {
     liveRefereeY: "",
     liveRefereeWidth: "",
     liveRefereeHeight: "",
-    liveRefereeWindowMode: "floating",
+    liveRefereeWindowMode: "docked",
     liveRefereeDockSide: "right",
     liveRefereePaneSplit: "",
     liveRefereeLayoutPreference: "auto",
@@ -2358,8 +2292,8 @@ function createCleanInitialState() {
     hiddenGrottoSessions: [],
     silphCoSessions: [],
     bulletinBoardSessions: [],
-    fieldTokens: [],
     graveyardSessions: [],
+    departmentStoreVisits: [],
     graveyardTokenOwnerFilter: "",
     pcSessions: [],
     rangerBaseSessions: [],
@@ -2384,11 +2318,11 @@ const initialState = createCleanInitialState();
 const utilityItemNames = new Set(["Old Rod", "Great Rod", "Super Rod", "Choose Trainer Class"]);
 const battleItemShopData = itemShopData.filter((item) => !utilityItemNames.has(item.name));
 const gameCornerTicketUtilityData = Object.freeze([
-  { id: "safari-gc-ticket", name: "Safari GC Ticket", tokenType: "game-corner", type: "TICKET", tier: "Tickets", category: "Game Corner Tickets", price: 2000, gameCornerTierId: "safari", gameCornerTier: "Safari", description: "Ticket used at the Game Corner to roll a Safari acquisition-family Pokemon reward." },
-  { id: "poke-gc-ticket", name: "Poke GC Ticket", tokenType: "game-corner", type: "TICKET", tier: "Tickets", category: "Game Corner Tickets", price: 5000, gameCornerTierId: "poke", gameCornerTier: "Poke", description: "Ticket used at the Game Corner to roll a Poke acquisition-family Pokemon reward." },
-  { id: "great-gc-ticket", name: "Great GC Ticket", tokenType: "game-corner", type: "TICKET", tier: "Tickets", category: "Game Corner Tickets", price: 10000, gameCornerTierId: "great", gameCornerTier: "Great", description: "Ticket used at the Game Corner to roll a Great acquisition-family Pokemon reward." },
-  { id: "ultra-gc-ticket", name: "Ultra GC Ticket", tokenType: "game-corner", type: "TICKET", tier: "Tickets", category: "Game Corner Tickets", price: 15000, gameCornerTierId: "ultra", gameCornerTier: "Ultra", description: "Ticket used at the Game Corner to roll an Ultra acquisition-family Pokemon reward." },
-  { id: "master-gc-ticket", name: "Master GC Ticket", tokenType: "game-corner", type: "TICKET", tier: "Tickets", category: "Game Corner Tickets", price: 20000, gameCornerTierId: "master", gameCornerTier: "Master", description: "Ticket used at the Game Corner to roll a Master acquisition-family Pokemon reward." }
+  { id: "safari-gc-ticket", name: "Safari Ticket", legacyNames: ["Safari GC Ticket"], tokenType: "game-corner", type: "TICKET", tier: "Tickets", category: "Game Corner Tickets", price: 2000, gameCornerTierId: "safari", gameCornerTier: "Safari", description: "Game Corner Ticket for Safari Battle Tier Pokémon." },
+  { id: "poke-gc-ticket", name: "Poké Ticket", legacyNames: ["Poke GC Ticket"], tokenType: "game-corner", type: "TICKET", tier: "Tickets", category: "Game Corner Tickets", price: 3000, gameCornerTierId: "poke", gameCornerTier: "Poké", description: "Game Corner Ticket for Poké and Poké Elite Battle Tier Pokémon." },
+  { id: "great-gc-ticket", name: "Great Ticket", legacyNames: ["Great GC Ticket"], tokenType: "game-corner", type: "TICKET", tier: "Tickets", category: "Game Corner Tickets", price: 5000, gameCornerTierId: "great", gameCornerTier: "Great", description: "Game Corner Ticket for Great and Great Elite Battle Tier Pokémon." },
+  { id: "ultra-gc-ticket", name: "Ultra Ticket", legacyNames: ["Ultra GC Ticket"], tokenType: "game-corner", type: "TICKET", tier: "Tickets", category: "Game Corner Tickets", price: 7000, gameCornerTierId: "ultra", gameCornerTier: "Ultra", description: "Game Corner Ticket for Ultra and Ultra Elite Battle Tier Pokémon." },
+  { id: "master-gc-ticket", name: "Master Ticket", legacyNames: ["Master GC Ticket"], tokenType: "game-corner", type: "TICKET", tier: "Tickets", category: "Game Corner Tickets", price: 9000, gameCornerTierId: "master", gameCornerTier: "Master", description: "Game Corner Ticket for Master and Master Elite Battle Tier Pokémon." }
 ]);
 const legacyTicketUtilityData = Object.freeze([
   { id: "legacy-ticket", legacyIds: ["legacy-token"], name: "Legacy Ticket", tokenType: "legacy", type: "TICKET", tier: "Tickets", category: "Legacy Tickets", price: 5000, description: "Use at the PC for Legacy access. Cannot be stolen or destroyed. Price increases by 1000 every time it is bought per series." }
@@ -2419,11 +2353,11 @@ const utilityShopData = [
 
 const defaultTokenShopData = Object.freeze([
     { id: "class-change", name: "Class Change", tokenType: "control", tier: "Control", category: "Control", price: 2500, description: "Roll the Trainer Class Wheel for yourself and take the new class." },
-    { id: "restrict-token", name: "Restrict", tokenType: "control", tier: "Control", category: "Control", price: 5000, description: "Prevent a Pokemon from being brought for 2 gyms." },
+    { id: "restrict-token", name: "Restrict", tokenType: "control", tier: "Control", category: "Control", price: 5000, description: "Prevent a Pokemon from being brought for 6 gyms." },
     { id: "arena-trap", name: "Arena Trap", tokenType: "control", tier: "Control", category: "Control", price: 6500, description: "Force a rival party Pokemon to be brought this Battle Phase. The trapped Pokemon cannot be cursed." },
     { id: "cold-wave", name: "Cold Wave", tokenType: "control", tier: "Control", category: "Control", price: 7500, description: "When Activated, Suppress All Ongoing Activated Effects Until The End Of This Gym. Suppressed Effects Have No Effect Until This Gym Ends, Then Return To Normal." },
     { id: "clear-smog", name: "Clear Smog", tokenType: "control", tier: "Control", category: "Control", price: 8500, description: "Remove permanent buffs from a chosen Pokemon, including levels, illegal abilities, and illegal moves." },
-    { id: "rage-candy-bar", name: "Rage Candy Bar", tokenType: "control", tier: "Control", category: "Control", price: 9000, description: "Give one of your Pokemon +3 levels, +252 EV cap, and restrict immunity for 2 gyms." },
+    { id: "rage-candy-bar", name: "Rage Candy Bar", tokenType: "control", tier: "Control", category: "Control", price: 9000, description: "Give one of your Pokemon +3 levels, +252 EV cap, and Restrict immunity for 2 gyms." },
     { id: "lingering-aroma", name: "Lingering Aroma", tokenType: "control", tier: "Control", category: "Control", price: 10000, description: "Replace one exact active ongoing effect attached to or benefiting you. It stops applying. For its remaining lifetime, other players must pay you $500 to declare an effect that targets you." },
     { id: "wicked-blow", name: "Wicked Blow", tokenType: "control", tier: "Control", category: "Control", price: 11000, description: "Choose a Pokemon on a player's team. Reroll it for a random Pokemon 3 Battle Tiers below its final evolution tier." },
     { id: "rebrand", name: "Rebrand", tokenType: "control", tier: "Control", category: "Control", price: 11000, description: "Force a rival to roll the Trainer Class Wheel and change class. Trainer class abilities cannot respond." },
@@ -2431,7 +2365,7 @@ const defaultTokenShopData = Object.freeze([
     { id: "unban-token", name: "Unban", tokenType: "control", tier: "Control", category: "Control", price: 13500, description: "Unban a Pokemon. It cannot be banned again for 6 gyms." },
     { id: "incinerate", name: "Incinerate", tokenType: "control", tier: "Control", category: "Control", price: 17000, description: "Choose one Item or TM from every other player except Masterball items and remove it from their bag" },
     { id: "steal-token", name: "Steal", tokenType: "control", tier: "Control", category: "Control", price: 18000, description: "Steal a Pokemon from another player." },
-    { id: "safeguard", name: "Safeguard", tokenType: "protection", tier: "Protection", category: "Protection", price: 3000, description: "Your Money And Tokens Cannot Be Stolen, Destroyed, Or Copied. You Are Unaffected By Follow Me, Taunt, Payday, And Embargo." },
+    { id: "safeguard", name: "Safeguard", tokenType: "protection", tier: "Protection", category: "Protection", price: 3000, description: "Your Money And Tokens Cannot Be Stolen, Destroyed, Or Copied. You Are Unaffected By Follow Me And Embargo." },
     { id: "teleport", name: "Teleport", tokenType: "protection", tier: "Protection", category: "Protection", price: 3500, description: "Delay an effect until the start of the next matching phase during the next gym." },
     { id: "substitute", name: "Substitute", tokenType: "protection", tier: "Protection", category: "Protection", price: 6500, description: "Choose a Pokemon to protect from one effect. If it would be banned, it is not banned and cannot be banned again during this phase." },
     { id: "follow-me", name: "Follow Me", tokenType: "protection", tier: "Protection", category: "Protection", price: 5000, description: "When Another Player Or Another Player's Pokemon Is Targeted By An Effect, Change The Target To You Or One Of Your Legal Pokemon Instead. The New Target Must Be A Legal Target For The Original Effect. After This Effect Resolves, For The Rest Of This Gym, Copy Each Token Used By The Player Whose Effect You Redirected. Follow Me Cannot Redirect Global Effects Or Effects That Do Not Target A Player Or Pokemon." },
@@ -2462,14 +2396,6 @@ const defaultTokenShopData = Object.freeze([
     { id: "devolve-token", name: "Devolve", tokenType: "curse", tier: "Curses", category: "Curses", price: 5000, description: "Selected Pokemon is devolved for 1 gym. During team submission, the target may adjust its set before preview." },
     { id: "purge-curse", name: "Purge Curse", tokenType: "curse", tier: "Curses", category: "Curses", price: 20000, description: "All Pokemon brought to this Battle Phase are released after battle completes. This token ignores other effects." },
     { id: "foresight-curse", name: "Foresight Curse", tokenType: "curse", tier: "Curses", category: "Curses", price: 5000, description: "Choose 6 Pokemon. If Any Of Those Pokemon Are Brought To This Battle Phase, Their Sets Become Revealed To You. This Is Not A Nerf/Debuff." },
-    { id: "payday-field", name: "Payday", tokenType: "field", tier: "Field", category: "Field", price: 12000, description: "Active field: Payday pot, effect bidding, and salary pressure. Full field rules tracked in activation notes." },
-    { id: "drizzle-field", name: "Drizzle", tokenType: "field", tier: "Field", category: "Field", price: 15000, description: "Active field: rain tools, combined encounter wheels, token-copy reward, and winner extra encounter." },
-    { id: "drought-field", name: "Drought", tokenType: "field", tier: "Field", category: "Field", price: 9000, description: "Active field: sun tools, encounter discard upgrades, and smaller encounter wheels." },
-    { id: "taunt-field", name: "Taunt", tokenType: "field", tier: "Field", category: "Field", price: 18000, description: "Active field: token theft, one-status-move battle rule, required token usage, and protection limit." },
-    { id: "snow-warning-field", name: "Snow Warning", tokenType: "field", tier: "Field", category: "Field", price: 12000, description: "Active field: lost actions, snow-related tools, effect fail chance, and shelter pot." },
-    { id: "sand-stream-field", name: "Sand Stream", tokenType: "field", tier: "Field", category: "Field", price: 16000, description: "Active field: buried resources, sand tools, unbury actions, and no discounts." },
-    { id: "infestation-field", name: "Infestation", tokenType: "field", tier: "Field", category: "Field", price: 14000, description: "Active field: hidden infestation counters, setup-move restrictions, hatching, and cleansing." },
-    { id: "surging-strikes-field", name: "Surging Strikes", tokenType: "field", tier: "Field", category: "Field", price: 18000, description: "Active field: tier toggles, buff loss after battle, action Wicked Blow, Rage Boost, and encounter rerolls." },
     { id: "ditto-token", name: "Ditto", tokenType: "control", tier: "Control", category: "Control", price: 0, cannotPurchase: true, description: "Transforms into any token except Game Corner Tickets." }
 ]);
 
@@ -2512,7 +2438,7 @@ const utilityTokenDefinitions = Object.freeze({
   "incinerate": { names: ["Incinerate"], category: "control", targetMode: "none", targetType: EFFECT_TARGET_TYPES.RESOURCE, targetScope: EFFECT_TARGET_SCOPES.ALL_MATCHING_RESOURCES, choiceLabel: "One Item or TM per rival", effectType: "remove-from-rivals", note: "Removes one independently selected, stable-ID Item/TM record from each other player who has a legal target." },
   "steal-token": { names: ["Steal"], category: "control", targetMode: "single-pokemon", targetType: EFFECT_TARGET_TYPES.POKEMON, targetScope: EFFECT_TARGET_SCOPES.ROSTER_INSTANCE, effectType: "steal-pokemon", note: "Transfers the selected Pokemon to the token user." },
   "ditto-token": { names: ["Ditto"], category: "control", targetMode: "none", targetType: EFFECT_TARGET_TYPES.RESOURCE, targetScope: EFFECT_TARGET_SCOPES.SINGLE_RESOURCE, effectType: "log", note: "Transforms its exact inventory record into one canonical activatable Token inventory copy." },
-  "safeguard": { names: ["Safeguard"], category: "protection", targetMode: "player", targetType: EFFECT_TARGET_TYPES.CURRENT_PROMPT, targetScope: EFFECT_TARGET_SCOPES.CURRENT_PROMPT, effectType: "player-buff", buff: "Safeguard", note: "Money/tokens protected from steal/destroy and interruption effects." },
+  "safeguard": { names: ["Safeguard"], category: "protection", targetMode: "player", targetType: EFFECT_TARGET_TYPES.PLAYER, targetScope: EFFECT_TARGET_SCOPES.SINGLE_PLAYER, selfOnly: true, effectType: "player-buff", buff: "Safeguard", note: "Money and Tokens protected from steal, destroy, and copy; Follow Me and Embargo do not affect the player." },
   "teleport": { names: ["Teleport"], category: "protection", targetMode: "player", targetType: EFFECT_TARGET_TYPES.CURRENT_PROMPT, targetScope: EFFECT_TARGET_SCOPES.CURRENT_PROMPT, effectType: "player-buff", buff: "Teleport Pending", note: "Delays one effect until matching phase next gym." },
   "substitute": { names: ["Substitute"], category: "protection", targetMode: "single-pokemon", targetType: EFFECT_TARGET_TYPES.POKEMON, targetScope: EFFECT_TARGET_SCOPES.ROSTER_INSTANCE, applicationScope: EFFECT_APPLICATION_SCOPES.ROSTER_INSTANCE, effectType: "add-buffs", buffs: ["Substitute Protection"], note: "Protects one owned roster instance from the next effect that would affect it." },
   "seven-tools": { names: ["7 Tools Of The Bandit", "7 Tools", "Seven Tools"], category: "protection", targetMode: "player", targetType: EFFECT_TARGET_TYPES.CURRENT_PROMPT, targetScope: EFFECT_TARGET_SCOPES.CURRENT_PROMPT, effectType: "counter-response", note: "Negates the exact Protection response and creates one same-Gym temporary copy atomically." },
@@ -2530,15 +2456,7 @@ const utilityTokenDefinitions = Object.freeze({
   "dream-ball-token": { names: ["Dream Ball Token"], category: "encounter", targetMode: "player", targetType: EFFECT_TARGET_TYPES.ENCOUNTER_RESULT, targetScope: EFFECT_TARGET_SCOPES.CURRENT_PROMPT, effectType: "player-buff", buff: "Dream Ball Pending", note: "Encounter ability choice marker." },
   "honey-token": { names: ["Honey"], category: "encounter", targetMode: "none", targetType: EFFECT_TARGET_TYPES.ENCOUNTER_RESULT, targetScope: EFFECT_TARGET_SCOPES.MANUAL, effectType: "log", note: "At End of Action, copies one immutable completed Encounter result into a new acquisition-ready Encounter without rerolling." },
   "master-ball-token": { names: ["Master Ball Token"], category: "encounter", targetMode: "player", targetType: EFFECT_TARGET_TYPES.ENCOUNTER_RESULT, targetScope: EFFECT_TARGET_SCOPES.CURRENT_PROMPT, effectType: "player-buff", buff: "Master Ball Pending", note: "Choose encounter; cannot be changed by other players." },
-  "beast-ball-token": { names: ["Beast Ball"], category: "encounter", targetMode: "player", targetType: EFFECT_TARGET_TYPES.ENCOUNTER_RESULT, targetScope: EFFECT_TARGET_SCOPES.CURRENT_PROMPT, effectType: "player-buff", buff: "Beast Ball Pending", note: "Encounter move choice marker." },
-  "payday-field": { names: ["Payday"], category: "field", targetMode: "none", effectType: "field", note: "Payday field: pot bidding, salary pressure, and end-of-gym pot payout are active." },
-  "drizzle-field": { names: ["Drizzle"], category: "field", targetMode: "none", effectType: "field", note: "Drizzle field: rain tools, encounter wheel combining, token-copy reward, and winner extra encounter are active." },
-  "drought-field": { names: ["Drought"], category: "field", targetMode: "none", effectType: "field", note: "Drought field: sun tools, encounter discard upgrades, and reduced encounter wheels are active." },
-  "taunt-field": { names: ["Taunt"], category: "field", targetMode: "none", effectType: "field", note: "Taunt field: token theft, one-status-move battle rule, required token usage, and protection limit are active." },
-  "snow-warning-field": { names: ["Snow Warning"], category: "field", targetMode: "none", effectType: "field", note: "Snow Warning field: lost actions, snow tools, effect fail chance, and shelter pot are active." },
-  "sand-stream-field": { names: ["Sand Stream"], category: "field", targetMode: "none", effectType: "field", note: "Sand Stream field: buried resources, sand tools, unbury actions, and no discounts are active." },
-  "infestation-field": { names: ["Infestation"], category: "field", targetMode: "none", effectType: "field", note: "Infestation field: hidden counters, setup-move restrictions, hatching, and cleansing are active." },
-  "surging-strikes-field": { names: ["Surging Strikes"], category: "field", targetMode: "none", effectType: "field", note: "Surging Strikes field: tier toggles, buff loss after battle, action Wicked Blow, Rage Boost, and encounter rerolls are active." }
+  "beast-ball-token": { names: ["Beast Ball"], category: "encounter", targetMode: "player", targetType: EFFECT_TARGET_TYPES.ENCOUNTER_RESULT, targetScope: EFFECT_TARGET_SCOPES.CURRENT_PROMPT, effectType: "player-buff", buff: "Beast Ball Pending", note: "Encounter move choice marker." }
 });
 
 const statusTokenDefinitions = Object.freeze({
@@ -2548,11 +2466,11 @@ const statusTokenDefinitions = Object.freeze({
     label: "Restrict Token",
     statusType: "restrict",
     statusName: "Restricted",
-    durationGyms: 2,
+    durationGyms: 6,
     targetMode: "single-pokemon",
     targetType: EFFECT_TARGET_TYPES.POKEMON,
     targetScope: EFFECT_TARGET_SCOPES.SPECIES,
-    note: "Cannot be brought for 2 gyms"
+    note: "Cannot be brought for 6 gyms"
   },
   "extra-ban-token": {
     names: ["Extra Ban Token", "Ban Token", "Extra Ban"],
@@ -2778,8 +2696,8 @@ const TOKEN_TIMING_ENGINE_V1_DEFINITIONS = Object.freeze({
     resolutionPayloads: [TOKEN_RESOLUTION_PAYLOADS.LEGALITY_CHANGE, TOKEN_RESOLUTION_PAYLOADS.BUFF_NERF_APPLICATION],
     targetType: EFFECT_TARGET_TYPES.POKEMON,
     targetScope: EFFECT_TARGET_SCOPES.SPECIES,
-    duration: "twoGyms",
-    durationGyms: 2,
+    duration: "sixGyms",
+    durationGyms: 6,
     consumesOnLegalUse: true,
     consumeIfMisses: true,
     consumeIfBlocked: true,
@@ -2807,10 +2725,10 @@ const TOKEN_TIMING_ENGINE_V1_DEFINITIONS = Object.freeze({
     consumesOnLegalUse: true,
     consumeIfMisses: true,
     consumeIfBlocked: true,
-    canOpenPendingEvent: false,
-    canBeRespondedTo: false,
+    canOpenPendingEvent: true,
+    canBeRespondedTo: true,
     canRespondTo: [],
-    protectionScope: ["moneySteal", "moneyDestroy", "tokenSteal", "tokenDestroy", "followMe", "taunt", "payday", "embargo"],
+    protectionScope: ["moneySteal", "moneyDestroy", "moneyCopy", "tokenSteal", "tokenDestroy", "tokenCopy", "followMe", "embargo"],
     visibility: "public",
     logType: "tokenUsed",
     resolverId: "safeguard"
@@ -2887,29 +2805,6 @@ const TOKEN_TIMING_ENGINE_V1_DEFINITIONS = Object.freeze({
     logType: "tokenUsed",
     resolverId: "counterProtection"
   }),
-  "drizzle-field": Object.freeze({
-    id: "drizzle-field",
-    names: ["Drizzle"],
-    objectType: TOKEN_OBJECT_TYPES.FIELD_TOKEN,
-    family: ["field"],
-    timingCategory: TOKEN_TIMING_CATEGORIES.FIELD,
-    timingWindows: [TOKEN_TIMING_WINDOWS.ACTION_OPEN, TOKEN_TIMING_WINDOWS.FIELD_PLACEMENT, TOKEN_TIMING_WINDOWS.MANUAL_HOST],
-    activationPattern: TOKEN_ACTIVATION_PATTERNS.PROACTIVE,
-    persistence: TOKEN_PERSISTENCE_BUCKETS.FIELD_STATE,
-    resolutionPayloads: [TOKEN_RESOLUTION_PAYLOADS.FIELD_STATE],
-    targetType: EFFECT_TARGET_TYPES.TABLE,
-    targetScope: EFFECT_TARGET_SCOPES.TABLE_WIDE,
-    duration: "untilRemovedOrReplaced",
-    consumesOnLegalUse: true,
-    consumeIfMisses: false,
-    consumeIfBlocked: false,
-    canOpenPendingEvent: false,
-    canBeRespondedTo: false,
-    canRespondTo: [],
-    visibility: "public",
-    logType: "fieldPlaced",
-    resolverId: "fieldState"
-  }),
   "reroll-token": Object.freeze({
     id: "reroll-token",
     names: ["Reroll Token", "Reroll"],
@@ -2941,7 +2836,6 @@ function tokenTimingCategoryFromRaw(value = "") {
   if (Object.values(TOKEN_TIMING_CATEGORIES).includes(key)) return key;
   if (key === "curses") return TOKEN_TIMING_CATEGORIES.CURSE;
   if (key === "encounters") return TOKEN_TIMING_CATEGORIES.ENCOUNTER;
-  if (key === "field" || key === "fields") return TOKEN_TIMING_CATEGORIES.FIELD;
   if (key === "manual" || key === "other") return TOKEN_TIMING_CATEGORIES.MANUAL;
   return "";
 }
@@ -3093,13 +2987,12 @@ function tokenResolutionModeForDefinition(definition = {}) {
   const key = slugify(definition.name || definition.id || definition.names?.[0] || "");
   if (key === "reroll-token" || key === "reroll") return EFFECT_RESOLUTION_MODES.AUTOMATIC;
   if (["restrict", "immunity", "counterProtection", "substituteAttach"].includes(definition.resolverId)) return EFFECT_RESOLUTION_MODES.AUTOMATIC;
-  if (definition.resolverId === "safeguard" || definition.resolverId === "fieldState") return EFFECT_RESOLUTION_MODES.AUTOMATIC;
+  if (definition.resolverId === "safeguard") return EFFECT_RESOLUTION_MODES.AUTOMATIC;
   if (definition.resolverId === "extraEncounter") return EFFECT_RESOLUTION_MODES.AUTOMATIC;
   return EFFECT_RESOLUTION_MODES.HOST_CONFIRMED;
 }
 
 function tokenConsumptionModeForDefinition(definition = {}) {
-  if (definition.objectType === TOKEN_OBJECT_TYPES.FIELD_TOKEN) return TOKEN_CONSUMPTION_MODES.CONSUME_ON_USE;
   const category = tokenTimingCategoryFromRaw(definition.timingCategory || definition.category);
   if (!category || category === TOKEN_TIMING_CATEGORIES.MANUAL) return TOKEN_CONSUMPTION_MODES.MANUAL_CONSUMPTION;
   return TOKEN_CONSUMPTION_MODES.CONSUME_ON_USE;
@@ -3140,7 +3033,7 @@ function tokenEffectMetadataByName(tokenName = "") {
     targetCategory: targetCategoryFromEffectBucket(targetType, targetScope),
     resolutionMode,
     consumptionMode,
-    objectType: definition.objectType || (category === TOKEN_TIMING_CATEGORIES.FIELD ? TOKEN_OBJECT_TYPES.FIELD_TOKEN : TOKEN_OBJECT_TYPES.TOKEN),
+    objectType: definition.objectType || TOKEN_OBJECT_TYPES.TOKEN,
     family: Array.isArray(definition.family) ? definition.family : [definition.family || category].filter(Boolean),
     timingWindows: Array.isArray(definition.timingWindows) ? definition.timingWindows : [],
     activationPattern: definition.activationPattern || "",
@@ -3237,7 +3130,6 @@ function tokenTimingCategoryLabel(category) {
     [TOKEN_TIMING_CATEGORIES.PROTECTION]: "Protection Token",
     [TOKEN_TIMING_CATEGORIES.ENCOUNTER]: "Encounter Token",
     [TOKEN_TIMING_CATEGORIES.CURSE]: "Curse Token",
-    [TOKEN_TIMING_CATEGORIES.FIELD]: "Field Token",
     [TOKEN_TIMING_CATEGORIES.MANUAL]: "Manual Token"
   }[category] || "Token";
 }
@@ -3322,7 +3214,6 @@ function tokenTimingWindowsForContext(context = {}) {
   }
   if (context.teamBuilding) windows.add(TOKEN_TIMING_WINDOWS.TEAM_BUILDING);
   if (context.battlePrep) windows.add(TOKEN_TIMING_WINDOWS.BATTLE_PREP);
-  if (context.fieldPlacement) windows.add(TOKEN_TIMING_WINDOWS.FIELD_PLACEMENT);
   if (context.encounterBeforeRoll) windows.add("encounterBeforeRoll");
   if (context.encounterResult) windows.add("encounterResult");
   return [...windows];
@@ -3395,6 +3286,14 @@ function getActiveEffectsForTarget(targetState = state, targetId = "") {
 }
 
 function hasProtectionAgainst(targetState = state, targetId = "", incomingEffect = {}) {
+  const category = [incomingEffect.type, incomingEffect.resolverId, ...(incomingEffect.protectionKeys || [])]
+    .find((key) => controlTokenEffects?.safeguardProtectsOperation?.(key));
+  if (category && controlTokenEffects?.playerHasActiveSafeguard) {
+    return controlTokenEffects.playerHasActiveSafeguard(targetState, targetId, category, {
+      ...controlTokenEffectOptions(),
+      state: targetState
+    });
+  }
   const effects = getActiveEffectsForTarget(targetState, targetId);
   return effects.some((effect) => {
     if (effect.type !== "safeguard") return false;
@@ -3408,6 +3307,36 @@ function hasProtectionAgainst(targetState = state, targetId = "", incomingEffect
     ].filter(Boolean);
     return incomingKeys.some((key) => scope.includes(key));
   });
+}
+
+function applyAutomaticSafeguardActivity(activity, metadata) {
+  if (metadata?.id !== "safeguard" || !controlTokenEffects?.resolveSafeguard) return null;
+  const targetPlayerId = activity.targetPlayerId || activity.payload?.targetPlayerId || activity.actorPlayerId || "";
+  if (targetPlayerId !== activity.actorPlayerId) {
+    return { result: "systemFailure", refundRequired: true, details: ["Safeguard's exact self target changed before resolution."], mutations: [], persistentStateIds: [] };
+  }
+  const expires = statusExpiresAt(1);
+  const resolution = controlTokenEffects.resolveSafeguard(state, {
+    sourceTokenId: activity.payload?.consumedTokenId || "",
+    sourceTokenName: metadata.name,
+    actorPlayerId: activity.actorPlayerId,
+    targetPlayerId,
+    sourceEffectId: activity.id,
+    expiresAtSeries: expires.expiresAtSeries,
+    expiresAtGym: expires.expiresAtGym,
+    expiresAtPhase: "start"
+  }, controlTokenEffectOptions(new Date().toISOString()));
+  return {
+    result: resolution.result,
+    details: [resolution.reason],
+    mutations: (resolution.statusIds || []).map((id) => `Created exact-player Safeguard status ${id}`),
+    persistentStateIds: resolution.statusIds || [],
+    resultData: {
+      createdStatusIds: resolution.statusIds || [],
+      affectedPlayerIds: [targetPlayerId].filter(Boolean),
+      protectionScope: resolution.protectionScope || []
+    }
+  };
 }
 
 function applyLingeringEffect(effectRecord) {
@@ -3522,7 +3451,7 @@ function applySubstituteInterceptionBeforeMutation(activity, metadata) {
   return interception;
 }
 
-function createTokenActivationRecord({ consumedToken, metadata, draft, statusIds = [], fieldId = "", details = [] }) {
+function createTokenActivationRecord({ consumedToken, metadata, draft, statusIds = [], details = [] }) {
   const selectedRosterInstanceIds = [draft.targetPokemonId].filter(Boolean);
   const selectedRosterInstanceId = draft.selectedRosterInstanceId || selectedRosterInstanceIds[0] || "";
   const selectedSpeciesId = draft.selectedSpeciesId || draft.speciesId || pokemonRuleKey(draft.targetPokemonName || draft.targetText || "");
@@ -3555,7 +3484,6 @@ function createTokenActivationRecord({ consumedToken, metadata, draft, statusIds
     sourceEffectId: draft.sourceEffectId || "",
     sourcePlayerId: draft.actorPlayerId || "",
     statusIds,
-    fieldId,
     series: state.series,
     gym: Number(state.gym),
     phase: currentPhase(),
@@ -3571,7 +3499,7 @@ function tokenUseRollbackSnapshot() {
   return {
     previousPlayers: structuredClone(state.players || []),
     previousPokemonRecords: structuredClone(state.pokemonRecords || []),
-    previousFieldTokens: structuredClone(state.fieldTokens || []),
+    previousPokemonLog: structuredClone(state.pokemonLog || []),
     previousLingeringStatuses: structuredClone(state.lingeringStatuses || []),
     previousTokenActivations: structuredClone(state.tokenActivations || []),
     previousTokenConsumptions: structuredClone(state.tokenConsumptions || []),
@@ -3731,7 +3659,6 @@ async function resolveImmediateTokenUse(draft, { context = {} } = {}) {
     `Pattern: ${metadata.activationPattern || "manual"}`
   ];
   const statusIds = [];
-  let fieldId = "";
   let encounterSessionId = "";
   let result = "resolved";
   if (metadata.resolverId === "extraEncounter") {
@@ -3787,7 +3714,7 @@ async function resolveImmediateTokenUse(draft, { context = {} } = {}) {
       expiresAtSeries: expires.expiresAtSeries,
       expiresAtGym: expires.expiresAtGym,
       payload: { protectionScope: metadata.protectionScope },
-      note: "Money and tokens cannot be stolen or destroyed. Follow Me, Taunt, Payday, and Embargo do not affect this player.",
+      note: "Money and Tokens cannot be stolen, destroyed, or copied. Follow Me and Embargo do not affect this player.",
       createdAt: now
     });
     statusIds.push(status.id);
@@ -3816,50 +3743,19 @@ async function resolveImmediateTokenUse(draft, { context = {} } = {}) {
     statusIds.push(...placement.statusIds);
     details.push(placement.reason);
     result = "attached-protection-created";
-  } else if (metadata.resolverId === "fieldState") {
-    const replacedFieldIds = [];
-    (state.fieldTokens || []).forEach((field) => {
-      if (field.status === "active") {
-        field.status = "replaced";
-        field.replacedAt = now;
-        field.replacedByTokenName = consumedToken.name || draft.tokenName;
-        replacedFieldIds.push(field.id);
-      }
-    });
-    const field = {
-      id: `field-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-      fieldTokenId: consumedToken.id || "",
-      fieldTokenName: consumedToken.name || draft.tokenName,
-      placedByPlayerId: draft.actorPlayerId,
-      sourceType: "token-engine-v1",
-      series: state.series,
-      gym: Number(state.gym),
-      phase: currentPhase(),
-      duration: metadata.duration,
-      status: "active",
-      replacedFieldIds,
-      note: metadata.shortPromptText || metadata.definition?.note || "",
-      createdAt: now
-    };
-    state.fieldTokens ||= [];
-    state.fieldTokens.unshift(field);
-    fieldId = field.id;
-    if (replacedFieldIds.length) details.push(`Replaced ${replacedFieldIds.length} active Field${replacedFieldIds.length === 1 ? "" : "s"}.`);
-    details.push(`Placed active field: ${field.fieldTokenName}`);
-    result = "field-created";
   } else {
     details.push(metadata.shortPromptText || "Token use recorded. Effect application is manual.");
     result = "manual-required";
   }
-  const activation = createTokenActivationRecord({ consumedToken, metadata, draft, statusIds, fieldId, details });
+  const activation = createTokenActivationRecord({ consumedToken, metadata, draft, statusIds, details });
   const targetLabel = tokenUseTargetLabel(draft);
   const resolutionAudit = tokenEffectAuditRecord({
     stage: "resolution",
     draft: { ...draft, consumedTokenId: consumedToken.id || "" },
     metadata,
-    result: result === "manual-required" ? "noEffect" : fieldId ? "replaced" : "resolved",
+    result: result === "manual-required" ? "noEffect" : "resolved",
     mutations: details,
-    persistentStateIds: [...statusIds, fieldId].filter(Boolean)
+    persistentStateIds: [...statusIds].filter(Boolean)
   });
   const resolutionLog = addLogEntry({
     action: "token",
@@ -3880,7 +3776,6 @@ async function resolveImmediateTokenUse(draft, { context = {} } = {}) {
     effectAuditId: resolutionAudit.id,
     tokenConsumptionIds: consumed?.consumption ? [consumed.consumption.id] : [],
     statusIds,
-    fieldTokenId: fieldId,
     tokenUse: {
       tokenName: consumedToken.name || draft.tokenName,
       actorId: draft.actorPlayerId,
@@ -3891,7 +3786,7 @@ async function resolveImmediateTokenUse(draft, { context = {} } = {}) {
       result,
       consumed: Boolean(consumed?.token),
       blocked: false,
-      createdEffectId: statusIds[0] || fieldId || "",
+      createdEffectId: statusIds[0] || "",
       pendingEventId: "",
       timestamp: now
     },
@@ -3904,9 +3799,7 @@ async function resolveImmediateTokenUse(draft, { context = {} } = {}) {
     }
   });
   resolutionAudit.undoLogId = resolutionLog?.id || "";
-  const outcomeTitle = metadata.resolverId === "fieldState"
-    ? `${consumedToken.name || draft.tokenName} Field placed.`
-    : metadata.resolverId === "extraEncounter"
+  const outcomeTitle = metadata.resolverId === "extraEncounter"
       ? `Extra Encounter ready for ${extraEncounterValidation?.player?.name || "the chosen player"}.`
     : metadata.resolverId === "safeguard"
       ? "Safeguard active."
@@ -4041,6 +3934,7 @@ function tokenDraftFromActivity(activity, resolutionText = "") {
     applicationScope: activity?.payload?.applicationScope || "",
     affectedEntityType: activity?.payload?.affectedEntityType || "",
     selectedRosterInstanceId: activity?.payload?.selectedRosterInstanceId || "",
+    selectedStatusId: activity?.payload?.selectedStatusId || "",
     selectedSpeciesId: activity?.payload?.selectedSpeciesId || "",
     speciesId: activity?.payload?.speciesId || "",
     selectedRosterInstanceIds: activity?.payload?.selectedRosterInstanceIds || [],
@@ -4052,6 +3946,328 @@ function tokenDraftFromActivity(activity, resolutionText = "") {
     sourceEffectId: activity?.id || "",
     notes: resolutionText
   };
+}
+
+function causalIdCollectionDelta(previous = [], current = []) {
+  const before = new Map((previous || []).filter((entry) => entry?.id).map((entry) => [entry.id, entry]));
+  const after = new Map((current || []).filter((entry) => entry?.id).map((entry) => [entry.id, entry]));
+  return {
+    createdIds: [...after.keys()].filter((id) => !before.has(id)),
+    previousRecords: [...before.entries()]
+      .filter(([id]) => !after.has(id))
+      .map(([, record]) => structuredClone(record)),
+    changedRecords: [...before.entries()]
+      .filter(([id, record]) => after.has(id) && JSON.stringify(record) !== JSON.stringify(after.get(id)))
+      .map(([id, record]) => ({
+        id,
+        fields: causalTopLevelFieldDelta(record, after.get(id))
+      }))
+  };
+}
+
+function causalTopLevelFieldDelta(previous = {}, current = {}, ignoredKeys = []) {
+  const ignored = new Set(ignoredKeys || []);
+  return [...new Set([...Object.keys(previous || {}), ...Object.keys(current || {})])]
+    .filter((key) => !ignored.has(key) && JSON.stringify(previous?.[key]) !== JSON.stringify(current?.[key]))
+    .map((key) => ({
+      key,
+      previousExists: Object.prototype.hasOwnProperty.call(previous || {}, key),
+      previous: structuredClone(previous?.[key]),
+      appliedExists: Object.prototype.hasOwnProperty.call(current || {}, key),
+      applied: structuredClone(current?.[key])
+    }));
+}
+
+function causalScalarSetDelta(previous = [], current = []) {
+  const before = new Set(previous || []);
+  const after = new Set(current || []);
+  return {
+    added: [...after].filter((value) => !before.has(value)),
+    removed: [...before].filter((value) => !after.has(value))
+  };
+}
+
+function mergeCausalIdCollectionDelta(base = {}, later = {}) {
+  const createdIds = [...new Set([...(base.createdIds || []), ...(later.createdIds || [])])];
+  const created = new Set(createdIds);
+  const previousById = new Map((base.previousRecords || []).map((record) => [record.id, structuredClone(record)]));
+  (later.previousRecords || []).forEach((record) => {
+    if (!created.has(record.id) && !previousById.has(record.id)) previousById.set(record.id, structuredClone(record));
+  });
+  const changedById = new Map((base.changedRecords || []).map((entry) => [entry.id, structuredClone(entry)]));
+  (later.changedRecords || []).forEach((entry) => {
+    if (created.has(entry.id) || previousById.has(entry.id)) return;
+    const existing = changedById.get(entry.id);
+    if (!existing) {
+      changedById.set(entry.id, structuredClone(entry));
+      return;
+    }
+    const fieldsByKey = new Map((existing.fields || []).map((field) => [field.key, field]));
+    (entry.fields || []).forEach((field) => {
+      if (!fieldsByKey.has(field.key)) fieldsByKey.set(field.key, structuredClone(field));
+      else fieldsByKey.get(field.key).applied = structuredClone(field.applied);
+    });
+    existing.fields = [...fieldsByKey.values()];
+  });
+  return { createdIds, previousRecords: [...previousById.values()], changedRecords: [...changedById.values()] };
+}
+
+function mergeCausalScalarSetDelta(base = {}, later = {}) {
+  const added = new Set(base.added || []);
+  const removed = new Set(base.removed || []);
+  (later.added || []).forEach((value) => removed.delete(value) || added.add(value));
+  (later.removed || []).forEach((value) => added.delete(value) || removed.add(value));
+  return { added: [...added], removed: [...removed] };
+}
+
+function causalPlayerCollectionDeltas(previousPlayers = [], currentPlayers = [], field = "inventory") {
+  const currentById = new Map((currentPlayers || []).map((player) => [player.id, player]));
+  return (previousPlayers || []).map((player) => ({
+    playerId: player.id,
+    delta: causalIdCollectionDelta(player[field] || [], currentById.get(player.id)?.[field] || [])
+  })).filter((entry) => entry.delta.createdIds.length || entry.delta.previousRecords.length || entry.delta.changedRecords.length);
+}
+
+function causalGrantMapDeltas(previousMap = {}, currentMap = {}) {
+  return [...new Set([...Object.keys(previousMap || {}), ...Object.keys(currentMap || {})])].map((playerId) => ({
+    playerId,
+    delta: causalIdCollectionDelta(previousMap?.[playerId] || [], currentMap?.[playerId] || [])
+  })).filter((entry) => entry.delta.createdIds.length || entry.delta.previousRecords.length || entry.delta.changedRecords.length);
+}
+
+function buildCausalTokenEffectUndo(snapshot, activity, metadata) {
+  const previousPokemonById = new Map((snapshot.previousPokemonRecords || []).map((pokemon) => [pokemon.id, pokemon]));
+  const pokemonDeltas = (state.pokemonRecords || []).map((pokemon) => {
+    const previous = previousPokemonById.get(pokemon.id);
+    if (!previous) return null;
+    const effectBuffs = causalIdCollectionDelta(previous.effectBuffs || [], pokemon.effectBuffs || []);
+    const logs = causalIdCollectionDelta(previous.log || [], pokemon.log || []);
+    const beforeLabels = new Set(previous.buffs || []);
+    const afterLabels = new Set(pokemon.buffs || []);
+    const labelsAdded = [...afterLabels].filter((label) => !beforeLabels.has(label));
+    const labelsRemoved = [...beforeLabels].filter((label) => !afterLabels.has(label));
+    if (!effectBuffs.createdIds.length && !effectBuffs.previousRecords.length && !logs.createdIds.length
+      && !logs.previousRecords.length && !labelsAdded.length && !labelsRemoved.length) return null;
+    return { pokemonId: pokemon.id, effectBuffs, logs, labelsAdded, labelsRemoved, previousLabelOrder: structuredClone(previous.buffs || []) };
+  }).filter(Boolean);
+  const previousRules = snapshot.previousGlobalPokemonRules || {};
+  const currentRules = state.globalPokemonRules || {};
+  const ruleDeltas = [...new Set([...Object.keys(previousRules), ...Object.keys(currentRules)])]
+    .filter((key) => JSON.stringify(previousRules[key]) !== JSON.stringify(currentRules[key]))
+    .map((key) => ({ key, existed: Object.prototype.hasOwnProperty.call(previousRules, key), previous: structuredClone(previousRules[key] || null) }));
+  const currentPlayersById = new Map((state.players || []).map((player) => [player.id, player]));
+  const playerBalanceDeltas = (snapshot.previousPlayers || []).map((player) => ({
+    playerId: player.id,
+    amount: Number(currentPlayersById.get(player.id)?.balance || 0) - Number(player.balance || 0)
+  })).filter((entry) => entry.amount !== 0);
+  const currentPokemonIdsByPlayer = new Map((state.players || []).map((player) => [player.id, player.pokemonIds || []]));
+  const playerPokemonIdDeltas = (snapshot.previousPlayers || []).map((player) => ({
+    playerId: player.id,
+    delta: causalScalarSetDelta(player.pokemonIds || [], currentPokemonIdsByPlayer.get(player.id) || [])
+  })).filter((entry) => entry.delta.added.length || entry.delta.removed.length);
+  return {
+    actionType: "undoTokenEffectContractCausal",
+    causalUndoVersion: 1,
+    effectId: activity.id,
+    tokenDefinitionId: metadata.id,
+    inventoryByPlayer: causalPlayerCollectionDeltas(snapshot.previousPlayers, state.players, "inventory"),
+    playerBalanceDeltas,
+    moveGrantsByPlayer: causalPlayerCollectionDeltas(snapshot.previousPlayers, state.players, "moveAccessGrants"),
+    playerPokemonIdDeltas,
+    pokemonRecords: causalIdCollectionDelta(snapshot.previousPokemonRecords, state.pokemonRecords),
+    statuses: causalIdCollectionDelta(snapshot.previousLingeringStatuses, state.lingeringStatuses),
+    activations: causalIdCollectionDelta(snapshot.previousTokenActivations, state.tokenActivations),
+    consumptions: causalIdCollectionDelta(snapshot.previousTokenConsumptions, state.tokenConsumptions),
+    transactions: causalIdCollectionDelta(snapshot.previousTransactions, state.transactions),
+    notifications: causalIdCollectionDelta(snapshot.previousPlayerNotifications, state.playerNotifications),
+    effectOperations: causalIdCollectionDelta(snapshot.previousEffectOperations, state.effectOperations),
+    copiedActivations: causalIdCollectionDelta(snapshot.previousCopiedActivations, state.copiedActivations),
+    copiedTokenRelationships: causalIdCollectionDelta(snapshot.previousCopiedTokenRelationships, state.copiedTokenRelationships),
+    wheelSessions: causalIdCollectionDelta(snapshot.previousWheelSessions, state.wheelSessions),
+    encounterSessions: causalIdCollectionDelta(snapshot.previousEncounterSessions, state.encounterSessions),
+    randomPokemonSessions: causalIdCollectionDelta(snapshot.previousRandomPokemonSessions, state.randomPokemonSessions),
+    delayedEffects: causalIdCollectionDelta(snapshot.previousDelayedEffects, state.delayedEffects),
+    broughtTeamSnapshots: causalIdCollectionDelta(snapshot.previousBroughtTeamSnapshots, state.broughtTeamSnapshots),
+    postPayoutProcedures: causalIdCollectionDelta(snapshot.previousPostPayoutProcedures, state.postPayoutProcedures),
+    encounterCopyRecords: causalIdCollectionDelta(snapshot.previousEncounterCopyRecords, state.encounterCopyRecords),
+    teambuilderFields: causalTopLevelFieldDelta(snapshot.previousTeambuilder || {}, state.teambuilder || {}, ["moveAccessGrantsByPlayerId"]),
+    battleTeamFields: causalTopLevelFieldDelta(snapshot.previousBattleTeams || {}, state.battleTeams || {}),
+    pokemonDeltas,
+    pokemonLog: causalIdCollectionDelta(snapshot.previousPokemonLog || [], state.pokemonLog || []),
+    teambuilderMoveGrants: causalGrantMapDeltas(snapshot.previousTeambuilder?.moveAccessGrantsByPlayerId, state.teambuilder?.moveAccessGrantsByPlayerId),
+    perkMoveGrants: causalGrantMapDeltas(snapshot.previousPerkSystem?.moveAccessGrantsByPlayerId, state.perkSystem?.moveAccessGrantsByPlayerId),
+    classMoveGrants: causalGrantMapDeltas(
+      Object.fromEntries(Object.entries(snapshot.previousClassStateByPlayerId || {}).map(([id, value]) => [id, value?.moveAccessGrants || []])),
+      Object.fromEntries(Object.entries(state.classStateByPlayerId || {}).map(([id, value]) => [id, value?.moveAccessGrants || []]))
+    ),
+    ruleDeltas,
+    banlistHistory: causalIdCollectionDelta(snapshot.previousBanlistHistory, state.banlistHistory)
+  };
+}
+
+function mergeCausalTokenUndoData(base = {}, later = {}) {
+  const merged = structuredClone(base || {});
+  const collectionKeys = [
+    "pokemonRecords", "statuses", "activations", "consumptions", "transactions", "notifications",
+    "effectOperations", "copiedActivations", "copiedTokenRelationships", "wheelSessions", "encounterSessions",
+    "randomPokemonSessions", "delayedEffects", "broughtTeamSnapshots", "postPayoutProcedures",
+    "encounterCopyRecords", "pokemonLog", "banlistHistory"
+  ];
+  collectionKeys.forEach((key) => {
+    merged[key] = mergeCausalIdCollectionDelta(merged[key], later[key]);
+  });
+  const mergePlayerDeltas = (key) => {
+    const byPlayer = new Map((merged[key] || []).map((entry) => [entry.playerId, structuredClone(entry)]));
+    (later[key] || []).forEach((entry) => {
+      if (!byPlayer.has(entry.playerId)) byPlayer.set(entry.playerId, structuredClone(entry));
+      else byPlayer.get(entry.playerId).delta = mergeCausalIdCollectionDelta(byPlayer.get(entry.playerId).delta, entry.delta);
+    });
+    merged[key] = [...byPlayer.values()];
+  };
+  ["inventoryByPlayer", "moveGrantsByPlayer", "teambuilderMoveGrants", "perkMoveGrants", "classMoveGrants"].forEach(mergePlayerDeltas);
+  const pokemonIdsByPlayer = new Map((merged.playerPokemonIdDeltas || []).map((entry) => [entry.playerId, structuredClone(entry)]));
+  (later.playerPokemonIdDeltas || []).forEach((entry) => {
+    if (!pokemonIdsByPlayer.has(entry.playerId)) pokemonIdsByPlayer.set(entry.playerId, structuredClone(entry));
+    else pokemonIdsByPlayer.get(entry.playerId).delta = mergeCausalScalarSetDelta(pokemonIdsByPlayer.get(entry.playerId).delta, entry.delta);
+  });
+  merged.playerPokemonIdDeltas = [...pokemonIdsByPlayer.values()];
+  const mergeFields = (baseFields = [], laterFields = []) => {
+    const byKey = new Map((baseFields || []).map((field) => [field.key, structuredClone(field)]));
+    (laterFields || []).forEach((field) => {
+      if (!byKey.has(field.key)) byKey.set(field.key, structuredClone(field));
+      else {
+        byKey.get(field.key).appliedExists = field.appliedExists;
+        byKey.get(field.key).applied = structuredClone(field.applied);
+      }
+    });
+    return [...byKey.values()];
+  };
+  merged.teambuilderFields = mergeFields(merged.teambuilderFields, later.teambuilderFields);
+  merged.battleTeamFields = mergeFields(merged.battleTeamFields, later.battleTeamFields);
+  merged.pokemonDeltas = [...(merged.pokemonDeltas || []), ...(later.pokemonDeltas || [])];
+  merged.ruleDeltas = [...(merged.ruleDeltas || []), ...(later.ruleDeltas || []).filter((entry) => !(merged.ruleDeltas || []).some((current) => current.key === entry.key))];
+  return merged;
+}
+
+function applyCausalIdCollectionUndo(collection = [], delta = {}) {
+  const createdIds = new Set(delta.createdIds || []);
+  const next = (collection || []).filter((entry) => !createdIds.has(entry?.id));
+  (delta.previousRecords || []).forEach((record) => {
+    const index = next.findIndex((entry) => entry?.id === record.id);
+    if (index >= 0) next[index] = structuredClone(record);
+    else next.push(structuredClone(record));
+  });
+  (delta.changedRecords || []).forEach(({ id, fields }) => {
+    const record = next.find((entry) => entry?.id === id);
+    if (!record) return;
+    (fields || []).forEach((field) => {
+      const currentExists = Object.prototype.hasOwnProperty.call(record, field.key);
+      if (currentExists !== Boolean(field.appliedExists) || JSON.stringify(record[field.key]) !== JSON.stringify(field.applied)) return;
+      if (field.previousExists) record[field.key] = structuredClone(field.previous);
+      else delete record[field.key];
+    });
+  });
+  return next;
+}
+
+function applyCausalScalarSetUndo(collection = [], delta = {}) {
+  const added = new Set(delta.added || []);
+  const next = (collection || []).filter((value) => !added.has(value));
+  (delta.removed || []).forEach((value) => {
+    if (!next.includes(value)) next.push(value);
+  });
+  return next;
+}
+
+function applyCausalTopLevelFieldUndo(target = {}, fields = []) {
+  (fields || []).forEach((field) => {
+    const currentExists = Object.prototype.hasOwnProperty.call(target, field.key);
+    if (currentExists !== Boolean(field.appliedExists) || JSON.stringify(target[field.key]) !== JSON.stringify(field.applied)) return;
+    if (field.previousExists) target[field.key] = structuredClone(field.previous);
+    else delete target[field.key];
+  });
+  return target;
+}
+
+function restoreCausalTokenEffectUndoData(undoData) {
+  (undoData.inventoryByPlayer || []).forEach(({ playerId, delta }) => {
+    const player = state.players.find((entry) => entry.id === playerId);
+    if (player) player.inventory = applyCausalIdCollectionUndo(player.inventory, delta);
+  });
+  (undoData.playerBalanceDeltas || []).forEach(({ playerId, amount }) => {
+    const player = state.players.find((entry) => entry.id === playerId);
+    if (player) player.balance = Number(player.balance || 0) - Number(amount || 0);
+  });
+  (undoData.moveGrantsByPlayer || []).forEach(({ playerId, delta }) => {
+    const player = state.players.find((entry) => entry.id === playerId);
+    if (player) player.moveAccessGrants = applyCausalIdCollectionUndo(player.moveAccessGrants, delta);
+  });
+  (undoData.playerPokemonIdDeltas || []).forEach(({ playerId, delta }) => {
+    const player = state.players.find((entry) => entry.id === playerId);
+    if (player) player.pokemonIds = applyCausalScalarSetUndo(player.pokemonIds, delta);
+  });
+  state.pokemonRecords = applyCausalIdCollectionUndo(state.pokemonRecords, undoData.pokemonRecords);
+  state.lingeringStatuses = applyCausalIdCollectionUndo(state.lingeringStatuses, undoData.statuses);
+  state.tokenActivations = applyCausalIdCollectionUndo(state.tokenActivations, undoData.activations);
+  state.tokenConsumptions = applyCausalIdCollectionUndo(state.tokenConsumptions, undoData.consumptions);
+  state.transactions = applyCausalIdCollectionUndo(state.transactions, undoData.transactions);
+  state.playerNotifications = applyCausalIdCollectionUndo(state.playerNotifications, undoData.notifications);
+  state.effectOperations = applyCausalIdCollectionUndo(state.effectOperations, undoData.effectOperations);
+  state.copiedActivations = applyCausalIdCollectionUndo(state.copiedActivations, undoData.copiedActivations);
+  state.copiedTokenRelationships = applyCausalIdCollectionUndo(state.copiedTokenRelationships, undoData.copiedTokenRelationships);
+  state.wheelSessions = applyCausalIdCollectionUndo(state.wheelSessions, undoData.wheelSessions);
+  state.encounterSessions = applyCausalIdCollectionUndo(state.encounterSessions, undoData.encounterSessions);
+  state.randomPokemonSessions = applyCausalIdCollectionUndo(state.randomPokemonSessions, undoData.randomPokemonSessions);
+  state.delayedEffects = applyCausalIdCollectionUndo(state.delayedEffects, undoData.delayedEffects);
+  state.broughtTeamSnapshots = applyCausalIdCollectionUndo(state.broughtTeamSnapshots, undoData.broughtTeamSnapshots);
+  state.postPayoutProcedures = applyCausalIdCollectionUndo(state.postPayoutProcedures, undoData.postPayoutProcedures);
+  state.encounterCopyRecords = applyCausalIdCollectionUndo(state.encounterCopyRecords, undoData.encounterCopyRecords);
+  state.teambuilder ||= {};
+  applyCausalTopLevelFieldUndo(state.teambuilder, undoData.teambuilderFields);
+  state.battleTeams ||= {};
+  applyCausalTopLevelFieldUndo(state.battleTeams, undoData.battleTeamFields);
+  (undoData.pokemonDeltas || []).forEach((delta) => {
+    const pokemon = state.pokemonRecords.find((entry) => entry.id === delta.pokemonId);
+    if (!pokemon) return;
+    pokemon.effectBuffs = applyCausalIdCollectionUndo(pokemon.effectBuffs, delta.effectBuffs);
+    pokemon.log = applyCausalIdCollectionUndo(pokemon.log, delta.logs);
+    const removeLabels = new Set(delta.labelsAdded || []);
+    const previousLabels = delta.previousLabelOrder || [];
+    const laterLabels = (pokemon.buffs || []).filter((label) => !removeLabels.has(label) && !previousLabels.includes(label));
+    pokemon.buffs = [...previousLabels, ...laterLabels];
+  });
+  state.pokemonLog = applyCausalIdCollectionUndo(state.pokemonLog, undoData.pokemonLog);
+  const restoreGrantMap = (root, deltas) => (deltas || []).forEach(({ playerId, delta }) => {
+    root[playerId] = applyCausalIdCollectionUndo(root[playerId], delta);
+  });
+  state.teambuilder.moveAccessGrantsByPlayerId ||= {};
+  restoreGrantMap(state.teambuilder.moveAccessGrantsByPlayerId, undoData.teambuilderMoveGrants);
+  state.perkSystem ||= {};
+  state.perkSystem.moveAccessGrantsByPlayerId ||= {};
+  restoreGrantMap(state.perkSystem.moveAccessGrantsByPlayerId, undoData.perkMoveGrants);
+  state.classStateByPlayerId ||= {};
+  (undoData.classMoveGrants || []).forEach(({ playerId, delta }) => {
+    state.classStateByPlayerId[playerId] ||= {};
+    state.classStateByPlayerId[playerId].moveAccessGrants = applyCausalIdCollectionUndo(state.classStateByPlayerId[playerId].moveAccessGrants, delta);
+  });
+  (undoData.ruleDeltas || []).forEach((delta) => {
+    if (delta.existed) state.globalPokemonRules[delta.key] = structuredClone(delta.previous);
+    else delete state.globalPokemonRules[delta.key];
+  });
+  state.banlistHistory = applyCausalIdCollectionUndo(state.banlistHistory, undoData.banlistHistory);
+  if (undoData.tokenDefinitionId === "honey-token" && undoData.procedureId) {
+    const procedure = (state.endOfActionProcedures || []).find((entry) => entry.id === undoData.procedureId);
+    if (procedure) {
+      procedure.status = "undone";
+      procedure.undoneAt = new Date().toISOString();
+    }
+  }
+  if (state.selectedRandomPokemonSessionId && !(state.randomPokemonSessions || []).some((entry) => entry.id === state.selectedRandomPokemonSessionId)) {
+    state.selectedRandomPokemonSessionId = "";
+    state.randomPokemonDrawerOpen = false;
+  }
+  syncLinkedTransactions();
+  syncPlayerPokemonLists();
 }
 
 function recordTokenContractResolution(activity, metadata, {
@@ -4076,6 +4292,22 @@ function recordTokenContractResolution(activity, metadata, {
     hostConfirmation
   });
   const undoSnapshot = activity?.payload?.tokenDeclarationUndo;
+  let causalUndo = undoSnapshot && ["restrict-token", "extra-ban-token", "unban-token", "clear-smog", "rage-candy-bar", "safeguard", "cold-wave", "wicked-blow", "purge-curse"].includes(metadata.id)
+    ? buildCausalTokenEffectUndo(undoSnapshot, activity, metadata)
+    : null;
+  if (causalUndo && activity?.payload?.teleportDelayedEffectId) {
+    const delayed = (state.delayedEffects || []).find((entry) => entry.id === activity.payload.teleportDelayedEffectId);
+    const originalEventId = delayed?.parentEffect?.id || activity.payload.teleportOriginalEventId || "";
+    const originalLog = (state.log || []).find((entry) => !entry.undone
+      && entry.undoData?.actionType === "undoTokenEffectContractCausal"
+      && (entry.linkedEventId === originalEventId
+        || entry.undoData?.delayedEffects?.createdIds?.includes(delayed?.id)));
+    if (originalLog) {
+      causalUndo = mergeCausalTokenUndoData(originalLog.undoData, causalUndo);
+      originalLog.undoable = false;
+      originalLog.supersededByTeleportReturnEventId = activity.id;
+    }
+  }
   const logEntry = addLogEntry({
     action: "token",
     category: "tokens",
@@ -4098,12 +4330,12 @@ function recordTokenContractResolution(activity, metadata, {
     resolutionResult: canonicalResult,
     undoable: Boolean(undoSnapshot),
     undone: false,
-    undoData: undoSnapshot ? {
+    undoData: undoSnapshot ? (causalUndo || {
       actionType: "undoTokenEffectContract",
       effectId: activity.id,
       auditId: audit.id,
       ...structuredClone(undoSnapshot)
-    } : null,
+    }) : null,
     eventOrder: nextEventOrder()
   });
   audit.undoLogId = logEntry?.id || "";
@@ -4439,7 +4671,11 @@ function closeTeleportDelayedRecordWithoutReturn(record, validation, now = new D
   const refundedCount = gameplayIllegal
     ? 0
     : refundTokenConsumptionsByIds(teleportDelayedConsumptionIds(record), record.resolutionReason);
-  addLogEntry({
+  const originalLog = (state.log || []).find((entry) => !entry.undone
+    && entry.undoData?.actionType === "undoTokenEffectContractCausal"
+    && (entry.linkedEventId === record.parentEffect?.id
+      || entry.undoData?.delayedEffects?.createdIds?.includes(record.id)));
+  const terminalLog = addLogEntry({
     action: "token",
     category: "tokens",
     player: livePlayerName(record.sourcePlayerId, "Teleport"),
@@ -4460,8 +4696,15 @@ function closeTeleportDelayedRecordWithoutReturn(record, validation, now = new D
     linkedEventId: record.parentEffect?.id || "",
     delayedEffectId: record.id,
     resultData: { delayedEffectId: record.id, refundedTokenCount: refundedCount },
+    undoable: Boolean(originalLog?.undoData),
+    undone: false,
+    undoData: originalLog?.undoData ? structuredClone(originalLog.undoData) : null,
     eventOrder: nextEventOrder()
   });
+  if (originalLog && terminalLog) {
+    originalLog.undoable = false;
+    originalLog.supersededByTeleportTerminalLogId = terminalLog.id;
+  }
   queueLiveResolutionAnnouncement({
     id: `resolution:teleport:${record.id}:${record.status}`,
     title: gameplayIllegal ? "The delayed effect had no effect." : "The delayed effect was canceled safely.",
@@ -4581,6 +4824,7 @@ function controlTokenDraftLegality(draft, metadata = tokenEffectMetadataByName(d
       targetPokemonName: draft.targetPokemonName,
       speciesName: draft.targetPokemonName || draft.targetText,
       selectedRosterInstanceId: draft.selectedRosterInstanceId,
+      selectedStatusId: draft.selectedStatusId || "",
       selectedRosterInstanceIds: draft.targetPokemonIds || [],
       targetPokemonIds: draft.targetPokemonIds || [],
       resourceName: draft.targetText || draft.notes || "",
@@ -4610,8 +4854,14 @@ function controlTokenDraftLegality(draft, metadata = tokenEffectMetadataByName(d
   if (definitionId === "extra-ban-token" && (!targetPokemon || ["Released", "Removed"].includes(targetPokemon.status))) {
     return { ok: false, reason: "Choose a specific roster Pokemon as Extra Ban's declaration target." };
   }
+  if (definitionId === "extra-ban-token" && targetPokemon.rosterType !== "Active") {
+    return { ok: false, reason: "Extra Ban must target an exact Pokemon on an Active roster." };
+  }
   if (["arena-trap", "clear-smog"].includes(definitionId) && (!targetPokemon || ["Released", "Removed"].includes(targetPokemon.status))) {
     return { ok: false, reason: `Choose a specific roster Pokemon for ${metadata.name}.` };
+  }
+  if (definitionId === "clear-smog" && targetPokemon.rosterType !== "Active") {
+    return { ok: false, reason: "Clear Smog must target an exact Pokemon on an Active roster." };
   }
   if (definitionId === "arena-trap" && targetPokemon.trainerId === draft.actorPlayerId) {
     return { ok: false, reason: "Arena Trap must target a rival player's Pokemon." };
@@ -4831,7 +5081,7 @@ function applyAutomaticControlFoundationActivity(activity, metadata) {
   let resolution = null;
   if (metadata.id === "restrict-token") {
     const targetName = String(draft.targetPokemonName || draft.targetText || "").trim();
-    const expires = statusExpiresAt(2);
+    const expires = statusExpiresAt(6);
     resolution = controlTokenEffects.resolveRestrict(state, {
       ...source,
       speciesName: targetName,
@@ -4854,7 +5104,7 @@ function applyAutomaticControlFoundationActivity(activity, metadata) {
         sourceTokenId: source.sourceTokenId,
         sourceTokenName: metadata.name,
         sourceStatusId: resolution.status.id,
-        durationGyms: 2,
+        durationGyms: 6,
         expiresAtSeries: resolution.status.expiresAtSeries,
         expiresAtGym: resolution.status.expiresAtGym,
         applicationScope: resolution.status.applicationScope,
@@ -4907,6 +5157,7 @@ function applyAutomaticControlFoundationActivity(activity, metadata) {
       ...source,
       speciesName: targetName,
       eventId: activity.id,
+      selectedStatusId: activity.payload?.selectedStatusId || draft.selectedStatusId || "",
       hasLegacyRestriction: ["Banned", "Restricted"].includes(previousRuleStatus),
       expiresAtSeries: expires.expiresAtSeries,
       expiresAtGym: expires.expiresAtGym
@@ -5113,6 +5364,15 @@ function applyAutomaticUtilityTokenActivity(activity, metadata) {
   const actor = draft.actor;
   const targetPlayer = draft.target || state.players.find((player) => player.id === activity.targetPlayerId);
   const pokemon = (state.pokemonRecords || []).find((record) => record.id === draft.targetPokemonId);
+  if (metadata.id === "embargo" && targetPlayer && hasProtectionAgainst(state, targetPlayer.id, { protectionKeys: ["embargo"] })) {
+    return {
+      result: "blocked",
+      details: [`${targetPlayer.name} is unaffected by Embargo because Safeguard is active.`],
+      mutations: [],
+      persistentStateIds: [],
+      resultData: { protectionResult: "blockedBySafeguard", affectedPlayerIds: [targetPlayer.id] }
+    };
+  }
   if (metadata.targetType === EFFECT_TARGET_TYPES.POKEMON && !pokemon) {
     return { result: "noEffect", details: ["The selected owned Pokemon is no longer available."], mutations: [], persistentStateIds: [] };
   }
@@ -5371,6 +5631,7 @@ function applyResolvedTokenPendingEvent(activity, { resolutionText = "" } = {}) 
     };
   }
   let resolution = applyAutomaticControlFoundationActivity(activity, metadata);
+  if (!resolution) resolution = applyAutomaticSafeguardActivity(activity, metadata);
   if (!resolution && metadata.resolverId === "statusEffect") resolution = applyAutomaticStatusTokenActivity(activity, metadata);
   if (!resolution && ["utilityEffect", "playerStatus"].includes(metadata.resolverId)) resolution = applyAutomaticUtilityTokenActivity(activity, metadata);
   if (!resolution && metadata.resolutionMode === EFFECT_RESOLUTION_MODES.GUIDED) resolution = applyGuidedTokenActivity(activity, metadata, resolutionText);
@@ -5470,7 +5731,6 @@ function tokenTimingCategoryOptions(selected = "") {
     [TOKEN_TIMING_CATEGORIES.PROTECTION, "Protection Token"],
     [TOKEN_TIMING_CATEGORIES.ENCOUNTER, "Encounter Token"],
     [TOKEN_TIMING_CATEGORIES.CURSE, "Curse Token"],
-    [TOKEN_TIMING_CATEGORIES.FIELD, "Field Token"]
   ].map(([value, label]) => `<option value="${escapeHtml(value)}" ${value === selected ? "selected" : ""}>${escapeHtml(label)}</option>`).join("");
 }
 
@@ -16394,48 +16654,48 @@ const rivalSagaPokemonTierMap = buildRivalSagaPokemonTierMap();
 const gameCornerTokenDefinitions = Object.freeze([
   {
     id: "safari-gc-ticket",
-    name: "Safari GC Ticket",
+    name: "Safari Ticket",
     tokenType: "game-corner",
     type: "TICKET",
     gameCornerTier: "Safari",
     gameCornerTierId: "safari",
-    description: "Ticket used to unlock a Safari acquisition-family Pokemon reward at the Game Corner."
+    description: "Ticket used to unlock a Safari Battle Tier Pokémon reward at the Game Corner."
   },
   {
     id: "poke-gc-ticket",
-    name: "Poke GC Ticket",
+    name: "Poké Ticket",
     tokenType: "game-corner",
     type: "TICKET",
-    gameCornerTier: "Poke",
+    gameCornerTier: "Poké",
     gameCornerTierId: "poke",
-    description: "Ticket used to unlock a Poke acquisition-family Pokemon reward at the Game Corner."
+    description: "Ticket used to unlock a Poké or Poké Elite Battle Tier Pokémon reward at the Game Corner."
   },
   {
     id: "great-gc-ticket",
-    name: "Great GC Ticket",
+    name: "Great Ticket",
     tokenType: "game-corner",
     type: "TICKET",
     gameCornerTier: "Great",
     gameCornerTierId: "great",
-    description: "Ticket used to unlock a Great acquisition-family Pokemon reward at the Game Corner."
+    description: "Ticket used to unlock a Great or Great Elite Battle Tier Pokémon reward at the Game Corner."
   },
   {
     id: "ultra-gc-ticket",
-    name: "Ultra GC Ticket",
+    name: "Ultra Ticket",
     tokenType: "game-corner",
     type: "TICKET",
     gameCornerTier: "Ultra",
     gameCornerTierId: "ultra",
-    description: "Ticket used to unlock an Ultra acquisition-family Pokemon reward at the Game Corner."
+    description: "Ticket used to unlock an Ultra or Ultra Elite Battle Tier Pokémon reward at the Game Corner."
   },
   {
     id: "master-gc-ticket",
-    name: "Master GC Ticket",
+    name: "Master Ticket",
     tokenType: "game-corner",
     type: "TICKET",
     gameCornerTier: "Master",
     gameCornerTierId: "master",
-    description: "Ticket used to unlock a Master acquisition-family Pokemon reward at the Game Corner."
+    description: "Ticket used to unlock a Master or Master Elite Battle Tier Pokémon reward at the Game Corner."
   }
 ]);
 
@@ -17183,6 +17443,14 @@ function pokemonSagaTier(pokemonOrName) {
   const name = typeof pokemonOrName === "string" ? pokemonOrName : pokemonOrName?.name;
   const entry = getPokemonBattleTierEntry(name);
   return entry?.balanceTierLabel || getPokemonBalanceTierLabel(entry?.balanceTier || "") || "";
+}
+
+function pokemonConsolidatedBattleTier(pokemonOrTier) {
+  const rawTier = typeof pokemonOrTier === "string"
+    ? pokemonOrTier
+    : pokemonSagaTier(pokemonOrTier) || pokemonOrTier?.balanceTier || pokemonOrTier?.battleTier || "";
+  return globalThis.rivalSagaActionPhaseBalance?.consolidatedTier(rawTier)
+    || acquisitionFamilyIdFromBattleTier(rawTier);
 }
 
 function isPokemonLegalForSlot(pokemonTier, gymNumber, badgeBoost = 0) {
@@ -17968,19 +18236,20 @@ function shouldRerollBannedGameCornerPokemon(pokemonName) {
 const wheelDefinitions = {
   gameCornerGamble: {
     id: "gameCornerGamble",
-    name: "Game Corner Gamble Wheel",
-    description: "Pay 2000 to spin. Up to 3 spins per Game Corner action. This wheel cannot be rerolled.",
+    name: "Game Corner Slot Machine",
+    description: "Each spin costs $2,000. Losing spins award nothing; winning spins add exactly one Ticket.",
     cost: { type: "money", amount: 2000 },
-    maxRollsPerVisit: 3,
+    maxRollsPerVisit: Number.MAX_SAFE_INTEGER,
     rerollable: false,
-    outcomes: [
-      { id: "nothing", label: "Nothing", weight: 50, rewardType: "none", description: "No reward." },
-      { id: "safari", label: "Safari Ticket", weight: 19, rewardType: "token", rewardData: gameCornerTokenDefinitionByTier("Safari") },
-      { id: "poke", label: "Poke Ticket", weight: 14, rewardType: "token", rewardData: gameCornerTokenDefinitionByTier("Poke") },
-      { id: "great", label: "Great Ticket", weight: 10, rewardType: "token", rewardData: gameCornerTokenDefinitionByTier("Great") },
-      { id: "ultra", label: "Ultra Ticket", weight: 5, rewardType: "token", rewardData: gameCornerTokenDefinitionByTier("Ultra") },
-      { id: "master", label: "Master Ticket", weight: 2, rewardType: "token", rewardData: gameCornerTokenDefinitionByTier("Master"), visualClass: "rare" }
-    ]
+    outcomes: globalThis.rivalSagaActionPhaseBalance.SLOT_MACHINE_RESULTS.map((result) => ({
+      id: result.id,
+      label: result.label,
+      weight: result.weight,
+      rewardType: result.rewardTier ? "token" : "none",
+      rewardData: result.rewardTier ? gameCornerTokenDefinitionByTier(result.rewardTier) : null,
+      description: result.rewardTier ? `Award one ${result.label}.` : "No reward.",
+      visualClass: result.id === "master" ? "rare" : ""
+    }))
   },
   trainerClassWheel: {
     ...trainerClassWheelDefinition,
@@ -17999,6 +18268,11 @@ const tierOrder = ["Level 1", "Level 2", "Level 3", "Level 4", "Level 5"];
 const tmTypeOrder = ["All", "Normal", "Fire", "Water", "Electric", "Grass", "Ice", "Fighting", "Poison", "Ground", "Flying", "Psychic", "Bug", "Rock", "Ghost", "Dragon", "Dark", "Steel", "Fairy", "Unknown"];
 const tokenScenarioSandbox = globalThis.rivalSagaTokenSandbox?.createSessionManager?.();
 if (!tokenScenarioSandbox) throw new Error("Token sandbox session manager failed to load.");
+const CANCELED_TOKEN_CONTENT_IDS = new Set([
+  "payday-field", "drizzle-field", "drought-field", "taunt-field",
+  "snow-warning-field", "sand-stream-field", "infestation-field", "surging-strikes-field",
+  "electric-field-token", "grassy-field-token", "field-kit"
+]);
 let state = loadState();
 const backendSync = {
   enabled: typeof window !== "undefined" && window.location.protocol !== "file:",
@@ -18196,7 +18470,6 @@ const els = {
   gymSelect: document.querySelector("#gymSelect"),
   currentPhaseStatus: document.querySelector("#currentPhaseStatus"),
   phaseReminderText: document.querySelector("#phaseReminderText"),
-  fieldIndicator: document.querySelector("#fieldIndicator"),
   phaseAgendaToggle: document.querySelector("#phaseAgendaToggle"),
   phaseAgendaPanel: document.querySelector("#phaseAgendaPanel"),
   phaseAgendaList: document.querySelector("#phaseAgendaList"),
@@ -18223,6 +18496,8 @@ const els = {
   actionPhaseVisited: document.querySelector("#actionPhaseVisited"),
   actionPhaseTableStatus: document.querySelector("#actionPhaseTableStatus"),
   actionTurnRail: document.querySelector("#actionTurnRail"),
+  actionDemoStatus: document.querySelector("#actionDemoStatus"),
+  actionToggleDemoMode: document.querySelector("#actionToggleDemoMode"),
   actionPhaseWarning: document.querySelector("#actionPhaseWarning"),
   actionLocationBoard: document.querySelector("#actionLocationBoard"),
   actionLocationTitle: document.querySelector("#actionLocationTitle"),
@@ -18581,6 +18856,11 @@ function normalizeClientLocalStateSnapshot(snapshot = {}) {
   }
   if (normalized.activeView !== undefined && !PLAYER_HUB_VIEW_IDS.includes(normalized.activeView)) {
     normalized.activeView = "sheet";
+  }
+  const hasFloatingGeometry = ["liveRefereeX", "liveRefereeY", "liveRefereeWidth", "liveRefereeHeight"]
+    .some((key) => source[key] !== undefined && source[key] !== null && source[key] !== "");
+  if (normalized.liveRefereeWindowMode === "floating" && !hasFloatingGeometry) {
+    normalized.liveRefereeWindowMode = "docked";
   }
   return normalized;
 }
@@ -20941,7 +21221,7 @@ function normalizeState(nextState) {
   nextState.liveRefereeHeight = liveRefereeNumber(nextState.liveRefereeHeight) ?? "";
   nextState.liveRefereeWindowMode = ["floating", "docked", "expanded", "fullTable"].includes(nextState.liveRefereeWindowMode)
     ? nextState.liveRefereeWindowMode
-    : "floating";
+    : "docked";
   nextState.liveRefereeDockSide = ["right", "left", "bottom"].includes(nextState.liveRefereeDockSide) ? nextState.liveRefereeDockSide : "right";
   nextState.liveRefereePaneSplit = liveRefereeNumber(nextState.liveRefereePaneSplit) ?? "";
   nextState.liveRefereeLayoutPreference = ["auto", "situation", "table", "manual"].includes(nextState.liveRefereeLayoutPreference)
@@ -20985,11 +21265,17 @@ function normalizeState(nextState) {
     session.freeRerollUsed = Boolean(session.freeRerollUsed);
     session.completedAll = Boolean(session.completedAll);
   });
-  nextState.fieldTokens ||= [];
-  nextState.fieldTokens.forEach((field) => {
-    field.status = ["active", "replaced", "removed", "undone"].includes(field.status) ? field.status : "active";
-  });
+  delete nextState.fieldTokens;
   nextState.graveyardSessions ||= [];
+  nextState.departmentStoreVisits ||= [];
+  nextState.departmentStoreVisits.forEach((visit) => {
+    visit.status = ["active", "completed", "undone"].includes(visit.status) ? visit.status : "active";
+    visit.clearanceProducts ||= [];
+    visit.normalSavingsUsed = Math.max(0, Math.min(3000, Number(visit.normalSavingsUsed || 0)));
+    visit.normalPurchases ||= [];
+    visit.clearancePurchase ||= null;
+    visit.soldProduct ||= null;
+  });
   nextState.graveyardTokenOwnerFilter ||= "";
   nextState.graveyardSessions.forEach((session) => {
     session.status = ["active", "completed", "undone"].includes(session.status) ? session.status : "active";
@@ -21112,6 +21398,33 @@ function normalizeState(nextState) {
     session.visualRotation = Number(session.visualRotation || 0);
     session.isSpinning = false;
     session.pendingOutcomeId = "";
+    if (session.wheelId === "gameCornerGamble") {
+      const currentOutcomes = wheelDefinitionById(session.wheelId)?.outcomes || [];
+      session.rolls.forEach((roll) => {
+        const legacyOutcomeIds = {
+          pokeball: "poke",
+          greatball: "great",
+          ultraball: "ultra",
+          masterball: "master",
+          safarizone: "safari"
+        };
+        roll.outcomeId = legacyOutcomeIds[roll.outcomeId] || roll.outcomeId;
+        const outcome = currentOutcomes.find((entry) => entry.id === roll.outcomeId);
+        if (!outcome) return;
+        roll.outcomeLabel = outcome.label;
+        roll.result = outcome.label;
+        roll.rewardName = outcome.rewardData?.name || "";
+        if (roll.reward && outcome.rewardData) {
+          roll.reward.name = outcome.rewardData.name;
+          roll.reward.type = "TICKET";
+          roll.reward.tier = "Tickets";
+          roll.reward.gameCornerTier = outcome.rewardData.gameCornerTier;
+          roll.reward.gameCornerTierId = outcome.rewardData.gameCornerTierId;
+          roll.reward.description = outcome.rewardData.description;
+          roll.reward.source = "Game Corner Slot Machine";
+        }
+      });
+    }
   });
   nextState.shopSort ||= { mode: "price", direction: "asc" };
   if (nextState.shopSort.mode === "category") nextState.shopSort.mode = "tier";
@@ -21267,14 +21580,14 @@ function normalizeState(nextState) {
     player.record ||= "0-0";
     player.seriesRecord ||= "0-0";
     player.inventory = (player.inventory || [])
-      .filter((item) => !isRemovedGameContentEntry(item))
+      .filter((item) => !isCanceledGameContentEntry(item))
       .map((item) => normalizeTmInventoryEntry(item))
       .flatMap(expandInventoryCategoryRecords);
     player.moveAccessGrants = normalizeTeambuilderMoveAccessGrantList(player.moveAccessGrants, { playerId: player.id });
     player.pokemon ||= [];
     player.legacyPokemon ||= [];
     player.releasedPokemon ||= [];
-    player.perks ||= [];
+    player.perks = (player.perks || []).filter((perk) => !isCanceledGameContentEntry(perk));
     player.buffs ||= [];
     player.nerfs ||= [];
     player.shopLevels ||= { items: 0, tms: 0, tokens: 0 };
@@ -21337,10 +21650,6 @@ const tokenImageRegistry = Object.freeze({
   "ditto-token": "assets/tokens/ditto-token.png",
   "dream-ball": "assets/tokens/dream-ball-token.png",
   "dream-ball-token": "assets/tokens/dream-ball-token.png",
-  "drizzle": "assets/tokens/drizzle-field.png",
-  "drizzle-field": "assets/tokens/drizzle-field.png",
-  "drought": "assets/tokens/drought-field.png",
-  "drought-field": "assets/tokens/drought-field.png",
   "embargo": "assets/tokens/embargo.png",
   "extra-ban": "assets/tokens/extra-ban-token.png",
   "extra-ban-token": "assets/tokens/extra-ban-token.png",
@@ -21363,8 +21672,6 @@ const tokenImageRegistry = Object.freeze({
   "incinerate": "assets/tokens/incinerate.png",
   "imprison": "assets/tokens/soul-seal.png",
   "imprison-curse": "assets/tokens/soul-seal.png",
-  "infestation": "assets/tokens/infestation-field.png",
-  "infestation-field": "assets/tokens/infestation-field.png",
   "inverse-candy": "assets/tokens/inverse-candy.png",
   "iron-ball": "assets/tokens/iron-ball-curse.png",
   "iron-ball-curse": "assets/tokens/iron-ball-curse.png",
@@ -21382,8 +21689,6 @@ const tokenImageRegistry = Object.freeze({
   "move-deleter": "assets/tokens/move-deleter-curse.png",
   "move-deleter-curse": "assets/tokens/move-deleter-curse.png",
   "parting-shot": "assets/tokens/parting-shot.png",
-  "payday": "assets/tokens/payday-field.png",
-  "payday-field": "assets/tokens/payday-field.png",
   "pokeball": "assets/tokens/roll-pokeball-wheel.png",
   "pokeball-gamecorner": "assets/tokens/roll-pokeball-wheel.png",
   "pokeball-gc-token": "assets/tokens/roll-pokeball-wheel.png",
@@ -21411,20 +21716,12 @@ const tokenImageRegistry = Object.freeze({
   "safari-zone-token": "assets/tokens/safari-zone-token.png",
   "safari-gc-ticket": "assets/tokens/safari-zone-token.png",
   "safeguard": "assets/tokens/safeguard.png",
-  "sand-stream": "assets/tokens/sand-stream-field.png",
-  "sand-stream-field": "assets/tokens/sand-stream-field.png",
   "silencing-curse": "assets/tokens/silencing-curse.png",
   "smokescreen": "assets/tokens/smokescreen.png",
-  "snow-warning": "assets/tokens/snow-warning-field.png",
-  "snow-warning-field": "assets/tokens/snow-warning-field.png",
   "soul-seal": "assets/tokens/soul-seal.png",
   "steal": "assets/tokens/steal-token.png",
   "steal-token": "assets/tokens/steal-token.png",
   "substitute": "assets/tokens/substitute.png",
-  "surging-strikes": "assets/tokens/surging-strikes-field.png",
-  "surging-strikes-field": "assets/tokens/surging-strikes-field.png",
-  "taunt": "assets/tokens/taunt-field.png",
-  "taunt-field": "assets/tokens/taunt-field.png",
   "teleport": "assets/tokens/teleport.png",
   "toxic-curse": "assets/tokens/toxic-curse.png",
   "ultraball": "assets/tokens/roll-ultraball-wheel.png",
@@ -21463,16 +21760,20 @@ function normalizeTokenArtLibrary(library = {}) {
   Object.entries(library && typeof library === "object" && !Array.isArray(library) ? library : {}).forEach(([key, value]) => {
     const safeKey = slugify(key);
     const setting = normalizeTokenImageSetting(value);
-    if (!safeKey || !setting.src) return;
+    if (!safeKey || CANCELED_TOKEN_CONTENT_IDS.has(safeKey) || !setting.src) return;
     normalized[safeKey] = setting;
   });
   return normalized;
 }
 
-function isRemovedGameContentEntry(entry = {}) {
-  const id = slugify(entry.catalogId || entry.id || "");
-  const name = slugify(entry.name || entry.tokenName || "");
-  return name === "link-cable" || id === "link-cable" || id.startsWith("link-cable-");
+function isCanceledGameContentEntry(entry = {}) {
+  const normalizedEntry = typeof entry === "string" ? { id: entry, name: entry } : entry;
+  const id = slugify(normalizedEntry.catalogId || normalizedEntry.id || "");
+  const name = slugify(normalizedEntry.name || normalizedEntry.tokenName || "");
+  return name === "link-cable" || id === "link-cable" || id.startsWith("link-cable-")
+    || CANCELED_TOKEN_CONTENT_IDS.has(id)
+    || String(normalizedEntry.tokenType || "").toLowerCase() === "field"
+    || /-field-token$/.test(name);
 }
 
 function isDeprecatedTokenCatalogEntry(entry = {}) {
@@ -21502,7 +21803,7 @@ function isDeprecatedTokenCatalogEntry(entry = {}) {
     "ultraball-insurance",
     "masterball-insurance"
   ]);
-  return isRemovedGameContentEntry(entry)
+  return isCanceledGameContentEntry(entry)
     || removedIds.has(id)
     || ["game-corner", "game-corner-wheel", "legacy", "insurance"].includes(tokenType)
     || /\binsurance\b/.test(name);
@@ -21933,7 +22234,9 @@ function normalizePokemonRecord(pokemon) {
     gymsOnRoster: Number(pokemon.gymsOnRoster || 0),
     battlesWon: Number(pokemon.battlesWon || 0),
     battlesLost: Number(pokemon.battlesLost || 0),
-    buffs: (pokemon.buffs || []).filter((buff) => slugify(buff) !== "link-cable"),
+    buffs: (pokemon.buffs || [])
+      .filter((buff) => slugify(buff) !== "link-cable")
+      .map((buff) => /^Egg\s+Move\s+Pending$/i.test(String(buff)) ? "TM Move Pending" : buff),
     effectBuffs: Array.isArray(pokemon.effectBuffs) ? pokemon.effectBuffs : [],
     nerfs: pokemon.nerfs || [],
     breederStatus: pokemon.breederStatus || null,
@@ -24213,6 +24516,9 @@ function resolveCurrentInteractionPrompt(activity, { force = false, source = "li
     state.liveTable = normalizeLiveTableState({ ...(state.liveTable || {}), lastResolvedEventId: activity.id });
     pushBackendActivityStatus(activity.id, activity.status, "delayed", activity);
     const dueLabel = `${responseEffect.delayedRecord.dueAt.series} Gym ${responseEffect.delayedRecord.dueAt.gym} ${phaseLabels[responseEffect.delayedRecord.dueAt.phase] || responseEffect.delayedRecord.dueAt.phase}`;
+    const teleportCausalUndo = activity.payload?.tokenDeclarationUndo
+      ? buildCausalTokenEffectUndo(activity.payload.tokenDeclarationUndo, activity, { id: "teleport", name: "Teleport" })
+      : null;
     addLogEntry({
       action: "token",
       category: "tokens",
@@ -24234,6 +24540,9 @@ function resolveCurrentInteractionPrompt(activity, { force = false, source = "li
       effectAuditId: responseEffect.audit?.id || "",
       delayedEffectId: responseEffect.delayedRecord.id,
       resultData: responseEffect.resultData,
+      undoable: Boolean(teleportCausalUndo),
+      undone: false,
+      undoData: teleportCausalUndo,
       eventOrder: nextEventOrder()
     });
     if (!suppressAnnouncement) {
@@ -26293,6 +26602,7 @@ function createTokenPendingEventFromUse(draft) {
           : EFFECT_APPLICATION_SCOPES.MANUAL),
       affectedEntityType: metadata.affectedEntityType || draft.targetType || metadata.targetType,
       selectedRosterInstanceId: draft.targetPokemonId || "",
+      selectedStatusId: draft.selectedStatusId || "",
       selectedSpeciesId: pokemonRuleKey(draft.targetPokemonName || draft.targetText || ""),
       speciesId: pokemonRuleKey(draft.targetPokemonName || draft.targetText || ""),
       selectedRosterInstanceIds: draft.targetPokemonIds?.length ? structuredClone(draft.targetPokemonIds) : [draft.targetPokemonId].filter(Boolean),
@@ -26593,7 +26903,12 @@ function handleTokenUseFormChange(event) {
     persistLiveRefereeGenericEffectDraft(target.closest("[data-live-referee-effect-form]"), { immediate: true });
     return;
   }
-  if (target?.matches?.('[data-live-referee-effect-field="targetPokemonId"], [data-live-referee-effect-field="targetText"], [data-live-referee-effect-field="notes"], [data-live-referee-effect-field="resourceDefinitionId"]')) {
+  if (target?.matches?.('[data-live-referee-effect-field="targetPokemonId"], [data-live-referee-effect-field="targetText"], [data-live-referee-effect-field="selectedStatusId"], [data-live-referee-effect-field="notes"], [data-live-referee-effect-field="resourceDefinitionId"]')) {
+    if (target.matches('[data-live-referee-effect-field="selectedStatusId"]')) {
+      const option = target.selectedOptions?.[0];
+      const textField = target.form?.querySelector?.('[data-live-referee-effect-field="targetText"]');
+      if (textField) textField.value = option?.dataset?.speciesName || "";
+    }
     persistLiveRefereeGenericEffectDraft(target.closest("[data-live-referee-effect-form]"), { immediate: true });
     return;
   }
@@ -26877,7 +27192,6 @@ function liveRefereeTokenInventoryGroups(player) {
     [TOKEN_TIMING_CATEGORIES.PROTECTION]: 2,
     [TOKEN_TIMING_CATEGORIES.ENCOUNTER]: 3,
     [TOKEN_TIMING_CATEGORIES.CURSE]: 4,
-    [TOKEN_TIMING_CATEGORIES.FIELD]: 5,
     [TOKEN_TIMING_CATEGORIES.MANUAL]: 9
   };
   return [...groups.values()].sort((a, b) => (categoryOrder[a.metadata.timingCategory] || 8) - (categoryOrder[b.metadata.timingCategory] || 8)
@@ -27060,6 +27374,7 @@ function normalizeLiveRefereeEffectDraft(value) {
     incinerateCards: cards,
     targetPokemonId: String(value.targetPokemonId || ""),
     targetPokemonIds: Array.isArray(value.targetPokemonIds) ? [...new Set(value.targetPokemonIds.map((id) => String(id || "")).filter(Boolean))] : [],
+    selectedStatusId: String(value.selectedStatusId || ""),
     targetPlayerId: String(value.targetPlayerId || ""),
     targetPlayerIds: Array.isArray(value.targetPlayerIds) ? [...new Set(value.targetPlayerIds.map((id) => String(id || "")).filter(Boolean))] : [],
     targetText: String(value.targetText || ""),
@@ -27880,6 +28195,7 @@ function persistLiveRefereeGenericEffectDraft(form, { immediate = false } = {}) 
   const draft = liveRefereeEffectDraftFor();
   draft.targetPokemonId = form.querySelector('[data-live-referee-effect-field="targetPokemonId"]')?.value || draft.targetPokemonId || "";
   draft.targetPokemonIds = [...form.querySelectorAll("[data-haze-curse-target]:checked")].map((input) => input.value).filter(Boolean);
+  draft.selectedStatusId = form.querySelector('[data-live-referee-effect-field="selectedStatusId"]')?.value || draft.selectedStatusId || "";
   draft.targetPlayerId = form.querySelector('[data-live-referee-effect-field="targetPlayerId"]')?.value || draft.targetPlayerId || "";
   draft.targetText = form.querySelector('[data-live-referee-effect-field="targetText"]')?.value || "";
   draft.notes = form.querySelector('[data-live-referee-effect-field="notes"]')?.value || "";
@@ -28319,20 +28635,33 @@ function liveRefereeEffectUseScreenMarkup(prompt, selectedPlayerId = liveReferee
     if (targetScope === EFFECT_TARGET_SCOPES.SPECIES) {
       const speciesOptions = liveRefereeControlSpeciesOptions(tokenName);
       const isUnban = slugify(tokenName) === "unban";
+      const unbanStatuses = isUnban
+        ? (controlTokenEffects?.activeStatuses?.(state, controlTokenEffectOptions(), (status) => ["ban", "restrict"].includes(status.type)) || [])
+        : [];
+      const selectedUnbanStatus = unbanStatuses.find((status) => status.id === effectDraft.selectedStatusId) || null;
       return liveRefereeEffectTargetScreenMarkup({
         prompt,
         tokenName,
         metadata,
         situation: isUnban ? "Remove which active Ban or Restrict?" : `Use ${tokenName} on which Pokemon species?`,
-        fields: `
+        fields: isUnban ? `
           <label class="wide">
-            <span>${isUnban ? "Banned or Restricted Species" : "Pokemon Species / Name"}</span>
-            <input type="text" data-live-referee-effect-field="targetText" value="${escapeHtml(effectDraft.targetText || "")}" list="${escapeHtml(speciesListId)}" placeholder="${isUnban ? "Choose an active status" : "Abra, Armarouge, Sceptile"}" ${isUnban && !speciesOptions.length ? "disabled" : ""}>
+            <span>Exact Active Ban or Restrict</span>
+            <select data-live-referee-effect-field="selectedStatusId" ${!unbanStatuses.length ? "disabled" : ""}>
+              <option value="">Choose an exact status</option>
+              ${unbanStatuses.map((status) => `<option value="${escapeHtml(status.id)}" data-species-name="${escapeHtml(status.targetPokemonName || status.speciesId || "")}"${status.id === effectDraft.selectedStatusId ? " selected" : ""}>${escapeHtml(status.targetPokemonName || status.speciesId || "Pokemon")} — ${status.type === "ban" ? "Ban" : "Restrict"} — ${escapeHtml(String(status.id).slice(-8))}</option>`).join("")}
+            </select>
+            <input type="hidden" data-live-referee-effect-field="targetText" value="${escapeHtml(selectedUnbanStatus?.targetPokemonName || selectedUnbanStatus?.speciesId || effectDraft.targetText || "")}">
+          </label>
+        ` : `
+          <label class="wide">
+            <span>Pokemon Species / Name</span>
+            <input type="text" data-live-referee-effect-field="targetText" value="${escapeHtml(effectDraft.targetText || "")}" list="${escapeHtml(speciesListId)}" placeholder="Abra, Armarouge, Sceptile">
             ${liveRefereeSpeciesDatalistMarkup(speciesListId, speciesOptions)}
           </label>
         `,
         submitLabel: `Use ${tokenName}`,
-        submitDisabled: isUnban && !speciesOptions.length,
+        submitDisabled: isUnban && (!unbanStatuses.length || !effectDraft.selectedStatusId),
         className: "species-target"
       });
     }
@@ -28355,7 +28684,7 @@ function liveRefereeEffectUseScreenMarkup(prompt, selectedPlayerId = liveReferee
               targetControllerRelation: metadata.targetControllerRelation,
               selfOnly: metadata.selfOnly,
               otherPlayerOnly: metadata.otherPlayerOnly,
-              activeOnly: metadata.id === "arena-trap",
+              activeOnly: Boolean(metadata.mechanicContract?.activeRosterRequired || ["arena-trap", "extra-ban-token", "clear-smog"].includes(metadata.id)),
               eligibility: metadata.id === "arena-trap"
                 ? (pokemon) => arenaTrapBringLegalityForPokemon(pokemon, actor?.id || "")
                 : null
@@ -30587,8 +30916,6 @@ function liveRefereeContextChipsMarkup(prompt) {
   }
   if (currentLiveRefereePendingTrade(prompt)) chips.push("Trade Paused");
   if (openBattleRevisionWindows().length) chips.push("Team Revision Required");
-  const field = activeFieldToken();
-  if (field?.fieldTokenName) chips.push(`Active Field: ${field.fieldTokenName}`);
   if (flowState === LIVE_REFEREE_FLOW_STATES.GYM_START) chips.push("Control Open");
   return chips.length
     ? `<div class="live-referee-context-chips" aria-label="Public game context">${chips.slice(0, 5).map((chip) => `<span>${escapeHtml(chip)}</span>`).join("")}</div>`
@@ -31687,8 +32014,6 @@ function manualTokenOptions() {
     { id: "legacy-ticket", legacyIds: ["legacy-token"], name: "Legacy Ticket", tokenType: "legacy", type: "TICKET", tier: "PC" },
     { id: "class-change", name: "Class Change", tokenType: "control", type: "TOKEN", tier: "Control" },
     { id: "rebrand", name: "Rebrand", tokenType: "control", type: "TOKEN", tier: "Control" },
-    { id: "grassy-field-token", name: "Grassy Field Token", tokenType: "field", type: "TOKEN", tier: "Field", tokenValue: 3000 },
-    { id: "electric-field-token", name: "Electric Field Token", tokenType: "field", type: "TOKEN", tier: "Field", tokenValue: 3000 },
     ...gameCornerTokenDefinitions.map((definition) => ({
       id: definition.id,
       name: definition.name,
@@ -32382,17 +32707,10 @@ function shopLevelLabel(player, shop) {
 }
 
 function shopProgressLabel(player, shop) {
-  const level = shop === "items"
-    ? Number(ensureActionSeriesTracker(state.series, player.id).itemDiscountStacks || 0)
-    : Number(ensureActionSeriesTracker(state.series, player.id).tmDiscountStacks || 0);
-  const safeLevel = Math.max(0, Math.min(actionPhaseRules.maxSeriesDiscountStacks, level));
-  return `${safeLevel} (${safeLevel * actionPhaseRules.discountStepPercent}%)`;
+  return "Points removed";
 }
 
 function actionShopDiscountPercent(player = activePlayer(), shop = state.activeShop, series = state.series) {
-  const tracker = ensureActionSeriesTracker(series, player.id);
-  if (shop === "items") return Math.min(50, Number(tracker.itemDiscountStacks || 0) * actionPhaseRules.discountStepPercent);
-  if (shop === "tms") return Math.min(50, Number(tracker.tmDiscountStacks || 0) * actionPhaseRules.discountStepPercent);
   return 0;
 }
 
@@ -32407,8 +32725,7 @@ function discountedShopPrice(item, shop = state.activeShop, player = activePlaye
 function playerHasActionShopException(player, shop = state.activeShop) {
   if (!player || currentPhase() !== "action") return false;
   const visits = activeActionVisitsForPlayer(player.id);
-  if (shop === "items") return visits.some((visit) => visit.locationId === "department-store");
-  if (shop === "tms") return visits.some((visit) => visit.locationId === "move-dojo");
+  if (["items", "tms"].includes(shop)) return visits.some((visit) => visit.locationId === "department-store");
   return false;
 }
 
@@ -32420,7 +32737,7 @@ function canPurchaseFromShopNow(player, shop = state.activeShop, item = {}) {
 
 function shopPurchaseTimingMessage(shop = state.activeShop) {
   if (shop === "items") return "Items can be purchased during Shop Phase or during an Action Phase Department Store visit.";
-  if (shop === "tms") return "TMs can be purchased during Shop Phase or during an Action Phase Move Dojo visit.";
+  if (shop === "tms") return "TMs can be purchased during Shop Phase or during an Action Phase Department Store visit.";
   return "Purchases can only be finalized during Shop Phase unless a specific rule or location allows it.";
 }
 
@@ -33290,6 +33607,7 @@ function linkedActionOperationSession(operation) {
     "game-corner": state.gameCornerSessions,
     "pokemon-center": state.pokemonCenterSessions,
     graveyard: state.graveyardSessions,
+    "department-store": state.departmentStoreVisits,
     pc: state.pcSessions
   };
   return (collections[operation.linkedFeatureType] || []).find((session) => session.id === operation.linkedFeatureSessionId) || null;
@@ -33315,7 +33633,7 @@ function actionOperationBlockReason(operation) {
   if (!session) return "";
   const status = String(session.status || "").toLowerCase();
   if (operation.linkedFeatureType === "bulletin-board") return session.confirmed ? "" : "The required quest confirmation is still open.";
-  if (["breeder", "game-corner", "pokemon-center", "graveyard", "pc"].includes(operation.linkedFeatureType)) {
+  if (["breeder", "game-corner", "pokemon-center", "graveyard", "pc", "department-store"].includes(operation.linkedFeatureType)) {
     return session.actionOperationReady ? "" : "The location visit is still open.";
   }
   return ["completed", "cancelled", "undone"].includes(status) ? "" : "The linked location session is still unfinished.";
@@ -33349,7 +33667,7 @@ function finishCurrentActionOperation() {
   const operation = currentActionOperation();
   if (!operation) return;
   const session = linkedActionOperationSession(operation);
-  if (session && ["breeder", "game-corner", "pokemon-center", "graveyard", "pc"].includes(operation.linkedFeatureType)) {
+  if (session && ["breeder", "game-corner", "pokemon-center", "graveyard", "pc", "department-store"].includes(operation.linkedFeatureType)) {
     session.actionOperationReady = true;
     session.actionOperationFinishedAt = new Date().toISOString();
     session.status = "completed";
@@ -33449,6 +33767,10 @@ function actionLocationCanConfirm(location, playerId = activePlayer().id, action
     const alreadyVisited = activeActionVisitsForPlayer(playerId).some((visit) => visit.locationId === location.id);
     if (alreadyVisited) return { ok: false, reason: `${location.name} can only be visited once per Action Phase.` };
   }
+  if (location.visitLimit?.scope === "gym") {
+    const alreadyVisited = activeActionVisitsForPlayer(playerId).some((visit) => visit.locationId === location.id);
+    if (alreadyVisited) return { ok: false, reason: `${location.name} can only be visited once per Gym.` };
+  }
   return { ok: true, reason: "" };
 }
 
@@ -33529,7 +33851,7 @@ function createWheelSession({ wheelId, visit, player, location }) {
   return session;
 }
 
-function createTrainerClassWheelSession({ actorPlayer, targetPlayer, consumedToken, definition, previousPlayers, previousPokemonRecords, previousFieldTokens, previousTokenActivations, previousWheelSessions }) {
+function createTrainerClassWheelSession({ actorPlayer, targetPlayer, consumedToken, definition, previousPlayers, previousPokemonRecords, previousTokenActivations, previousWheelSessions }) {
   const wheel = wheelDefinitionById("trainerClassWheel");
   if (!wheel || !actorPlayer || !targetPlayer || !consumedToken) return null;
   state.wheelSessions ||= [];
@@ -33556,7 +33878,6 @@ function createTrainerClassWheelSession({ actorPlayer, targetPlayer, consumedTok
       actionType: "undoUtilityTokenActivation",
       previousPlayers,
       previousPokemonRecords,
-      previousFieldTokens,
       previousTokenActivations,
       previousWheelSessions
     }
@@ -33708,9 +34029,9 @@ function applyWheelReward(player, wheel, outcome, rollId, session, visit) {
   const reward = {
     id: `${gcTokenDefinition?.id || `${wheel.id}-${outcome.id}`}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
     name: gcTokenDefinition?.name || outcome.rewardData?.name || `${outcome.label} Reward`,
-    type: "TOKEN",
+    type: isGameCorner ? "TICKET" : "TOKEN",
     tokenType: isGameCorner ? "game-corner" : "wheel",
-    tier: isGameCorner ? "Game Corner" : gcTokenDefinition?.gameCornerTier || outcome.rewardData?.tier || outcome.label,
+    tier: isGameCorner ? "Tickets" : gcTokenDefinition?.gameCornerTier || outcome.rewardData?.tier || outcome.label,
     gameCornerTier: gcTokenDefinition?.gameCornerTier || "",
     gameCornerTierId: gcTokenDefinition?.gameCornerTierId || "",
     description: gcTokenDefinition?.description || "",
@@ -33938,7 +34259,7 @@ function completeWheelSpin(sessionId, outcomeId) {
         wheelSessionId: session.id,
         timestamp: roll.timestamp
       });
-      appendGroupedLogDetail(entry, `Gamble Wheel spin ${session.rolls.length}: ${outcome.label}. Spent ${formatMoney(cost)}.${rewardResult.reward ? ` Received ${rewardResult.reward.name}.` : ""}`);
+      appendGroupedLogDetail(entry, `Slot Machine spin ${session.rolls.length}: ${outcome.label}. Spent ${formatMoney(cost)}.${rewardResult.reward ? ` Received ${rewardResult.reward.name}.` : ""}`);
     });
     roll.activityLogEntryId = groupedEntry?.id || "";
   } else {
@@ -33975,7 +34296,7 @@ function completeWheelSpin(sessionId, outcomeId) {
     session.completedAt = new Date().toISOString();
     if (wheel.id === "gameCornerGamble" && gameCornerSession) {
       updateGameCornerActionLog(gameCornerSession, player, (entry) => {
-        appendGroupedLogDetail(entry, `Gamble Wheel session ready to close: ${session.rolls.length}/${session.maxRolls} spins used.`);
+        appendGroupedLogDetail(entry, `Slot Machine session ready to close after ${session.rolls.length} spins.`);
       });
     } else if (wheel.id !== "trainerClassWheel") {
       addLogEntry({
@@ -34106,7 +34427,7 @@ function finishWheelSession({ skipPendingGuard = false } = {}) {
     if (visit?.id) completeActionOperationForVisit(visit.id, "wheel-session-closed");
     if (gameCornerSession) {
       updateGameCornerActionLog(gameCornerSession, player, (entry) => {
-        appendGroupedLogDetail(entry, `Gamble Wheel session closed: ${(session.rolls || []).length}/${session.maxRolls} spins used.`);
+        appendGroupedLogDetail(entry, `Slot Machine session closed after ${(session.rolls || []).length} spins.`);
       });
     }
     const next = pendingWheelSessions().find((entry) => entry.id !== session.id);
@@ -34120,7 +34441,7 @@ function finishWheelSession({ skipPendingGuard = false } = {}) {
   session.completedAt = new Date().toISOString();
   if (gameCornerSession) {
     updateGameCornerActionLog(gameCornerSession, player, (entry) => {
-      appendGroupedLogDetail(entry, `Gamble Wheel session ready to close: ${(session.rolls || []).length}/${session.maxRolls} spins used.`);
+      appendGroupedLogDetail(entry, `Slot Machine session ready to close after ${(session.rolls || []).length} spins.`);
     });
   } else if (wheel.id !== "trainerClassWheel") {
     addLogEntry({
@@ -34512,7 +34833,7 @@ function refundTokenConsumption(record, reason = "Canceled") {
   const item = normalized.inventoryItem
     ? structuredClone(normalized.inventoryItem)
     : testingInventoryEntry({ id: normalized.tokenId || slugify(normalized.tokenName), name: normalized.tokenName, tokenType: "token", type: "TOKEN", tier: "Refund" }, "tokens", "Token Refund");
-  if (isRemovedGameContentEntry(item)) {
+  if (isCanceledGameContentEntry(item)) {
     record.status = "retired-content";
     record.refundStatus = "not-applicable";
     record.refundReason = "Removed from Rival Saga";
@@ -34846,26 +35167,8 @@ function activeGameCornerSession(playerId = activePlayer().id, serviceId = "") {
   return sessions[0] || null;
 }
 
-const fieldTokenNames = Object.freeze([
-  "Grassy Field Token",
-  "Electric Field Token",
-  "Payday",
-  "Drizzle",
-  "Drought",
-  "Taunt",
-  "Snow Warning",
-  "Sand Stream",
-  "Infestation",
-  "Surging Strikes"
-]);
 const legacyTokenName = "Legacy Ticket";
-const graveyardTierValues = Object.freeze({
-  safari: 1500,
-  poke: 2500,
-  great: 3000,
-  ultra: 4000,
-  master: 5000
-});
+const graveyardTierValues = globalThis.rivalSagaActionPhaseBalance.GRAVEYARD_VALUES;
 const tokenValueFallbacks = Object.freeze({
   "reroll token": 1500,
   "safari gc ticket": 1500,
@@ -34884,9 +35187,7 @@ const tokenValueFallbacks = Object.freeze({
   "masterball gc token": 5000,
   "masterball gc ticket": 5000,
   "legacy token": 3000,
-  "legacy ticket": 3000,
-  "grassy field token": 3000,
-  "electric field token": 3000
+  "legacy ticket": 3000
 });
 
 function actionSystemSnapshot(playerId = activePlayer().id) {
@@ -34898,8 +35199,8 @@ function actionSystemSnapshot(playerId = activePlayer().id) {
     previousPlayerInventories: Object.fromEntries((state.players || []).map((entry) => [entry.id, structuredClone(entry.inventory || [])])),
     previousPokemonRecords: structuredClone(state.pokemonRecords || []),
     previousPlayerNotifications: structuredClone(state.playerNotifications || []),
-    previousFieldTokens: structuredClone(state.fieldTokens || []),
     previousGraveyardSessions: structuredClone(state.graveyardSessions || []),
+    previousDepartmentStoreVisits: structuredClone(state.departmentStoreVisits || []),
     previousPcSessions: structuredClone(state.pcSessions || []),
     previousRangerBaseSessions: structuredClone(state.rangerBaseSessions || []),
     previousPokemonCenterSessions: structuredClone(state.pokemonCenterSessions || []),
@@ -34910,9 +35211,20 @@ function actionSystemSnapshot(playerId = activePlayer().id) {
   };
 }
 
+function matchingAcceptedActionDestination({ playerId = "", locationId = "", serviceId = "" } = {}) {
+  const destination = provisionalDeclarationRuntime.activeDestinationCommit(ensureActionPhaseGymState());
+  if (!destination || destination.status !== provisionalDeclarationRuntime.DESTINATION_STATES.ACCEPTED) return null;
+  return destination.playerId === playerId
+    && destination.locationId === locationId
+    && destination.serviceId === serviceId
+    ? destination
+    : null;
+}
+
 function createLocationActionVisit(player, location, serviceId, serviceLabel) {
   if (!requirePrivatePrepAccess(player, "action services")) return null;
-  const check = actionLocationCanConfirm(location, player.id, 1);
+  const acceptedDestination = matchingAcceptedActionDestination({ playerId: player.id, locationId: location.id, serviceId });
+  const check = acceptedDestination ? { ok: true, reason: "" } : actionLocationCanConfirm(location, player.id, 1);
   if (!check.ok) {
     alert(check.reason);
     return null;
@@ -34935,14 +35247,6 @@ function createLocationActionVisit(player, location, serviceId, serviceLabel) {
   return visit;
 }
 
-function activeFieldToken() {
-  return (state.fieldTokens || []).find((field) => field.status === "active") || null;
-}
-
-function playerFieldTokens(player) {
-  return (player.inventory || []).filter((token) => fieldTokenNames.includes(token.name) || token.tokenType === "field");
-}
-
 function playerLegacyTokens(player) {
   return (player.inventory || []).filter(isLegacyTicket);
 }
@@ -34950,12 +35254,12 @@ function playerLegacyTokens(player) {
 function tokenDisplayValue(token) {
   if (Number(token?.tokenValue || 0)) return Number(token.tokenValue);
   const normalized = String(token?.name || token?.id || "").toLowerCase().replace(/poké/g, "poke").replace(/[^a-z0-9]+/g, " ").trim();
-  return tokenValueFallbacks[normalized] || (token?.tokenType === "field" ? 3000 : 1500);
+  return tokenValueFallbacks[normalized] || 1500;
 }
 
 function pokemonReleaseValue(pokemon) {
-  const tier = normalizeGameCornerTierId(pokemon?.acquisitionTier || pokemon?.sourceTier || getPokemonAcquisitionTier(pokemon?.name));
-  return graveyardTierValues[tier] || 1500;
+  const tier = pokemonConsolidatedBattleTier(pokemon);
+  return graveyardTierValues[tier] || 0;
 }
 
 function activeRosterForPlayer(playerId) {
@@ -36985,16 +37289,6 @@ function activeGraveyardSession(playerId = activePlayer().id) {
     && session.status === "active") || null;
 }
 
-function renderFieldIndicator() {
-  if (!els.fieldIndicator) return;
-  const field = activeFieldToken();
-  const player = field ? state.players.find((entry) => entry.id === field.placedByPlayerId) : null;
-  els.fieldIndicator.classList.toggle("active", Boolean(field));
-  els.fieldIndicator.setAttribute("aria-label", field ? `Active field: ${field.fieldTokenName}` : "No active field");
-  els.fieldIndicator.title = field ? `${field.fieldTokenName} placed by ${player?.name || "Unknown"}` : "No active field";
-  els.fieldIndicator.innerHTML = field ? `<span aria-hidden="true">F</span><b>${escapeHtml(field.fieldTokenName.slice(0, 1))}</b>` : `<span aria-hidden="true">F</span>`;
-}
-
 function actionLocationServices(location, player = activePlayer(), tracker = ensureActionSeriesTracker(state.series, player.id)) {
   if (!location) return [];
   if (location.id === "pokemon-breeder") return [];
@@ -37025,11 +37319,11 @@ function actionLocationServices(location, player = activePlayer(), tracker = ens
     return [
       {
         id: "gamecorner-gamble",
-        label: "Start Gamble Wheel Session",
+        label: "Start Slot Machine Session",
         buttonLabel: gambleSession ? "Use Current Game Corner Visit" : "Spend 1 Action",
-        description: `${gambleSession ? "Use the current Game Corner visit." : "Spend 1 Action to access the Gamble Wheel."} You may spin up to 3 times. Each spin costs $2,000. A 4th spin requires another Game Corner action.`,
+        description: `${gambleSession ? "Use the current Game Corner visit." : "Spend 1 Action to access the Slot Machine."} Each spin costs $2,000 and uses the exact 20/30/25/15/7/3 result distribution.`,
         actionCost: gambleSession ? 0 : 1,
-        maxUsesPerAction: 3,
+        maxUsesPerAction: 0,
         allowsMultipleUses: false,
         implementationStatus: "Implemented",
         wheelId: "gameCornerGamble"
@@ -37050,19 +37344,6 @@ function actionLocationServices(location, player = activePlayer(), tracker = ens
       }
     ];
   }
-  if (location.id === "field-token") {
-    const count = playerFieldTokens(player).length;
-    return [{
-      id: "field-token-place",
-      label: "Place Field Token",
-      buttonLabel: "Place Field Token",
-      description: count ? "Spend 1 Action and consume one Field Token to set the active field." : "You need a Field Token to place a field.",
-      actionCost: 1,
-      disabled: count === 0,
-      disabledReason: "You do not own any Field Tokens.",
-      implementationStatus: "MVP field state only; no battle effect yet"
-    }];
-  }
   if (location.id === "graveyard") {
     return [];
   }
@@ -37079,8 +37360,7 @@ function actionLocationServices(location, player = activePlayer(), tracker = ens
   const servicePreview = actionLocationPreview(location, player, tracker).replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
   return [{
     id: `${location.id}-primary`,
-    label: location.id === "department-store" ? "Upgrade Item Level"
-      : location.id === "move-dojo" ? "Upgrade TM Level"
+    label: location.id === "department-store" ? "Visit Department Store"
         : location.id === "ranger-base" ? "Use Ranger Base"
           : `Use ${location.name}`,
     description: servicePreview || location.summary || "Spend 1 Action to use this location service.",
@@ -37111,8 +37391,7 @@ function gymDistanceFromPlacement(startSeries, startGym, endSeries = state.serie
 }
 
 function breederLevelBonus(deposit, series = state.series, gym = state.gym) {
-  const gymDelta = gymDistanceFromPlacement(deposit?.series, deposit?.gym, series, gym);
-  return 3 + Math.max(0, gymDelta - 1);
+  return 3;
 }
 
 function breederLevelBuffLabel(deposit, series = state.series, gym = state.gym) {
@@ -37120,10 +37399,7 @@ function breederLevelBuffLabel(deposit, series = state.series, gym = state.gym) 
 }
 
 function withCurrentBreederBuffs(pokemon) {
-  const deposit = (state.breederDeposits || []).find((entry) => entry.status === "active" && entry.pokemonId === pokemon.id);
-  if (!deposit) return pokemon.buffs || [];
-  const withoutLevelBuffs = (pokemon.buffs || []).filter((buff) => !/^\+\d+\s+Levels$/i.test(String(buff)));
-  return [...new Set([...withoutLevelBuffs, breederLevelBuffLabel(deposit)])];
+  return pokemon.buffs || [];
 }
 
 function activeBreederVisit(playerId) {
@@ -37273,7 +37549,7 @@ const bulletinQuestBank = Object.freeze({
     ["Reverse Sweep", "Use A Pokemon To KO At Least 3 Pokemon In A Row When You Are Down To Your Last One Or Two Pokemon And Win The Match."],
     ["Top Dog", "Beat A Player Who Brought A Pokemon That's In Your Active Party To Battle Phase."],
     ["Quality Hunter", "Obtain A Pokemon Who's Final Evolution BST Is Above 535"],
-    ["Jackpot", "Spin The Gamble Wheel 3 Times In One Action And Win On Every Spin."],
+    ["Jackpot", "Spin The Slot Machine 3 Times In One Action And Win On Every Spin."],
     ["Weary Spirits", "Release 5 Pokemon At The Graveyard"],
     ["Status Master", "Apply Sleep, Paralysis, Poison, & Burn"],
     ["Bluntmons", "Win A Battle Without Using A Single STAB Move"],
@@ -37378,6 +37654,186 @@ function updateBulletinBoardLog(session, player, updater = null) {
   return entry;
 }
 
+function departmentStoreCatalog() {
+  return [
+    ...(itemShopData || []).map((product) => ({ ...product, shopType: "items", productKey: `items:${product.id}` })),
+    ...(tmShopData || []).map((product) => ({ ...product, shopType: "tms", productKey: `tms:${product.id}` }))
+  ].filter((product) => !product.cannotPurchase && Number(product.price || 0) >= 0);
+}
+
+function departmentStoreProduct(productKey) {
+  return departmentStoreCatalog().find((product) => product.productKey === productKey) || null;
+}
+
+function activeDepartmentStoreVisit(playerId = activePlayer().id) {
+  return (state.departmentStoreVisits || []).find((visit) => visit.playerId === playerId
+    && visit.series === state.series && Number(visit.gym) === Number(state.gym) && visit.status === "active") || null;
+}
+
+function departmentStoreSellableInventory(player) {
+  return (player.inventory || []).filter((entry) => {
+    if (entry.finalSale || entry.clearance) return false;
+    if (!entry.id || entry.reserved || entry.equipped || entry.consumed || entry.status === "unavailable") return false;
+    const type = String(entry.type || "").toUpperCase();
+    if (!type.includes("TM") && !type.includes("ITEM")) return false;
+    return Boolean(departmentStoreCatalog().find((product) => product.id === entry.catalogId
+      || (product.shopType === (type.includes("TM") ? "tms" : "items") && slugify(product.name) === slugify(entry.name))));
+  });
+}
+
+function updateDepartmentStoreLog(visit) {
+  const entry = (state.log || []).find((log) => log.departmentStoreVisitId === visit.id);
+  if (!entry) return;
+  const remaining = Math.max(0, 3000 - Number(visit.normalSavingsUsed || 0));
+  entry.summary = [
+    "Spent 1 Action at Department Store",
+    visit.soldProduct ? `Sold ${visit.soldProduct.name} for ${formatMoney(visit.soldProduct.salePrice)}` : "Sold no product",
+    `${(visit.normalPurchases || []).length} normal purchase${(visit.normalPurchases || []).length === 1 ? "" : "s"}; ${formatMoney(visit.normalSavingsUsed || 0)} saved`,
+    visit.clearancePurchase ? `Clearance: ${visit.clearancePurchase.name} for ${formatMoney(visit.clearancePurchase.finalPrice)}` : "No Clearance purchase",
+    `Normal discount allowance remaining: ${formatMoney(remaining)}`
+  ].join("\n");
+  entry.details = [
+    `Clearance rolls: ${(visit.clearanceProducts || []).map((product) => product.name).join(", ") || "none"}`,
+    ...(visit.normalPurchases || []).map((purchase) => `${purchase.name}: ${formatMoney(purchase.listedPrice)} - ${formatMoney(purchase.discount)} = ${formatMoney(purchase.finalPrice)}`),
+    visit.soldProduct ? `Sold inventory ${visit.soldProduct.inventoryId}: ${visit.soldProduct.name}` : "",
+    visit.clearancePurchase ? `Final sale inventory ${visit.clearancePurchase.inventoryId}: ${visit.clearancePurchase.name}` : ""
+  ].filter(Boolean);
+}
+
+function startDepartmentStoreVisit() {
+  const player = activePlayer();
+  if (activeDepartmentStoreVisit(player.id)) return activeDepartmentStoreVisit(player.id);
+  const location = actionLocationById("department-store");
+  const snapshot = actionSystemSnapshot(player.id);
+  const visitRecord = createLocationActionVisit(player, location, "department-store-primary", "Visit Department Store");
+  if (!visitRecord) return null;
+  const rolls = randomUniqueSample(departmentStoreCatalog(), Math.min(3, departmentStoreCatalog().length))
+    .map((product) => ({ productKey: product.productKey, id: product.id, shopType: product.shopType, name: product.name, listedPrice: Number(product.price || 0) }));
+  const visit = {
+    id: `department-store-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    actionVisitId: visitRecord.id,
+    playerId: player.id,
+    series: state.series,
+    gym: Number(state.gym),
+    status: "active",
+    clearanceProducts: rolls,
+    normalSavingsUsed: 0,
+    normalPurchases: [],
+    clearancePurchase: null,
+    soldProduct: null,
+    createdAt: new Date().toISOString()
+  };
+  state.departmentStoreVisits ||= [];
+  state.departmentStoreVisits.unshift(visit);
+  linkActionOperation(visitRecord.id, { featureType: "department-store", featureSessionId: visit.id });
+  addLogEntry({
+    action: "phase", category: "purchases", player: player.name,
+    item: `${player.name} started a Department Store visit`, title: `${player.name} visited Department Store`,
+    summary: "Spent 1 Action at Department Store", details: [`Clearance rolls: ${rolls.map((product) => product.name).join(", ")}`],
+    type: "department-store-action", categories: ["action", "money", "items"], tags: ["department-store", "clearance"],
+    playerIds: [player.id], actionVisitId: visitRecord.id, visitId: visitRecord.id, departmentStoreVisitId: visit.id,
+    undoable: true, undone: false,
+    undoData: { actionType: "undoActionSystemSnapshot", playerId: player.id, visitId: visitRecord.id, series: state.series, gym: Number(state.gym), ...snapshot }
+  });
+  updateDepartmentStoreLog(visit);
+  saveState();
+  render();
+  return visit;
+}
+
+function departmentStoreInventoryEntry(product, pricing, visit, { clearance = false } = {}) {
+  return {
+    id: createInventoryEntryId(product.id), catalogId: product.id, name: product.name,
+    type: inventoryTypeForShop(product.shopType, product), moveType: product.shopType === "tms" ? product.type || "" : undefined,
+    tier: product.tier, price: pricing.finalPrice, originalPrice: Number(product.price || 0),
+    discountPercent: clearance ? 50 : 25, description: product.description || "",
+    departmentStoreVisitId: visit.id, clearance, finalSale: clearance, purchasedAt: new Date().toISOString()
+  };
+}
+
+function buyDepartmentStoreProduct(productKey, clearance = false) {
+  const player = activePlayer();
+  const visit = activeDepartmentStoreVisit(player.id);
+  const product = departmentStoreProduct(productKey);
+  if (!visit || !product) return;
+  if (clearance && visit.clearancePurchase) return alert("Only one Clearance product may be purchased per visit.");
+  if (clearance && !(visit.clearanceProducts || []).some((entry) => entry.productKey === productKey)) return;
+  const pricing = clearance
+    ? globalThis.rivalSagaActionPhaseBalance.clearancePrice(product.price)
+    : globalThis.rivalSagaActionPhaseBalance.normalDepartmentPrice(product.price, visit.normalSavingsUsed);
+  if (Number(player.balance || 0) < pricing.finalPrice) return alert(`${player.name} cannot afford ${product.name}.`);
+  const change = applyPlayerMoneyChange(player, -pricing.finalPrice, {
+    direction: "spend", sourceType: clearance ? "department-store-clearance" : "department-store-purchase",
+    sourceLabel: product.name, actionVisitId: visit.actionVisitId, departmentStoreVisitId: visit.id,
+    breakdown: pricing
+  });
+  const inventory = departmentStoreInventoryEntry(product, pricing, visit, { clearance });
+  player.inventory.unshift(inventory);
+  const record = { productKey, inventoryId: inventory.id, name: product.name, shopType: product.shopType, ledgerEntryId: change.ledgerEntry?.id || "", ...pricing };
+  if (clearance) visit.clearancePurchase = record;
+  else {
+    visit.normalSavingsUsed = Number(visit.normalSavingsUsed || 0) + pricing.discount;
+    visit.normalPurchases.push(record);
+  }
+  updateDepartmentStoreLog(visit);
+  saveState();
+  render();
+}
+
+function sellDepartmentStoreInventory(inventoryId) {
+  const player = activePlayer();
+  const visit = activeDepartmentStoreVisit(player.id);
+  if (!visit || visit.soldProduct) return alert("Only one product may be sold per Department Store visit.");
+  const sellable = departmentStoreSellableInventory(player).find((entry) => entry.id === inventoryId);
+  if (!sellable) return alert("That product is not available for sale.");
+  const type = String(sellable.type || "").toUpperCase();
+  const product = departmentStoreCatalog().find((entry) => entry.id === sellable.catalogId
+    || (entry.shopType === (type.includes("TM") ? "tms" : "items") && slugify(entry.name) === slugify(sellable.name)));
+  if (!product) return;
+  const salePrice = globalThis.rivalSagaActionPhaseBalance.salePrice(product.price);
+  player.inventory = player.inventory.filter((entry) => entry.id !== sellable.id);
+  const change = applyPlayerMoneyChange(player, salePrice, {
+    direction: "gain", sourceType: "department-store-sale", sourceLabel: sellable.name,
+    actionVisitId: visit.actionVisitId, departmentStoreVisitId: visit.id
+  });
+  visit.soldProduct = { inventoryId: sellable.id, name: sellable.name, listedPrice: Number(product.price || 0), salePrice, ledgerEntryId: change.ledgerEntry?.id || "" };
+  updateDepartmentStoreLog(visit);
+  saveState();
+  render();
+}
+
+function renderDepartmentStoreDetails(location, player) {
+  const visit = activeDepartmentStoreVisit(player.id);
+  if (!visit) return `
+    <div><span>Catalog Access</span><strong>All Items + all TMs</strong></div>
+    <div><span>Normal Savings Cap</span><strong>${formatMoney(3000)}</strong></div>
+    <p class="gc-rule-note">One visit per Gym. Sell up to one normal product, make any number of normal purchases with 25% savings capped at $3,000, and buy up to one final-sale Clearance product.</p>
+    <button class="buy-button" type="button" data-department-start>Start Department Store Visit</button>`;
+  const catalog = departmentStoreCatalog();
+  const sellable = departmentStoreSellableInventory(player);
+  const remaining = Math.max(0, 3000 - Number(visit.normalSavingsUsed || 0));
+  return `
+    <div><span>Balance</span><strong>${formatMoney(player.balance || 0)}</strong></div>
+    <div><span>Normal Savings Remaining</span><strong>${formatMoney(remaining)}</strong></div>
+    <section class="department-store-composition">
+      <div class="department-store-feature">
+        <p class="eyebrow">Clearance Drop</p><h3>Three fixed offers</h3>
+        ${(visit.clearanceProducts || []).map((roll) => {
+          const product = departmentStoreProduct(roll.productKey);
+          const pricing = globalThis.rivalSagaActionPhaseBalance.clearancePrice(product?.price || roll.listedPrice);
+          return `<article class="location-service-card clearance-product"><div><strong>${escapeHtml(roll.name)}</strong><p><s>${formatMoney(pricing.listedPrice)}</s> - ${formatMoney(pricing.discount)} Clearance = ${formatMoney(pricing.finalPrice)}</p></div><button class="buy-button mini-button" data-department-buy-clearance="${escapeHtml(roll.productKey)}" ${visit.clearancePurchase ? "disabled" : ""}>${visit.clearancePurchase?.productKey === roll.productKey ? "Purchased" : "Buy Final Sale"}</button></article>`;
+        }).join("")}
+      </div>
+      <div class="department-store-workbench">
+        <h3>Sell One Product</h3>
+        ${visit.soldProduct ? `<p>Sold ${escapeHtml(visit.soldProduct.name)} for ${formatMoney(visit.soldProduct.salePrice)}.</p>` : sellable.length ? `<select id="departmentSellSelect">${sellable.map((entry) => `<option value="${escapeHtml(entry.id)}">${escapeHtml(entry.name)}</option>`).join("")}</select><button class="ghost-button" data-department-sell>Sell for 75%</button>` : `<p class="empty-state compact">No sellable Items or TMs.</p>`}
+        <h3>Full Catalog</h3>
+        <select id="departmentBuySelect">${catalog.map((product) => { const price = globalThis.rivalSagaActionPhaseBalance.normalDepartmentPrice(product.price, visit.normalSavingsUsed); return `<option value="${escapeHtml(product.productKey)}">${escapeHtml(product.name)} - ${formatMoney(price.listedPrice)} - ${formatMoney(price.discount)} = ${formatMoney(price.finalPrice)}</option>`; }).join("")}</select>
+        <button class="buy-button" data-department-buy-normal>Buy with Visit Discount</button>
+      </div>
+    </section>`;
+}
+
 function renderBreederDetails(location, player) {
   const deposits = activeBreederDeposits(player.id);
   const activeVisit = activeBreederVisit(player.id);
@@ -37406,9 +37862,8 @@ function renderBreederDetails(location, player) {
             <div class="breeder-pokemon-sprite${pokemonSpriteClassSuffix(pokemon)}">${sprite}</div>
             <div>
               <strong>${escapeHtml(deposit.pokemonName)}</strong>
-              <p>${eligible ? "Eligible for Pickup" : "Waiting"} - Pending ${escapeHtml(levelBuff)} and TM Move</p>
+              <p>${eligible ? "Returning at Gym Start" : "Unavailable this Gym"} - Pending ${escapeHtml(levelBuff)} and TM</p>
             </div>
-            <button class="ghost-button" type="button" data-breeder-pickup="${escapeHtml(deposit.id)}"${eligible ? "" : " disabled"}>Pickup</button>
           </article>
         `;
       }).join("")}
@@ -37432,11 +37887,11 @@ function renderBreederDetails(location, player) {
 }
 
 const dragonDenTierRules = Object.freeze({
-  safari: { cost: 2000, battlePhaseStayLength: 1 },
-  poke: { cost: 4000, battlePhaseStayLength: 2 },
-  great: { cost: 6000, battlePhaseStayLength: 3 },
-  ultra: { cost: 8000, battlePhaseStayLength: 4 },
-  master: { cost: 10000, battlePhaseStayLength: 5 }
+  safari: { cost: 1000, battlePhaseStayLength: 1 },
+  poke: { cost: 1500, battlePhaseStayLength: 1 },
+  great: { cost: 2500, battlePhaseStayLength: 1 },
+  ultra: { cost: 4000, battlePhaseStayLength: 1 },
+  master: { cost: 6000, battlePhaseStayLength: 1 }
 });
 
 function dragonDenEligiblePokemon(playerId) {
@@ -37463,7 +37918,7 @@ function dragonDenReturnEligible(session, series = state.series, gym = state.gym
 }
 
 function dragonDenTierInfo(pokemon) {
-  const tierId = normalizeGameCornerTierId(pokemon?.acquisitionTier || getPokemonAcquisitionTier(pokemon?.name || ""));
+  const tierId = pokemonConsolidatedBattleTier(pokemon);
   const rule = tierId ? dragonDenTierRules[tierId] : null;
   return {
     tierId,
@@ -37485,9 +37940,9 @@ function renderDragonDenPreview(pokemon, player) {
   }
   const canAfford = Number(player.balance || 0) >= tier.cost;
   return `
-    <div><span>Acquisition Tier</span><strong>${escapeHtml(tier.tierLabel)}</strong></div>
+    <div><span>Battle Tier</span><strong>${escapeHtml(tier.tierLabel)}</strong></div>
     <div><span>Cost</span><strong>${formatMoney(tier.cost)}</strong></div>
-    <div><span>Stay Length</span><strong>${tier.battlePhaseStayLength} Battle Phase${tier.battlePhaseStayLength === 1 ? "" : "s"}</strong></div>
+    <div><span>Stay Length</span><strong>One Gym</strong></div>
     ${canAfford ? "" : `<p class="empty-state compact">${escapeHtml(player.name)} needs ${formatMoney(tier.cost)} to use Dragon's Den.</p>`}
   `;
 }
@@ -37498,7 +37953,7 @@ function renderDragonsDenDetails(location, player) {
   const selected = eligible[0] || null;
   return `
     <div><span>Balance</span><strong>${formatMoney(player.balance || 0)}</strong></div>
-    <p class="gc-rule-note">Spend 1 Action to leave an Active Pokemon at Dragon's Den. Cost and stay length scale by acquisition family. MVP effect is recorded as a pending move or ability upgrade.</p>
+    <p class="gc-rule-note">Spend 1 Action to leave exactly one eligible Pokémon for one Gym. At the next Gym Start, choose any legal move or one AAA-approved Ability.</p>
     <section class="breeder-select-panel">
       <h3>Current Dragon's Den Pokemon</h3>
       ${!sessions.length ? `<p class="empty-state compact">No Pokemon currently in Dragon's Den.</p>` : sessions.map((session) => {
@@ -37508,7 +37963,7 @@ function renderDragonsDenDetails(location, player) {
           <article class="location-service-card">
             <div>
               <strong>${escapeHtml(session.pokemonName)}</strong>
-              <p>${eligibleForReturn ? "Ready for automatic return" : `Training: ${session.battlePhaseStayLength} Battle Phase${Number(session.battlePhaseStayLength) === 1 ? "" : "s"}`} - ${escapeHtml(rewardType)} Pending</p>
+              <p>${eligibleForReturn ? "Returning automatically" : "Unavailable until next Gym Start"} - Reward Pending</p>
             </div>
           </article>
         `;
@@ -37521,13 +37976,6 @@ function renderDragonsDenDetails(location, player) {
           Active Pokemon
           <select id="dragonDenPokemonSelect">
             ${eligible.map((pokemon) => `<option value="${escapeHtml(pokemon.id)}">${escapeHtml(pokemon.name)}</option>`).join("")}
-          </select>
-        </label>
-        <label>
-          Improvement
-          <select id="dragonDenImprovementSelect">
-            <option value="move">Teach Move</option>
-            <option value="ability">Change/Gain Ability</option>
           </select>
         </label>
         <div class="breeder-select-panel" data-dragon-den-preview="true">
@@ -37587,7 +38035,7 @@ function renderSilphCoDetails(location, player) {
           </select>
         </label>
         <div class="breeder-select-panel" data-silph-preview="true">
-          <div><span>Acquisition Tier</span><strong>${escapeHtml(getPokemonTierLabel(tier) || "Unresolved")}</strong></div>
+          <div><span>Battle Tier</span><strong>${escapeHtml(getPokemonTierLabel(tier) || "Unresolved")}</strong></div>
           <div><span>Cost</span><strong>${cost ? formatMoney(cost) : "Tier required"}</strong></div>
         </div>
         <button class="buy-button" type="button" data-silph-start="true"${selected && cost && Number(player.balance || 0) >= cost ? "" : " disabled"}>Start Silph Co R&D</button>
@@ -37765,12 +38213,16 @@ function renderPokemonCenterDetails(location, player) {
   `;
 }
 
-function placePokemonInDragonsDen(pokemonId, improvementType = "move", { skipPendingGuard = false } = {}) {
+function placePokemonInDragonsDen(pokemonId, improvementType = "move-or-ability", { skipPendingGuard = false } = {}) {
   if (!skipPendingGuard && !guardPendingEventBeforeAction("Use Dragon's Den", () => placePokemonInDragonsDen(pokemonId, improvementType, { skipPendingGuard: true }))) return;
   const player = activePlayer();
   const location = actionLocationById("dragons-den");
   const pokemon = (state.pokemonRecords || []).find((record) => record.id === pokemonId && record.trainerId === player.id);
   if (!pokemon || !location) return;
+  if (activeDragonDenSessions(player.id).length) {
+    alert("Only one Pokémon may stay in Dragon's Den at a time.");
+    return;
+  }
   if (pokemon.breederStatus?.status || pokemon.dragonDenStatus?.status || ["Released", "Removed"].includes(pokemon.status) || (pokemon.rosterType || "Active") !== "Active") {
     alert("Choose an eligible Active Pokemon for Dragon's Den.");
     return;
@@ -37823,7 +38275,7 @@ function placePokemonInDragonsDen(pokemonId, improvementType = "move", { skipPen
     tierLabel: tier.tierLabel,
     cost: tier.cost,
     battlePhaseStayLength: tier.battlePhaseStayLength,
-    improvementType,
+    improvementType: "move-or-ability",
     status: "active",
     placedAtSeries: state.series,
     placedAtGym: Number(state.gym),
@@ -37833,14 +38285,14 @@ function placePokemonInDragonsDen(pokemonId, improvementType = "move", { skipPen
   state.dragonsDenSessions.unshift(session);
   linkActionOperation(visit.id, { featureType: "dragons-den", featureSessionId: session.id });
   player.balance = previousBalance - tier.cost;
-  const improvementLabel = improvementType === "ability" ? "Dragon's Den Ability Pending" : "Dragon's Den Move Pending";
+  const improvementLabel = "Dragon's Den Reward Pending";
   pokemon.dragonDenStatus = {
     status: "Dragon's Den",
     sessionId: session.id,
     tierId: tier.tierId,
     cost: tier.cost,
     battlePhaseStayLength: tier.battlePhaseStayLength,
-    improvementType,
+    improvementType: "move-or-ability",
     note: improvementLabel,
     placedAtSeries: state.series,
     placedAtGym: Number(state.gym)
@@ -37870,7 +38322,7 @@ function placePokemonInDragonsDen(pokemonId, improvementType = "move", { skipPen
     details: [
       "Spent 1 Action at Dragon's Den",
       `Pokemon: ${pokemon.name}`,
-      `Acquisition Tier: ${tier.tierLabel}`,
+      `Battle Tier: ${tier.tierLabel}`,
       `Spent ${formatMoney(tier.cost)}`,
       `Stay: ${tier.battlePhaseStayLength} Battle Phase${tier.battlePhaseStayLength === 1 ? "" : "s"}`,
       `Improvement: ${improvementType === "ability" ? "Ability Pending" : "Move Pending"}`
@@ -38006,6 +38458,7 @@ function startSilphCoSession(pokemonId) {
   const previousMoneyLedger = structuredClone(state.moneyLedger || []);
   const previousPokemonRecords = structuredClone(state.pokemonRecords || []);
   const previousSilphCoSessions = structuredClone(state.silphCoSessions || []);
+  const previousMoveAccessGrants = structuredClone(player.moveAccessGrants || []);
   const visit = {
     id: `action-visit-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
     playerId: player.id,
@@ -38065,7 +38518,7 @@ function startSilphCoSession(pokemonId) {
     summary: `Spent 1 Action at Silph Co R&D\nDeveloped ${pokemon.name}\nSpent ${formatMoney(cost)}\nPending choice`,
     details: [
       `Pokemon: ${pokemon.name}`,
-      `Acquisition Tier: ${getPokemonTierLabel(tierId)}`,
+      `Battle Tier: ${getPokemonTierLabel(tierId)}`,
       `Rolled Abilities: ${session.rolledAbilities.join(", ")}`,
       `Rolled Moves: ${session.rolledMoves.join(", ")}`
     ],
@@ -38121,7 +38574,7 @@ function rerollSilphCoOptions() {
   if (entry) {
     entry.details = [
       `Pokemon: ${session.pokemonName}`,
-      `Acquisition Tier: ${getPokemonTierLabel(session.tierId)}`,
+      `Battle Tier: ${getPokemonTierLabel(session.tierId)}`,
       `Rolled Abilities: ${session.rolledAbilities.join(", ")}`,
       `Rolled Moves: ${session.rolledMoves.join(", ")}`,
       `Emergency Rerolls: ${session.emergencyRerolls}`
@@ -38165,7 +38618,7 @@ function rerollSilphCoOption(payload) {
   if (entry) {
     entry.details = [
       `Pokemon: ${session.pokemonName}`,
-      `Acquisition Tier: ${getPokemonTierLabel(session.tierId)}`,
+      `Battle Tier: ${getPokemonTierLabel(session.tierId)}`,
       `Rolled Abilities: ${session.rolledAbilities.join(", ")}`,
       `Rolled Moves: ${session.rolledMoves.join(", ")}`,
       `Rerolled ${type === "ability" ? "Ability" : "Move"}: ${previousValue} -> ${replacement}`
@@ -38195,7 +38648,7 @@ function chooseSilphCoOption(payload) {
     entry.summary = `Spent 1 Action at Silph Co R&D\nDeveloped ${session.pokemonName}\nSpent ${formatMoney(session.cost)}\nSelected ${type === "ability" ? "Ability" : "Move"}: ${value}`;
     entry.details = [
       `Pokemon: ${session.pokemonName}`,
-      `Acquisition Tier: ${getPokemonTierLabel(session.tierId)}`,
+      `Battle Tier: ${getPokemonTierLabel(session.tierId)}`,
       `Rolled Abilities: ${session.rolledAbilities.join(", ")}`,
       `Rolled Moves: ${session.rolledMoves.join(", ")}`,
       `Selected: ${value}`
@@ -38206,6 +38659,130 @@ function chooseSilphCoOption(payload) {
   completeActionOperationForVisit(session.actionVisitId, "silph-co-choice-complete");
   saveState();
   render();
+}
+
+function silphEligiblePokemon(playerId) {
+  return activePokemonForPlayer(playerId).filter((pokemon) => !pokemon.silphCoStatus?.status);
+}
+
+function silphDevelopmentOptions(pokemon) {
+  const currentAbilityKeys = new Set((pokemon.buffs || []).map((buff) => teambuilderDataKey(String(buff).replace(/^Silph Co Ability:\s*/i, ""))));
+  const knownMoveKeys = new Set([
+    ...levelUpMoveOptionsForPokemon(pokemon).map((move) => teambuilderCanonicalMoveKey(move.name)),
+    ...buffMoveOptionsForPokemon(pokemon).map((move) => teambuilderCanonicalMoveKey(move.name))
+  ]);
+  return {
+    rolledAbilities: randomUniqueSample(silphCoAbilityPool.filter((ability) => !currentAbilityKeys.has(teambuilderDataKey(ability))), 2),
+    rolledMoves: randomUniqueSample(silphCoMovePool.filter((move) => !knownMoveKeys.has(teambuilderCanonicalMoveKey(move))), 4)
+  };
+}
+
+function startSilphCoSession(pokemonIds) {
+  const player = activePlayer();
+  const ids = [...new Set(Array.isArray(pokemonIds) ? pokemonIds : String(pokemonIds || "").split(",").filter(Boolean))];
+  if (!ids.length || ids.length > 3) return alert("Choose between one and three Pokémon for Silph Co. R&D.");
+  const eligible = silphEligiblePokemon(player.id);
+  const pokemon = ids.map((id) => eligible.find((entry) => entry.id === id)).filter(Boolean);
+  if (pokemon.length !== ids.length) return alert("One or more selected Pokémon are unavailable for development.");
+  const developments = pokemon.map((entry) => {
+    const tierId = pokemonConsolidatedBattleTier(entry);
+    return { pokemonId: entry.id, pokemonName: entry.name, tierId, cost: Number(globalThis.rivalSagaActionPhaseBalance.SILPH_COSTS[tierId] || 0), status: "pending-choice", ...silphDevelopmentOptions(entry) };
+  });
+  if (developments.some((entry) => !entry.tierId || !entry.cost)) return alert("Every selected Pokémon needs a consolidated Battle Tier.");
+  const totalCost = developments.reduce((total, entry) => total + entry.cost, 0);
+  if (Number(player.balance || 0) < totalCost) return alert(`${player.name} needs ${formatMoney(totalCost)} for Silph Co. R&D.`);
+  const location = actionLocationById("silph-co-rd");
+  const check = actionLocationCanConfirm(location, player.id, 1);
+  if (!check.ok) return alert(check.reason);
+  const previousVisits = structuredClone(actionVisitsForPlayer(player.id));
+  const previousBalance = Number(player.balance || 0);
+  const previousMoneyLedger = structuredClone(state.moneyLedger || []);
+  const previousPokemonRecords = structuredClone(state.pokemonRecords || []);
+  const previousSilphCoSessions = structuredClone(state.silphCoSessions || []);
+  const visit = createLocationActionVisit(player, location, "silph-co-develop", "Develop Pokémon");
+  if (!visit) return;
+  const moneyChange = applyPlayerMoneyChange(player, -totalCost, {
+    direction: "spend", sourceType: "silph-co-rd", sourceLabel: "Silph Co. R&D",
+    note: developments.map((entry) => `${entry.pokemonName} ${formatMoney(entry.cost)}`).join(", "), actionVisitId: visit.id
+  });
+  const session = {
+    id: `silph-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, playerId: player.id,
+    series: state.series, gym: Number(state.gym), actionVisitId: visit.id, locationId: "silph-co-rd",
+    pokemonIds: ids, developments, cost: totalCost, ledgerEntryId: moneyChange.ledgerEntry?.id || "",
+    status: "pending-choice", createdAt: new Date().toISOString()
+  };
+  state.silphCoSessions.unshift(session);
+  linkActionOperation(visit.id, { featureType: "silph-co", featureSessionId: session.id });
+  addLogEntry({
+    action: "phase", category: "action", player: player.name, item: `${player.name} used Silph Co. R&D`,
+    title: `${player.name} used Silph Co. R&D`,
+    summary: `Spent 1 Action at Silph Co. R&D\nDeveloping ${developments.map((entry) => entry.pokemonName).join(", ")}\nSpent ${formatMoney(totalCost)}\nPending ${developments.length} choice${developments.length === 1 ? "" : "s"}`,
+    details: developments.flatMap((entry) => [`${entry.pokemonName} (${globalThis.rivalSagaActionPhaseBalance.tierLabel(entry.tierId)}): ${formatMoney(entry.cost)}`, `Abilities: ${entry.rolledAbilities.join(", ")}`, `Moves: ${entry.rolledMoves.join(", ")}`]),
+    type: "silph-co-action", categories: ["action", "money", "pokemon"], tags: ["silph-co", "money"],
+    playerIds: [player.id], pokemonIds: ids, pokemonNames: developments.map((entry) => entry.pokemonName),
+    actionVisitId: visit.id, visitId: visit.id, silphCoSessionId: session.id, ledgerEntryIds: [session.ledgerEntryId].filter(Boolean),
+    undoable: true, undone: false,
+    undoData: { actionType: "undoSilphCoAction", visitId: visit.id, playerId: player.id, silphCoSessionId: session.id,
+      series: state.series, gym: Number(state.gym), previousVisits, previousBalance, previousMoneyLedger, previousPokemonRecords, previousSilphCoSessions, previousMoveAccessGrants }
+  });
+  saveState();
+  render();
+}
+
+function chooseSilphCoOption(payload) {
+  const session = pendingSilphCoSession(activePlayer().id);
+  if (!session || !payload) return;
+  const [pokemonId, type, ...valueParts] = payload.split(":");
+  const value = valueParts.join(":");
+  const development = (session.developments || []).find((entry) => entry.pokemonId === pokemonId && entry.status === "pending-choice");
+  if (!development || !["move", "ability"].includes(type) || !value) return;
+  const allowed = type === "move" ? development.rolledMoves : development.rolledAbilities;
+  if (!allowed.includes(value)) return;
+  const pokemon = findPokemonRecord(pokemonId);
+  const player = state.players.find((entry) => entry.id === session.playerId);
+  if (!pokemon || !player) return;
+  if (type === "move") {
+    grantTeambuilderMoveAccess(player, { sourceType: "location", sourceName: "Silph Co. R&D", sourceLabel: "Silph Co. Move",
+      sourceRefType: "silph-co-session", sourceRefId: session.id, mode: "specific-moves", moveNames: [value],
+      pokemonRecordId: pokemon.id, speciesName: pokemon.name, duration: "permanent", status: "active" });
+    pokemon.buffs = [...new Set([...(pokemon.buffs || []), `Silph Co Move: ${value}`])];
+  } else {
+    pokemon.buffs = [...new Set([...(pokemon.buffs || []), `Silph Co Ability: ${value}`])];
+  }
+  development.selectedType = type;
+  development.selectedValue = value;
+  development.status = "completed";
+  development.completedAt = new Date().toISOString();
+  addPokemonLog(pokemon, "Silph Co. R&D", `${type === "ability" ? "Ability" : "Move"}: ${value}`);
+  if ((session.developments || []).every((entry) => entry.status === "completed")) {
+    session.status = "completed";
+    session.completedAt = new Date().toISOString();
+    completeActionOperationForVisit(session.actionVisitId, "silph-co-choice-complete");
+  }
+  const logEntry = (state.log || []).find((entry) => entry.silphCoSessionId === session.id);
+  if (logEntry) {
+    logEntry.summary = `Spent 1 Action at Silph Co. R&D\nSpent ${formatMoney(session.cost)}\n${(session.developments || []).map((entry) => `${entry.pokemonName}: ${entry.status === "completed" ? `${entry.selectedType} ${entry.selectedValue}` : "choice pending"}`).join("\n")}`;
+  }
+  saveState();
+  render();
+}
+
+function renderSilphCoDetails(location, player) {
+  const pending = pendingSilphCoSession(player.id);
+  if (pending) return `
+    <div><span>Total Paid</span><strong>${formatMoney(pending.cost || 0)}</strong></div>
+    <p class="gc-rule-note">Choose exactly one of the two Ability or four Move results for every Pokémon. Options are persisted and cannot reroll on refresh.</p>
+    ${(pending.developments || []).map((development) => `<section class="breeder-select-panel silph-development ${development.status}"><h3>${escapeHtml(development.pokemonName)} - ${development.status === "completed" ? `Selected ${escapeHtml(development.selectedValue)}` : "Choice Required"}</h3><div class="location-services">${[
+      ...(development.rolledAbilities || []).map((value) => ({ type: "ability", value })),
+      ...(development.rolledMoves || []).map((value) => ({ type: "move", value }))
+    ].map((option) => `<article class="location-service-card"><div><strong>${escapeHtml(option.value)}</strong><p>${option.type === "ability" ? "Ability" : "Move"}</p></div><button class="buy-button mini-button" data-silph-select="${escapeHtml(development.pokemonId)}:${escapeHtml(option.type)}:${escapeHtml(option.value)}" ${development.status === "completed" ? "disabled" : ""}>Select</button></article>`).join("")}</div></section>`).join("")}`;
+  const eligible = silphEligiblePokemon(player.id);
+  return `
+    <div><span>Balance</span><strong>${formatMoney(player.balance || 0)}</strong></div>
+    <p class="gc-rule-note">Choose up to three eligible Pokémon. Costs use consolidated Battle Tier: Safari $1,000; Poké $2,000; Great $3,000; Ultra $4,000; Master $5,000.</p>
+    <label>Pokémon (Ctrl/Cmd-click for multiple)<select id="silphPokemonSelect" multiple size="${Math.min(8, Math.max(3, eligible.length))}">${eligible.map((pokemon) => { const tier = pokemonConsolidatedBattleTier(pokemon); const cost = globalThis.rivalSagaActionPhaseBalance.SILPH_COSTS[tier] || 0; return `<option value="${escapeHtml(pokemon.id)}">${escapeHtml(pokemon.name)} - ${escapeHtml(globalThis.rivalSagaActionPhaseBalance.tierLabel(tier) || "Tier required")} - ${cost ? formatMoney(cost) : "Unavailable"}</option>`; }).join("")}</select></label>
+    <div class="breeder-select-panel" data-silph-preview><span>Select one to three Pokémon.</span></div>
+    <button class="buy-button" type="button" data-silph-start ${eligible.length ? "" : "disabled"}>Start Silph Co. R&D</button>`;
 }
 
 async function startHiddenGrottoSession() {
@@ -38486,6 +39063,9 @@ function depositPokemonInBreeder(pokemonId) {
     placedAt: new Date().toISOString(),
     eligiblePickupFromSeries: state.series,
     eligiblePickupFromGym: Number(state.gym) + 1,
+    returnSeries: state.series,
+    returnGym: Number(state.gym) + 1,
+    rewardApplied: false,
     buffs: ["+3 Levels", "TM Move Pending"]
   };
   state.breederDeposits ||= [];
@@ -38504,8 +39084,7 @@ function depositPokemonInBreeder(pokemonId) {
     eligiblePickupFromGym: Number(state.gym) + 1,
     pendingFacilityRewards: ["+3 Levels", "TM Move Pending"]
   };
-  pokemon.buffs = [...new Set([...(pokemon.buffs || []), "+3 Levels", "TM Move Pending"])];
-  addPokemonLog(pokemon, "Placed in Daycare", "+3 Levels; TM Move pending");
+  addPokemonLog(pokemon, "Placed in Day Care", "Unavailable through this Gym; +3 Levels and TM pending at next Gym Start");
   const ledgerEntry = addMoneyLedgerEntry(player, {
     amount: -cost,
     direction: "spend",
@@ -38522,13 +39101,13 @@ function depositPokemonInBreeder(pokemonId) {
     player: player.name,
     item: `${player.name} placed ${pokemon.name} in Daycare`,
     title: `${player.name} used Daycare`,
-    summary: `${isNewVisit ? "Spent 1 Action at Daycare" : "Used current Daycare visit"}\nSpent ${formatMoney(cost)}\nPlaced ${pokemon.name} in Daycare\nApplied +3 Levels\nTM Move Pending`,
+    summary: `${isNewVisit ? "Spent 1 Action at Day Care" : "Used current Day Care visit"}\nSpent ${formatMoney(cost)}\nPlaced ${pokemon.name} in Day Care\nUnavailable this Gym\nReturns next Gym with +3 Levels and a TM`,
     details: [
       isNewVisit ? "Spent 1 Action at Daycare" : "Used current Daycare visit",
       `Spent ${formatMoney(cost)}`,
       `Placed ${pokemon.name} in Daycare`,
-      "Applied +3 Levels",
-      "TM Move Pending"
+      "Unavailable this Gym",
+      "Returns next Gym with +3 Levels and a TM"
     ],
     type: "breeder-deposit",
     categories: ["action", "money", "pokemon"],
@@ -38585,7 +39164,7 @@ function pickupPokemonFromBreeder(depositId) {
   const levelBuff = breederLevelBuffLabel(deposit);
   if (pokemon) {
     pokemon.breederStatus = null;
-    pokemon.buffs = [...new Set([...(pokemon.buffs || []).filter((buff) => !/^\+\d+\s+Levels$/i.test(String(buff)) && buff !== "TM Move Pending" && buff !== "Egg Move Pending"), levelBuff, "TM Move Pending"])];
+    pokemon.buffs = [...new Set([...(pokemon.buffs || []).filter((buff) => !/^\+\d+\s+Levels$/i.test(String(buff)) && buff !== "TM Move Pending"), levelBuff, "TM Move Pending"])];
     // TODO: Validate the chosen Daycare TM Move against this Pokemon's learnable
     // TM list when the TM learnset validator is wired into notifications.
     createPlayerNotification({
@@ -38644,6 +39223,64 @@ function pickupPokemonFromBreeder(depositId) {
   syncPlayerPokemonLists();
   saveState();
   render();
+}
+
+function daycareTmMoveOptions(pokemon) {
+  const data = teambuilderPokemonData(pokemon) || {};
+  const tmMoves = (data.tmMoves || [])
+    .map((move) => teambuilderCanonicalMoveName(move))
+    .filter(Boolean);
+  return [...new Set(tmMoves)];
+}
+
+function processAutomaticFacilityReturns() {
+  const now = new Date().toISOString();
+  (state.breederDeposits || []).forEach((deposit) => {
+    if (deposit.status !== "active" || deposit.rewardApplied || !breederPickupEligible(deposit)) return;
+    const pokemon = (state.pokemonRecords || []).find((record) => record.id === deposit.pokemonId && record.trainerId === deposit.playerId);
+    deposit.status = "completed";
+    deposit.rewardApplied = true;
+    deposit.completedAt = now;
+    deposit.returnedAtSeries = state.series;
+    deposit.returnedAtGym = Number(state.gym);
+    if (!pokemon) return;
+    pokemon.breederStatus = null;
+    pokemon.buffs = [...new Set([...(pokemon.buffs || []).filter((buff) => buff !== "TM Move Pending"), "+3 Levels", "TM Move Pending"])];
+    const tmMoves = daycareTmMoveOptions(pokemon);
+    if (tmMoves.length) {
+      createPlayerNotification({
+        playerId: deposit.playerId, type: "daycare-tm-move", title: "Choose TM",
+        message: `${pokemon.name} returned from Day Care with +3 Levels. Choose one TM it can learn.`,
+        sourceType: "daycare", sourceId: deposit.id, pokemonId: pokemon.id, priority: 2,
+        payload: { pokemonName: pokemon.name, choiceType: "tm-move", breederDepositId: deposit.id, legalTmMoves: tmMoves }
+      });
+      deposit.tmMoveResult = "pending-choice";
+    } else {
+      pokemon.buffs = (pokemon.buffs || []).filter((buff) => buff !== "TM Move Pending");
+      deposit.tmMoveResult = "no-valid-tm";
+    }
+    addPokemonLog(pokemon, "Returned from Day Care", `+3 Levels; ${tmMoves.length ? "TM choice pending" : "no valid TM available"}`);
+  });
+  (state.dragonsDenSessions || []).forEach((session) => {
+    if (session.status !== "active" || session.returnApplied || !dragonDenReturnEligible(session)) return;
+    const pokemon = (state.pokemonRecords || []).find((record) => record.id === session.pokemonId && record.trainerId === session.playerId);
+    session.status = "completed";
+    session.returnApplied = true;
+    session.completedAt = now;
+    session.returnedAtSeries = state.series;
+    session.returnedAtGym = Number(state.gym);
+    if (!pokemon) return;
+    pokemon.dragonDenStatus = null;
+    pokemon.buffs = [...new Set([...(pokemon.buffs || []).filter((buff) => !String(buff).startsWith("Dragon's Den ") || !String(buff).endsWith(" Pending")), "Dragon's Den Reward Pending"])];
+    createPlayerNotification({
+      playerId: session.playerId, type: "dragons-den-reward", title: "Choose Dragon's Den Reward",
+      message: `${pokemon.name} returned from Dragon's Den. Choose any legal move or one AAA-approved Ability.`,
+      sourceType: "dragons-den", sourceId: session.id, pokemonId: pokemon.id, priority: 2,
+      payload: { pokemonName: pokemon.name, rewardType: "move-or-ability", dragonDenSessionId: session.id }
+    });
+    addPokemonLog(pokemon, "Returned from Dragon's Den", "Move or AAA-approved Ability choice pending");
+  });
+  syncPlayerPokemonLists();
 }
 
 function takeBulletinBoardQuests() {
@@ -39319,7 +39956,8 @@ function pokemonCenterBuyEmergencyImmunity() {
 }
 
 function createGameCornerActionSession(player, service, location) {
-  const check = actionLocationCanConfirm(location, player.id, 1);
+  const acceptedDestination = matchingAcceptedActionDestination({ playerId: player.id, locationId: location.id, serviceId: service.id });
+  const check = acceptedDestination ? { ok: true, reason: "" } : actionLocationCanConfirm(location, player.id, 1);
   if (!check.ok) {
     alert(check.reason);
     return null;
@@ -39437,7 +40075,7 @@ function confirmGameCornerService(service, location, player) {
         appendLogCategory(entry, "wheel");
         appendUniqueLogValue(entry, "tags", "gamble-wheel");
         appendUniqueLogValue(entry, "wheelSessionIds", wheelSession.id);
-        appendGroupedLogDetail(entry, `Gamble Wheel service used. Spins available: ${(wheelSession.rolls || []).length}/${wheelSession.maxRolls}.`);
+      appendGroupedLogDetail(entry, `Slot Machine service opened. Spins completed: ${(wheelSession.rolls || []).length}.`);
         entry.childEvents ||= [];
         if (!entry.childEvents.some((event) => event.type === "game-corner-service" && event.serviceId === service.id && event.wheelSessionId === wheelSession.id)) {
           entry.childEvents.push({
@@ -39901,7 +40539,9 @@ function nextEncounterLandingRotation(session, entries, entryId) {
 }
 
 function isRerollToken(item) {
-  return String(item?.name || item?.id || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim() === "reroll token";
+  const definition = globalThis.rivalSagaTokenEffectContract?.inventoryDefinitionFor?.(item);
+  if (definition?.id) return definition.id === "reroll-token";
+  return ["reroll", "reroll token"].includes(String(item?.name || item?.id || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim());
 }
 
 function playerRerollTokenIndex(player) {
@@ -39914,6 +40554,28 @@ function encounterRollFreeRerollReason(player, roll) {
   if (currentPokemonRuleStatusByName(pokemonName) === "Banned") return "Banned Pokemon";
   if (playerHasPokemonFamily(player.id, pokemonName)) return "Evolution line already owned";
   return "";
+}
+
+function rerollOperationForSource(sourceEffectId = "") {
+  return sourceEffectId ? (state.effectOperations || []).find((entry) => entry.operationType === "rerollEncounterResult" && entry.sourceEffectId === sourceEffectId) : null;
+}
+
+function recordRerollTokenHistory({ snapshot, actor, token, sourceEffectId, targetResultId, targetPlayerId, previousName, nextName, resultKind }) {
+  if (!snapshot || !actor || !token) return null;
+  const metadata = tokenEffectMetadataByName(token.name || "Reroll");
+  const activity = { id: sourceEffectId, actorPlayerId: actor.id, targetPlayerId, payload: { tokenName: "Reroll", targetText: previousName } };
+  const causalUndo = buildCausalTokenEffectUndo(snapshot, activity, { id: "reroll-token", name: "Reroll" });
+  const summary = `${actor.name} superseded ${previousName || "the previous result"} with ${nextName || "a replacement result"}.`;
+  return addLogEntry({
+    action: "token", category: "pokemon", player: actor.name,
+    item: summary, title: "Reroll replaced an encounter result", summary,
+    type: "encounter-reroll-token", categories: ["tokens", "pokemon", "encounter"],
+    tags: ["reroll-token", "encounter-result", resultKind || "result"],
+    playerIds: [actor.id, targetPlayerId].filter(Boolean), pokemonNames: [previousName, nextName].filter(Boolean),
+    tokenNames: [metadata.name || "Reroll"], linkedEventId: sourceEffectId,
+    targetResultId, previousResultName: previousName, replacementResultName: nextName,
+    undoable: true, undone: false, undoData: causalUndo
+  });
 }
 
 function pendingRandomPokemonSessions() {
@@ -40132,6 +40794,21 @@ async function createEncounterPokemonResultSession({ player, encounterSession, r
   return session;
 }
 
+function augmentHoneyCausalUndoAfterAcquisition(randomSession, causalBeforeAcquisition) {
+  if (!randomSession?.copiedFromRandomPokemonSessionId || !causalBeforeAcquisition) return;
+  const historyLog = (state.log || []).find((entry) => !entry.undone
+    && entry.undoData?.tokenDefinitionId === "honey-token"
+    && entry.copiedRandomPokemonSessionId === randomSession.id);
+  if (!historyLog?.undoData) return;
+  const later = buildCausalTokenEffectUndo(causalBeforeAcquisition, {
+    id: historyLog.linkedEventId || historyLog.undoData.effectId || "",
+    payload: { tokenName: "Honey" }
+  }, { id: "honey-token", name: "Honey" });
+  historyLog.undoData = mergeCausalTokenUndoData(historyLog.undoData, later);
+  historyLog.honeyAcquisitionCompleted = true;
+  historyLog.acquiredPokemonId = randomSession.rosterPokemonId || "";
+}
+
 async function hydrateEncounterRollSprite(roll) {
   if (!roll || roll.resultSprite) return roll;
   const sprite = await fetchStablePokemonSprite(roll.resultDisplayName || roll.resultPokemonName, roll.chosenSpriteKey || "");
@@ -40196,6 +40873,10 @@ async function rerollEncounterRoll(sessionId, rollId, options = {}) {
     alert(`${actor.name} needs a Reroll Token.`);
     return;
   }
+  const exactToken = tokenIndex >= 0 ? actor.inventory[tokenIndex] : null;
+  const sourceEffectId = options.sourceEffectId || (exactToken ? `reroll:${exactToken.id}:${session.id}:${roll.id}` : "");
+  const duplicateOperation = rerollOperationForSource(sourceEffectId);
+  if (duplicateOperation) return duplicateOperation;
   const shouldStayInSpecialWheel = rerollMode !== "encounter" && roll.specialEncounter?.wheelId;
   const entries = shouldStayInSpecialWheel
     ? (hyperspaceWheelDefinitions[roll.specialEncounter.wheelId]?.entries || [])
@@ -40207,6 +40888,7 @@ async function rerollEncounterRoll(sessionId, rollId, options = {}) {
   const currentKey = normalizePokemonName(roll.resultPokemonName || roll.resultDisplayName);
   const next = randomSample(entries.filter((entry) => normalizePokemonName(entry.key || entry.pokemonName || entry.displayName) !== currentKey), 1)[0] || randomSample(entries, 1)[0];
   if (!next) return;
+  const causalBeforeReroll = exactToken ? tokenUseRollbackSnapshot() : null;
   const rerollToken = freeRerollReason ? null : actor.inventory.splice(tokenIndex, 1)[0];
   const previousResult = {
     resultPokemonName: roll.resultPokemonName,
@@ -40224,8 +40906,10 @@ async function rerollEncounterRoll(sessionId, rollId, options = {}) {
     : resolveEncounterSpecialResult(next);
   const nextName = resolvedNext.displayName || resolvedNext.pokemonName || resolvedNext.key;
   roll.rerollHistory ||= [];
+  const previousRevisionId = roll.resultRevisionId || `${roll.id}:original`;
+  const rerollRecordId = `encounter-reroll-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
   roll.rerollHistory.push({
-    id: `encounter-reroll-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    id: rerollRecordId,
     actorPlayerId: actor.id,
     targetPlayerId: player.id,
     targetResultId: roll.id,
@@ -40233,7 +40917,7 @@ async function rerollEncounterRoll(sessionId, rollId, options = {}) {
     free: Boolean(freeRerollReason),
     freeReason: freeRerollReason,
     mode: rerollMode,
-    previousResult,
+    previousResult: { ...previousResult, resultRevisionId: previousRevisionId, status: "superseded" },
     newResultPokemonName: resolvedNext.key || resolvedNext.pokemonName || resolvedNext.displayName,
     newResultDisplayName: nextName,
     usedAt: new Date().toISOString()
@@ -40247,7 +40931,27 @@ async function rerollEncounterRoll(sessionId, rollId, options = {}) {
   roll.specialEncounter = nextSpecial;
   roll.resultSprite = "";
   roll.chosenSpriteKey = "";
+  roll.resultRevisionId = `${roll.id}:replacement:${rerollRecordId}`;
+  roll.supersedesResultRevisionId = previousRevisionId;
   await hydrateEncounterRollSprite(roll);
+  if (rerollToken) {
+    addTokenConsumptionRecord({
+      player: actor, token: rerollToken, tokenName: rerollToken.name,
+      metadata: tokenEffectMetadataByName(rerollToken.name), linkedEventId: sourceEffectId, source: "encounter-result-reroll"
+    });
+    const operation = {
+      id: `effect-operation-${rerollRecordId}`,
+      operationType: "rerollEncounterResult", sourceEffectId, sourceTokenId: rerollToken.id,
+      targetResultId: roll.id, targetSessionId: session.id, resultKind: "encounter-roll",
+      previousResultRevisionId: previousRevisionId, replacementResultRevisionId: roll.resultRevisionId,
+      status: "completed", createdAt: new Date().toISOString()
+    };
+    state.effectOperations ||= [];
+    state.effectOperations.push(operation);
+    recordRerollTokenHistory({ snapshot: causalBeforeReroll, actor, token: rerollToken, sourceEffectId,
+      targetResultId: roll.id, targetPlayerId: player.id, previousName: previousResult.resultDisplayName,
+      nextName, resultKind: "encounter-roll" });
+  }
   updateEncounterActionLog(session, player, (entry) => {
     appendLogCategory(entry, "items");
     appendLogCategory(entry, "pokemon");
@@ -40323,6 +41027,7 @@ async function confirmRandomPokemonSession(sessionId = state.selectedRandomPokem
   if (!skipPendingGuard && !guardPendingEventBeforeAction("Confirm Pokemon Result", () => confirmRandomPokemonSession(sessionId, { skipPendingGuard: true }))) return;
   const randomSession = (state.randomPokemonSessions || []).find((entry) => entry.id === sessionId);
   if (!randomSession || randomSession.status !== "pending") return;
+  const honeyAcquisitionSnapshot = randomSession.copiedFromRandomPokemonSessionId ? tokenUseRollbackSnapshot() : null;
   const player = state.players.find((entry) => entry.id === (randomSession.resultOwnerPlayerId || randomSession.ownerPlayerId || randomSession.playerId));
   if (!player) return;
   if (!requirePrivatePrepAccess(player, "random Pokemon result")) return;
@@ -40361,6 +41066,7 @@ async function confirmRandomPokemonSession(sessionId = state.selectedRandomPokem
   randomSession.confirmedAt = new Date().toISOString();
   randomSession.rosterPokemonId = pokemon.id;
   resolvePokemonResultTimingWindow(randomSession, "resolved");
+  augmentHoneyCausalUndoAfterAcquisition(randomSession, honeyAcquisitionSnapshot);
   if (randomSession.sourceType === "encounter") {
     const encounterSession = (state.encounterSessions || []).find((entry) => entry.id === randomSession.encounterSessionId);
     if (encounterSession) {
@@ -40461,6 +41167,10 @@ async function rerollRandomPokemonSession(sessionId = state.selectedRandomPokemo
     alert(`${actor.name} needs a Reroll Token.`);
     return;
   }
+  const exactToken = actor.inventory[tokenIndex];
+  const sourceEffectId = options.sourceEffectId || `reroll:${exactToken.id}:${randomSession.id}`;
+  const duplicateOperation = rerollOperationForSource(sourceEffectId);
+  if (duplicateOperation) return duplicateOperation;
   const encounterSession = randomSession.sourceType === "encounter"
     ? (state.encounterSessions || []).find((entry) => entry.id === randomSession.encounterSessionId)
     : null;
@@ -40469,6 +41179,7 @@ async function rerollRandomPokemonSession(sessionId = state.selectedRandomPokemo
     alert("No Pokemon are available in this result pool.");
     return;
   }
+  const causalBeforeReroll = tokenUseRollbackSnapshot();
   const rerollToken = actor.inventory.splice(tokenIndex, 1)[0];
   const previousResult = {
     resultPokemonName: randomSession.resultPokemonName,
@@ -40481,7 +41192,8 @@ async function rerollRandomPokemonSession(sessionId = state.selectedRandomPokemo
   const next = randomSample(available.filter((entry) => normalizePokemonName(entry.key || entry.pokemonName || entry.displayName) !== currentKey), 1)[0] || randomSample(available, 1)[0];
   const nextName = next.displayName || next.pokemonName || next.key;
   randomSession.resultHistory ||= [];
-  randomSession.resultHistory.push(previousResult);
+  const previousRevisionId = randomSession.resultRevisionId || `${randomSession.id}:original`;
+  randomSession.resultHistory.push({ ...previousResult, resultRevisionId: previousRevisionId, status: "superseded" });
   randomSession.rerollHistory ||= [];
   randomSession.rerollHistory.push({
     id: `reroll-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
@@ -40523,6 +41235,9 @@ async function rerollRandomPokemonSession(sessionId = state.selectedRandomPokemo
   randomSession.resultMetadata = structuredClone(next);
   randomSession.resultSprite = "";
   randomSession.chosenSpriteKey = "";
+  const rerollRecord = randomSession.rerollHistory[randomSession.rerollHistory.length - 1];
+  randomSession.resultRevisionId = `${randomSession.id}:replacement:${rerollRecord.id}`;
+  randomSession.supersedesResultRevisionId = previousRevisionId;
   randomSession.revealSeen = false;
   state.selectedRandomPokemonSessionId = randomSession.id;
   state.randomPokemonDrawerOpen = true;
@@ -40590,6 +41305,20 @@ async function rerollRandomPokemonSession(sessionId = state.selectedRandomPokemo
     saveState();
     renderRandomPokemonPanel();
   }
+  const operation = {
+    id: `effect-operation-${rerollRecord.id}`,
+    operationType: "rerollEncounterResult", sourceEffectId, sourceTokenId: rerollToken.id,
+    targetResultId: randomSession.id, resultKind: encounterSession ? "encounter-result" : "wheel-result",
+    previousResultRevisionId: previousRevisionId, replacementResultRevisionId: randomSession.resultRevisionId,
+    status: "completed", createdAt: new Date().toISOString()
+  };
+  state.effectOperations ||= [];
+  state.effectOperations.push(operation);
+  recordRerollTokenHistory({ snapshot: causalBeforeReroll, actor, token: rerollToken, sourceEffectId,
+    targetResultId: randomSession.id, targetPlayerId: player.id, previousName: previousResult.resultDisplayName,
+    nextName, resultKind: operation.resultKind });
+  saveState();
+  return operation;
 }
 
 function cancelRandomPokemonSession(sessionId = state.selectedRandomPokemonSessionId) {
@@ -40648,18 +41377,20 @@ function activeEncounterSessionForPlayer(playerId, series = state.series, gym = 
     && ["pending", "review"].includes(session.status));
 }
 
-function startEncounterSession() {
+function startEncounterSession({ skipConfirmCheck = false } = {}) {
   const player = activePlayer();
   const location = actionLocationById("encounter");
   const definition = encounterWheelDefinition();
   if (!definition) {
     alert("No Encounter Wheel is defined for this Series/Gym yet.");
-    return;
+    return false;
   }
-  const check = actionLocationCanConfirm(location, player.id, 1);
-  if (!check.ok) {
-    alert(check.reason);
-    return;
+  if (!skipConfirmCheck) {
+    const check = actionLocationCanConfirm(location, player.id, 1);
+    if (!check.ok) {
+      alert(check.reason);
+      return false;
+    }
   }
   const previousVisits = structuredClone(actionVisitsForPlayer(player.id));
   const previousEncounterSessions = structuredClone(state.encounterSessions || []);
@@ -40757,6 +41488,7 @@ function startEncounterSession() {
   });
   saveState();
   render();
+  return true;
 }
 
 async function confirmActionVisit(serviceId = "", { skipPendingGuard = false } = {}) {
@@ -40805,15 +41537,17 @@ async function confirmActionVisit(serviceId = "", { skipPendingGuard = false } =
       return;
     }
     if (location?.id === "encounter") {
-      startEncounterSession();
-      return;
-    }
-    if (location?.id === "field-token") {
-      placeSelectedFieldToken();
+      if (!startEncounterSession({ skipConfirmCheck: true })) {
+        throw new Error("The Encounter location could not start.");
+      }
       return;
     }
     if (location?.id === "graveyard") {
       startGraveyardSession();
+      return;
+    }
+    if (location?.id === "department-store") {
+      startDepartmentStoreVisit();
       return;
     }
     if (location?.id === "pc") {
@@ -40925,23 +41659,10 @@ function selectActionLocation(locationId) {
 function actionLocationPreview(location, player, tracker) {
   if (!location) return "";
   if (location.id === "department-store") {
-    const beforeLevel = effectiveShopLevel(player, "items");
-    const nextLevel = Math.min(4, beforeLevel + 1);
-    const beforeDiscount = actionShopDiscountPercent(player, "items");
-    const nextDiscount = beforeDiscount || actionPhaseRules.discountStepPercent;
     return `
-      <div><span>Item Level</span><strong>${beforeLevel} -> ${nextLevel}</strong></div>
-      <div><span>Item Discount</span><strong>${beforeDiscount}% -> ${nextDiscount}%</strong></div>
-    `;
-  }
-  if (location.id === "move-dojo") {
-    const beforeLevel = effectiveShopLevel(player, "tms");
-    const nextLevel = Math.min(4, beforeLevel + 1);
-    const beforeDiscount = actionShopDiscountPercent(player, "tms");
-    const nextDiscount = beforeDiscount || actionPhaseRules.discountStepPercent;
-    return `
-      <div><span>TM Level</span><strong>${beforeLevel} -> ${nextLevel}</strong></div>
-      <div><span>TM Discount</span><strong>${beforeDiscount}% -> ${nextDiscount}%</strong></div>
+      <div><span>Catalog</span><strong>All Items and TMs</strong></div>
+      <div><span>Normal Discount</span><strong>25%, max ${formatMoney(3000)} savings</strong></div>
+      <div><span>Clearance</span><strong>3 offers, buy up to 1 final sale</strong></div>
     `;
   }
   if (location.id === "ranger-base") {
@@ -41048,32 +41769,43 @@ function renderGameCornerTokenUsePanel(player) {
 }
 
 function renderGameCornerDetails(location, player, tracker) {
+  const session = activeGameCornerSession(player.id);
   return `
     <div><span>Balance</span><strong>${formatMoney(player.balance || 0)}</strong></div>
     ${renderGameCornerTokenBoxes(player)}
-    <p class="gc-rule-note">Spend 1 Action at Game Corner to access its services. Gamble Wheel allows up to 3 spins at $2,000 each. GC Tickets may be used any number of times during the same Game Corner visit.</p>
+    <p class="gc-rule-note">Spend 1 Action at Game Corner to access its services. Each Slot Machine spin costs $2,000. Tickets may be bought or used during the same Game Corner visit.</p>
     ${renderActionLocationServices(location, player, tracker)}
+    <section class="gc-ticket-market">
+      <h3>Ticket Counter</h3>
+      <div class="gc-ticket-market-grid">${gameCornerTicketUtilityData.map((ticket) => `<article class="location-service-card"><div><strong>${escapeHtml(ticket.name)}</strong><p>${formatMoney(ticket.price)} - ${escapeHtml(ticket.description)}</p></div><button class="buy-button mini-button" data-gc-buy-ticket="${escapeHtml(ticket.gameCornerTierId)}" ${session && Number(player.balance || 0) >= ticket.price ? "" : "disabled"}>Buy</button></article>`).join("")}</div>
+      ${session ? "" : `<p class="gc-rule-note">Start a Game Corner service before buying Tickets.</p>`}
+    </section>
     ${renderGameCornerTokenUsePanel(player)}
   `;
 }
 
-function renderFieldTokenDetails(location, player, tracker) {
-  const tokens = playerFieldTokens(player);
-  const current = activeFieldToken();
-  const placedBy = current ? state.players.find((entry) => entry.id === current.placedByPlayerId) : null;
-  return `
-    <div><span>Active Field</span><strong>${current ? `${escapeHtml(current.fieldTokenName)} by ${escapeHtml(placedBy?.name || "Unknown")}` : "None"}</strong></div>
-    <div><span>Owned Field Tokens</span><strong>${tokens.length}</strong></div>
-    <p class="gc-rule-note">Field Tokens place an ongoing field. This MVP only tracks the active field; battle effects come later.</p>
-    ${tokens.length ? `
-      <label class="action-select-label">Field Token
-        <select id="fieldTokenSelect">
-          ${tokens.map((token) => `<option value="${escapeHtml(token.id)}">${escapeHtml(token.name)}</option>`).join("")}
-        </select>
-      </label>
-    ` : `<p class="empty-state compact">No Field Tokens owned.</p>`}
-    ${renderActionLocationServices(location, player, tracker)}
-  `;
+function buyGameCornerTicket(tierId) {
+  const player = activePlayer();
+  const session = activeGameCornerSession(player.id);
+  const definition = gameCornerTicketUtilityData.find((ticket) => ticket.gameCornerTierId === normalizeGameCornerTierId(tierId));
+  if (!session || !definition) return alert("Start a Game Corner visit before buying Tickets.");
+  if (Number(player.balance || 0) < definition.price) return alert(`${player.name} cannot afford ${definition.name}.`);
+  const moneyChange = applyPlayerMoneyChange(player, -definition.price, {
+    direction: "spend", sourceType: "game-corner-ticket-purchase", sourceLabel: definition.name,
+    actionVisitId: session.actionVisitId, gameCornerSessionId: session.id
+  });
+  const ticket = { ...structuredClone(definition), id: createInventoryEntryId(definition.id), originalPrice: definition.price,
+    source: "Game Corner", actionVisitId: session.actionVisitId, gameCornerSessionId: session.id, acquiredAt: new Date().toISOString() };
+  player.inventory.unshift(ticket);
+  updateGameCornerActionLog(session, player, (entry) => {
+    appendLogCategory(entry, "money"); appendLogCategory(entry, "items");
+    appendUniqueLogValue(entry, "itemNames", ticket.name); appendUniqueLogValue(entry, "tokenNames", ticket.name);
+    appendGroupedLogDetail(entry, `Bought ${ticket.name} for ${formatMoney(definition.price)}.`);
+    entry.moneyChanges ||= [];
+    entry.moneyChanges.push({ amount: -definition.price, direction: "spend", ledgerEntryId: moneyChange.ledgerEntry?.id || "", sourceType: "game-corner-ticket-purchase" });
+  });
+  saveState();
+  render();
 }
 
 function renderGraveyardDetails(location, player, tracker) {
@@ -41178,80 +41910,39 @@ function renderPcDetails(location, player, tracker) {
   `;
 }
 
-function placeSelectedFieldToken() {
-  const player = activePlayer();
-  if (!requirePrivatePrepAccess(player, "Field Token action")) return;
-  const location = actionLocationById("field-token");
-  const tokenId = els.actionLocationMeta.querySelector("#fieldTokenSelect")?.value;
-  const tokenIndex = (player.inventory || []).findIndex((token) => token.id === tokenId);
-  if (tokenIndex < 0) return;
-  const snapshot = actionSystemSnapshot(player.id);
-  const visit = createLocationActionVisit(player, location, "field-token-place", "Place Field Token");
-  if (!visit) return;
-  const token = player.inventory.splice(tokenIndex, 1)[0];
-  const definition = utilityTokenDefinitionByName(token.name);
-  (state.fieldTokens || []).forEach((field) => {
-    if (field.status === "active") field.status = "replaced";
-  });
-  const field = {
-    id: `field-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-    fieldTokenId: token.id,
-    fieldTokenName: token.name,
-    placedByPlayerId: player.id,
-    series: state.series,
-    gym: Number(state.gym),
-    phase: currentPhase(),
-    status: "active",
-    note: definition?.note || "",
-    createdAt: new Date().toISOString()
-  };
-  state.fieldTokens.unshift(field);
-  addLogEntry({
-    action: "phase",
-    category: "tokens",
-    player: player.name,
-    item: `${player.name} placed ${token.name}.`,
-    title: `${player.name} placed ${token.name}`,
-    summary: `Spent 1 Action at Field Token\nPlaced ${token.name}`,
-    details: [`Field Token: ${token.name}`, definition?.note || "Active field placed. Field-specific automation is staged for later."],
-    type: "field-token-action",
-    categories: ["action", "tokens"],
-    tags: ["field-token"],
-    playerIds: [player.id],
-    tokenNames: [token.name],
-    actionVisitId: visit.id,
-    visitId: visit.id,
-    fieldTokenId: field.id,
-    undoable: true,
-    undone: false,
-    undoData: { actionType: "undoActionSystemSnapshot", playerId: player.id, visitId: visit.id, series: state.series, gym: Number(state.gym), ...snapshot }
-  });
-  completeActionOperationForVisit(visit.id, "field-token-placed");
-  saveState();
-  render();
+function renderGraveyardDetails(location, player) {
+  const session = activeGraveyardSession(player.id);
+  const eligible = activeRosterForPlayer(player.id).filter((pokemon) => !pokemon.breederStatus?.status
+    && !pokemon.dragonDenStatus?.status && !pokemon.silphCoStatus?.status && !pokemon.reserved && !pokemon.teamLocked);
+  const selectedValue = 0;
+  return `
+    <p class="gc-rule-note">Release any number of eligible Pokémon in one confirmed batch. Destroy Value uses consolidated Battle Tier; the Curse Wheel rolls once per complete $6,000 and discards any remainder.</p>
+    ${session ? `<div><span>Current Destroy Value</span><strong>${formatMoney(session.releaseValueTotal || 0)}</strong></div><div><span>Curse Rewards</span><strong>${(session.curseRewards || []).length}</strong></div>` : ""}
+    <section class="breeder-select-panel">
+      <h3>${session ? "Add Release Batch" : "Choose Pokémon to Release"}</h3>
+      ${eligible.length ? `<select id="graveyardPokemonSelect" multiple size="${Math.min(10, Math.max(4, eligible.length))}">${eligible.map((pokemon) => `<option value="${escapeHtml(pokemon.id)}">${escapeHtml(pokemon.name)} - ${escapeHtml(globalThis.rivalSagaActionPhaseBalance.tierLabel(pokemonConsolidatedBattleTier(pokemon)) || "Unassigned")} - ${formatMoney(pokemonReleaseValue(pokemon))}</option>`).join("")}</select><p data-graveyard-preview>Total Destroy Value: ${formatMoney(selectedValue)} - Curse Wheel rolls: 0</p><button class="buy-button" type="button" data-graveyard-release-selected>Confirm Permanent Release</button>` : `<p class="empty-state compact">No eligible Pokémon can be released.</p>`}
+    </section>`;
 }
 
 function graveyardLogSummary(session) {
   const released = session.releasedPokemon || [];
-  const destroyed = session.destroyedTokens || [];
   return [
     "Spent 1 Action at Graveyard",
     released.length ? `Released ${released.map((entry) => `${entry.name} (${formatMoney(entry.value)})`).join(", ")}` : "Released 0 Pokemon",
-    `Destruction Pool: ${formatMoney(Number(session.releaseValueTotal || 0) - Number(session.destroyedValueTotal || 0))}`,
-    destroyed.length ? `Destroyed ${destroyed.map((entry) => `${entry.ownerName}'s ${entry.name} (${formatMoney(entry.value)})`).join(", ")}` : "Destroyed 0 Tokens"
+    `Destroy Value: ${formatMoney(Number(session.releaseValueTotal || 0))}`,
+    `Curse Wheel rolls: ${Number(session.curseRollCount || 0)}`,
+    (session.curseRewards || []).length ? `Rewards: ${session.curseRewards.map((entry) => entry.name).join(", ")}` : "No Curse rewards"
   ].join("\n");
 }
 
 function graveyardLogDetails(session) {
   const released = (session.releasedPokemon || []).map((entry) => `Released Pokemon: ${entry.name} (${formatMoney(entry.value)})`);
-  const destroyed = (session.destroyedTokens || []).map((entry) => `Destroyed token: ${entry.ownerName} - ${entry.name} (${formatMoney(entry.value)})`);
   return [
     ...released,
-    `Released value total: ${formatMoney(session.releaseValueTotal || 0)}`,
-    ...destroyed,
-    `Destroyed value total: ${formatMoney(session.destroyedValueTotal || 0)}`,
-    `Remaining pool: ${formatMoney(Math.max(0, Number(session.releaseValueTotal || 0) - Number(session.destroyedValueTotal || 0)))}`,
-    "Curse Wheel is not implemented yet."
+    `Destroy Value total: ${formatMoney(session.releaseValueTotal || 0)}`,
+    `Curse Wheel rolls: ${Number(session.curseRollCount || 0)} = floor(${Number(session.releaseValueTotal || 0)} / 6000)`,
+    `Discarded remainder: ${formatMoney(Number(session.releaseValueTotal || 0) % 6000)}`,
+    ...(session.curseRewards || []).map((reward) => `Curse reward: ${reward.name}`)
   ];
 }
 
@@ -41294,6 +41985,8 @@ function startGraveyardSession() {
     destroyedTokenIds: [],
     destroyedTokens: [],
     destroyedValueTotal: 0,
+    curseRollCount: 0,
+    curseRewards: [],
     status: "active",
     createdAt: new Date().toISOString()
   };
@@ -41329,19 +42022,34 @@ function startGraveyardSession() {
 function releaseSelectedGraveyardPokemon() {
   const player = activePlayer();
   if (!requirePrivatePrepAccess(player, "Graveyard action")) return;
+  const selectedIds = [...(els.actionLocationMeta.querySelector("#graveyardPokemonSelect")?.selectedOptions || [])].map((option) => option.value);
+  const pokemon = selectedIds.map((id) => activeRosterForPlayer(player.id).find((entry) => entry.id === id)).filter(Boolean)
+    .filter((entry) => !entry.breederStatus?.status && !entry.dragonDenStatus?.status && !entry.silphCoStatus?.status && !entry.reserved && !entry.teamLocked);
+  if (!pokemon.length || pokemon.length !== selectedIds.length) return alert("Choose only eligible, unreserved Pokémon.");
+  const releaseValue = pokemon.reduce((total, entry) => total + pokemonReleaseValue(entry), 0);
+  const rollCount = globalThis.rivalSagaActionPhaseBalance.curseRolls(releaseValue);
+  if (!confirm(`Permanently release ${pokemon.map((entry) => entry.name).join(", ")} for ${formatMoney(releaseValue)} Destroy Value and ${rollCount} Curse Wheel roll${rollCount === 1 ? "" : "s"}?`)) return;
   const session = activeGraveyardSession(player.id) || startGraveyardSession();
   if (!session) return;
-  const pokemonId = els.actionLocationMeta.querySelector("#graveyardPokemonSelect")?.value;
-  const pokemon = activeRosterForPlayer(player.id).find((entry) => entry.id === pokemonId);
-  if (!pokemon) return;
-  const releaseValue = pokemonReleaseValue(pokemon);
-  pokemon.status = "Released";
-  pokemon.rosterType = "Released";
-  session.releasedPokemonIds ||= [];
-  session.releasedPokemon ||= [];
-  session.releasedPokemonIds.push(pokemon.id);
-  session.releasedPokemon.push({ id: pokemon.id, name: pokemon.name, value: releaseValue });
+  pokemon.forEach((entry) => {
+    const value = pokemonReleaseValue(entry);
+    entry.status = "Released";
+    entry.rosterType = "Released";
+    session.releasedPokemonIds.push(entry.id);
+    session.releasedPokemon.push({ id: entry.id, name: entry.name, tierId: pokemonConsolidatedBattleTier(entry), value });
+  });
   session.releaseValueTotal = Number(session.releaseValueTotal || 0) + releaseValue;
+  const totalRolls = globalThis.rivalSagaActionPhaseBalance.curseRolls(session.releaseValueTotal);
+  const newRolls = Math.max(0, totalRolls - Number(session.curseRollCount || 0));
+  const cursePool = activeTokenCatalog().filter((item) => item.tokenType === "curse" || String(item.category || item.tier).toLowerCase().includes("curse"));
+  for (let index = 0; index < newRolls; index += 1) {
+    const definition = randomEntry(cursePool);
+    if (!definition) break;
+    const reward = { ...structuredClone(definition), id: createInventoryEntryId(definition.id), source: "Graveyard Curse Wheel", sourceVisitId: session.actionVisitId, graveyardSessionId: session.id, acquiredAt: new Date().toISOString() };
+    player.inventory.unshift(reward);
+    session.curseRewards.push({ id: reward.id, name: reward.name });
+  }
+  session.curseRollCount = totalRolls;
   session.updatedAt = new Date().toISOString();
   syncPlayerPokemonLists();
   updateGraveyardActionLog(session);
@@ -41577,17 +42285,28 @@ function renderActionTurnRail() {
         const player = state.players.find((entry) => entry.id === playerId);
         const used = actionUsedByPlayer(playerId);
         const remaining = actionRemainingForPlayer(playerId);
-        const active = playerId === turn.currentPlayerId;
+        const active = playerId === (override ? activePlayer().id : turn.currentPlayerId);
+        const tagName = override ? "button" : "span";
         return `
-          <span class="action-turn-chip${active ? " active" : ""}${remaining <= 0 ? " complete" : ""}">
+          <${tagName}${override ? ` type="button" data-action-player-id="${escapeHtml(playerId)}" aria-pressed="${active}"` : ""} class="action-turn-chip${override ? " selectable" : ""}${active ? " active" : ""}${remaining <= 0 ? " complete" : ""}">
             <em>${index + 1}</em>
             <strong>${escapeHtml(player?.name || "Unknown")}</strong>
             <small>${used}/${actionPhaseRules.actionsPerPlayer}</small>
-          </span>
+          </${tagName}>
         `;
       }).join("")}
     </div>
   `;
+}
+
+function renderActionDemoControls() {
+  if (!els.actionDemoStatus || !els.actionToggleDemoMode) return;
+  const enabled = hostTestingOverrideEnabled();
+  els.actionDemoStatus.textContent = enabled
+    ? `On - testing as ${activePlayer().name}`
+    : "Off - normal turn order is enforced";
+  els.actionToggleDemoMode.textContent = enabled ? "Turn Demo Mode Off" : "Turn Demo Mode On";
+  els.actionToggleDemoMode.setAttribute("aria-pressed", String(enabled));
 }
 
 function renderActionPhase() {
@@ -41602,9 +42321,12 @@ function renderActionPhase() {
   els.actionPhasePlayerName.textContent = player.name;
   els.actionPhaseRemaining.textContent = `${remaining}/${actionPhaseRules.actionsPerPlayer} actions remaining`;
   els.actionPhaseUsed.textContent = `${used}/${actionPhaseRules.actionsPerPlayer}`;
-  els.actionPhaseVisited.textContent = visits.length ? visits.map((visit) => visit.locationName).join(", ") : "None yet";
+  els.actionPhaseVisited.textContent = visits.length
+    ? visits.map((visit) => visit.locationId === "move-dojo" ? "Department Store (legacy visit)" : visit.locationName).join(", ")
+    : "None yet";
   els.actionPhaseTableStatus.textContent = state.players.map((entry) => `${entry.name}: ${actionStatusLabel(entry.id)}`).join("  |  ");
   renderActionTurnRail();
+  renderActionDemoControls();
   const outOfPhase = currentPhase() !== "action";
   const turn = actionTurnInfo();
   const testingOverride = hostTestingOverrideEnabled();
@@ -41615,7 +42337,6 @@ function renderActionPhase() {
   const timingPauseReason = provisional
     ? actionLocationCanConfirm(actionPhaseRules.locations[0], player.id).reason
     : destinationCommit ? "The Action destination is committed and the location is starting." : "";
-  renderFieldIndicator();
   els.actionPhaseWarning.classList.toggle("hidden", !timingPauseReason && !testingOverride && !outOfPhase && !outOfTurn);
   els.actionPhaseWarning.textContent = timingPauseReason || (outOfPhase
     ? `Current phase is ${phaseLabels[currentPhase()]}. Action visits are normally made during Action Phase.`
@@ -41641,6 +42362,7 @@ function renderActionPhase() {
   els.actionLocationTitle.textContent = selectedLocation?.name || "Select a location";
   els.actionLocationDescription.textContent = selectedLocation?.summary || "Choose a map location to view its services.";
   els.actionLocationMeta.innerHTML = selectedLocation?.id === "gamecorner" ? renderGameCornerDetails(selectedLocation, player, tracker)
+    : selectedLocation?.id === "department-store" ? renderDepartmentStoreDetails(selectedLocation, player)
     : selectedLocation?.id === "pokemon-breeder" ? renderBreederDetails(selectedLocation, player)
       : selectedLocation?.id === "ranger-base" ? renderRangerBaseDetails(selectedLocation, player, tracker)
       : selectedLocation?.id === "pokemon-center" ? renderPokemonCenterDetails(selectedLocation, player)
@@ -41648,16 +42370,15 @@ function renderActionPhase() {
         : selectedLocation?.id === "silph-co-rd" ? renderSilphCoDetails(selectedLocation, player)
           : selectedLocation?.id === "hidden-grotto" ? renderHiddenGrottoDetails(selectedLocation, player)
           : selectedLocation?.id === "bulletin-board" ? renderBulletinBoardDetails(selectedLocation, player)
-            : selectedLocation?.id === "field-token" ? renderFieldTokenDetails(selectedLocation, player, tracker)
-              : selectedLocation?.id === "graveyard" ? renderGraveyardDetails(selectedLocation, player, tracker)
+            : selectedLocation?.id === "graveyard" ? renderGraveyardDetails(selectedLocation, player, tracker)
                 : selectedLocation?.id === "pc" ? renderPcDetails(selectedLocation, player, tracker)
           : selectedLocation ? `
     <div><span>Location Role</span><strong>${escapeHtml(selectedLocation.category || "Action")}</strong></div>
-    <div><span>Series Tracker</span><strong>Item Points ${tracker.itemDiscountStacks || 0}/5 - TM Points ${tracker.tmDiscountStacks || 0}/5 - RC ${tracker.rangerCredits || 0}</strong></div>
+    <div><span>Series Tracker</span><strong>Ranger Credits ${tracker.rangerCredits || 0}</strong></div>
     ${renderActionLocationServices(selectedLocation, player, tracker)}
   ` : "";
   const activeOperation = currentActionOperation();
-  const manualFinishTypes = new Set(["breeder", "game-corner", "pokemon-center", "graveyard", "pc"]);
+  const manualFinishTypes = new Set(["breeder", "game-corner", "pokemon-center", "graveyard", "pc", "department-store"]);
   if (activeOperation?.playerId === player.id
     && activeOperation.locationId === selectedLocation?.id
     && manualFinishTypes.has(activeOperation.linkedFeatureType)) {
@@ -41682,6 +42403,22 @@ function renderActionPhase() {
     event.preventDefault();
     event.stopPropagation();
     finishCurrentActionOperation();
+  });
+  els.actionLocationMeta.querySelector("[data-department-start]")?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    confirmActionVisit("department-store-primary");
+  });
+  els.actionLocationMeta.querySelector("[data-department-buy-normal]")?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    buyDepartmentStoreProduct(els.actionLocationMeta.querySelector("#departmentBuySelect")?.value, false);
+  });
+  els.actionLocationMeta.querySelectorAll("[data-department-buy-clearance]").forEach((button) => button.addEventListener("click", (event) => {
+    event.stopPropagation();
+    buyDepartmentStoreProduct(button.dataset.departmentBuyClearance, true);
+  }));
+  els.actionLocationMeta.querySelector("[data-department-sell]")?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    sellDepartmentStoreInventory(els.actionLocationMeta.querySelector("#departmentSellSelect")?.value);
   });
   els.actionLocationMeta.querySelectorAll("[data-breeder-pokemon]").forEach((button) => {
     button.addEventListener("click", (event) => {
@@ -41744,6 +42481,14 @@ function renderActionPhase() {
     event.stopPropagation();
     releaseSelectedGraveyardPokemon();
   });
+  const graveyardPokemonSelect = els.actionLocationMeta.querySelector("#graveyardPokemonSelect");
+  graveyardPokemonSelect?.addEventListener("change", () => {
+    const selected = [...graveyardPokemonSelect.selectedOptions]
+      .map((option) => findPokemonRecord(option.value)).filter(Boolean);
+    const total = selected.reduce((sum, pokemon) => sum + pokemonReleaseValue(pokemon), 0);
+    const preview = els.actionLocationMeta.querySelector("[data-graveyard-preview]");
+    if (preview) preview.textContent = `Total Destroy Value: ${formatMoney(total)} - Curse Wheel rolls: ${globalThis.rivalSagaActionPhaseBalance.curseRolls(total)}`;
+  });
   els.actionLocationMeta.querySelector("#graveyardTokenOwnerSelect")?.addEventListener("change", (event) => {
     event.stopPropagation();
     state.graveyardTokenOwnerFilter = event.target.value;
@@ -41771,7 +42516,7 @@ function renderActionPhase() {
   els.actionLocationMeta.querySelector("[data-dragon-den-confirm]")?.addEventListener("click", (event) => {
     event.stopPropagation();
     const selected = els.actionLocationMeta.querySelector("#dragonDenPokemonSelect")?.value;
-    const improvement = els.actionLocationMeta.querySelector("#dragonDenImprovementSelect")?.value || "move";
+    const improvement = "move-or-ability";
     if (selected) placePokemonInDragonsDen(selected, improvement);
   });
   els.actionLocationMeta.querySelectorAll("[data-dragon-den-return]").forEach((button) => {
@@ -41782,24 +42527,24 @@ function renderActionPhase() {
   });
   const silphPokemonSelect = els.actionLocationMeta.querySelector("#silphPokemonSelect");
   const updateSilphPreview = () => {
-    const selected = silphPokemonSelect?.value;
-    const chosenPokemon = activePokemonForPlayer(player.id).find((record) => record.id === selected);
-    const tier = normalizeGameCornerTierId(chosenPokemon?.acquisitionTier || getPokemonFamilyAcquisitionTier(chosenPokemon?.name || "") || getPokemonAcquisitionTier(chosenPokemon?.name || ""));
-    const cost = pokemonTierCost(tier);
+    const selectedIds = [...(silphPokemonSelect?.selectedOptions || [])].map((option) => option.value).slice(0, 4);
+    const chosenPokemon = silphEligiblePokemon(player.id).filter((record) => selectedIds.includes(record.id));
+    const costs = chosenPokemon.map((pokemon) => globalThis.rivalSagaActionPhaseBalance.SILPH_COSTS[pokemonConsolidatedBattleTier(pokemon)] || 0);
+    const cost = costs.reduce((total, value) => total + value, 0);
     const preview = els.actionLocationMeta.querySelector("[data-silph-preview]");
     const button = els.actionLocationMeta.querySelector("[data-silph-start]");
     if (preview) preview.innerHTML = `
-      <div><span>Acquisition Tier</span><strong>${escapeHtml(getPokemonTierLabel(tier) || "Unresolved")}</strong></div>
-      <div><span>Cost</span><strong>${cost ? formatMoney(cost) : "Tier required"}</strong></div>
+      <div><span>Selected</span><strong>${chosenPokemon.length}/3</strong></div>
+      <div><span>Total Cost</span><strong>${cost ? formatMoney(cost) : "Choose Pokémon"}</strong></div>
     `;
-    if (button) button.disabled = !chosenPokemon || !cost || Number(player.balance || 0) < cost;
+    if (button) button.disabled = !chosenPokemon.length || chosenPokemon.length > 3 || costs.some((value) => !value) || Number(player.balance || 0) < cost;
   };
   silphPokemonSelect?.addEventListener("change", updateSilphPreview);
   updateSilphPreview();
   els.actionLocationMeta.querySelector("[data-silph-start]")?.addEventListener("click", (event) => {
     event.stopPropagation();
-    const selected = els.actionLocationMeta.querySelector("#silphPokemonSelect")?.value;
-    if (selected) startSilphCoSession(selected);
+    const selected = [...(els.actionLocationMeta.querySelector("#silphPokemonSelect")?.selectedOptions || [])].map((option) => option.value);
+    if (selected.length) startSilphCoSession(selected);
   });
   els.actionLocationMeta.querySelectorAll("[data-silph-select]").forEach((button) => {
     button.addEventListener("click", (event) => {
@@ -42250,6 +42995,7 @@ function renderWheelPanel() {
   const canAfford = wheel.cost?.type !== "money" || Number(player.balance || 0) >= cost;
   const isReviewing = session.status === "review";
   const isTrainerClassWheel = wheel.id === "trainerClassWheel";
+  const isSlotMachine = wheel.id === "gameCornerGamble";
   const visualSpinActive = isTrainerClassWheel && Number(session.visualSpinUntil || 0) > Date.now();
   if (isTrainerClassWheel && session.visualSpinUntil && !visualSpinActive) {
     session.visualSpinUntil = 0;
@@ -42278,7 +43024,7 @@ function renderWheelPanel() {
   }));
   els.wheelName.textContent = wheel.name;
   els.wheelDescription.textContent = wheel.description;
-  els.wheelRollStatus.textContent = isReviewing ? "Results ready" : Number.isFinite(max) ? `${rolls.length}/${max} rolls used` : `${rolls.length} rolls`;
+  els.wheelRollStatus.textContent = isReviewing ? "Results ready" : isSlotMachine ? `${rolls.length} spins completed` : Number.isFinite(max) ? `${rolls.length}/${max} rolls used` : `${rolls.length} rolls`;
   els.wheelMeta.innerHTML = `
     <div><span>Trainer</span><strong>${escapeHtml(player.name)}</strong></div>
     ${session.targetPlayerId ? `<div><span>Target</span><strong>${escapeHtml(state.players.find((candidate) => candidate.id === session.targetPlayerId)?.name || player.name)}</strong></div>` : ""}
@@ -42308,7 +43054,13 @@ function renderWheelPanel() {
   }).join(", ");
   els.wheelVisual.style.setProperty("--wheel-gradient", `conic-gradient(${gradientStops})`);
   els.wheelVisual.classList.toggle("spinning", isSpinning);
-  els.wheelVisual.innerHTML = `
+  els.wheelVisual.classList.toggle("slot-machine", isSlotMachine);
+  els.wheelVisual.innerHTML = isSlotMachine ? `
+    <div class="slot-machine-marquee">RIVAL SLOTS</div>
+    <div class="slot-reel-bank"><span>${escapeHtml(latest?.outcomeLabel?.split(" ")[0] || "?")}</span><span>${escapeHtml(latest?.rewardName ? "TICKET" : "LUCK")}</span><span>${escapeHtml(latest?.rewardName ? "WIN" : "SPIN")}</span></div>
+    <div class="wheel-disc slot-machine-logic-disc" style="--wheel-rotation:${Number(session.visualRotation || 0)}deg"></div>
+    <div class="slot-machine-payline"></div>
+  ` : `
     <div class="wheel-pointer"></div>
     <div class="wheel-disc" style="--wheel-rotation:${Number(session.visualRotation || 0)}deg">
       <div class="wheel-face${isTrainerClassWheel ? " trainer-class-wheel-face" : ""}" aria-hidden="true">
@@ -42336,7 +43088,7 @@ function renderWheelPanel() {
   els.wheelLatestResult.innerHTML = visualSpinActive
     ? `<span>Passing</span><strong>Spinning...</strong>`
     : latest
-      ? `<span>${isTrainerClassWheel ? "Class result" : "Latest result"}</span><strong>${escapeHtml(latest.outcomeLabel)}${latest.reward ? ` - ${escapeHtml(latest.reward.name)}` : ""}</strong>`
+      ? `<span>${isTrainerClassWheel ? "Class result" : "Latest result"}</span><strong>${escapeHtml(latest.outcomeLabel)}${latest.reward?.name && latest.reward.name !== latest.outcomeLabel ? ` - ${escapeHtml(latest.reward.name)}` : ""}</strong>`
       : isTrainerClassWheel
         ? `<strong>Ready to roll a trainer class.</strong>`
         : `<span>Ready</span><strong>No spins yet.</strong>`;
@@ -42350,7 +43102,7 @@ function renderWheelPanel() {
         ? "Results Ready"
         : remaining <= 0
           ? "Max Spins Used"
-          : canAfford ? "Spin" : "Insufficient Funds";
+          : canAfford ? (isSlotMachine ? "Spin Slots - $2,000" : "Spin") : "Insufficient Funds";
   els.finishWheelSession.textContent = isReviewing ? "Done / Close Session" : "Finish Session";
   els.finishWheelSession.disabled = wheel.id === "trainerClassWheel" && !rolls.length && !isReviewing;
   els.skipWheelAnimation.checked = Boolean(state.skipWheelAnimation);
@@ -43347,29 +44099,8 @@ function ensureTokenScenarioPokemon(player, preferredName = "Abra") {
 
 function addTokenScenarioPersistentEffect(kind, actor, target) {
   if (kind === "none") return "";
-  if (kind === "field") {
-    (state.fieldTokens || []).forEach((field) => {
-      if (field.status === "active") field.status = "replaced";
-    });
-    const fieldRecord = {
-      id: `scenario-field-${Date.now()}`,
-      fieldTokenId: "scenario-drizzle",
-      fieldTokenName: "Drizzle",
-      placedByPlayerId: actor.id,
-      series: state.series,
-      gym: Number(state.gym),
-      phase: currentPhase(),
-      status: "active",
-      testData: true,
-      note: "Advanced Scenario Launcher",
-      createdAt: new Date().toISOString()
-    };
-    state.fieldTokens ||= [];
-    state.fieldTokens.unshift(fieldRecord);
-    return fieldRecord.id;
-  }
   const pokemon = ensureTokenScenarioPokemon(target || actor);
-  const expires = statusExpiresAt(kind === "restrict" ? 2 : 1);
+  const expires = statusExpiresAt(kind === "restrict" ? 6 : 1);
   const status = applyLingeringEffect({
     type: kind,
     name: kind === "restrict" ? "Restricted" : "Safeguard",
@@ -43381,11 +44112,11 @@ function addTokenScenarioPersistentEffect(kind, actor, target) {
     targetPokemonId: kind === "restrict" ? pokemon.id : "",
     targetPokemonName: kind === "restrict" ? pokemon.name : "",
     targetPokemonNameKey: kind === "restrict" ? pokemonRuleKey(pokemon.name) : "",
-    durationGyms: kind === "restrict" ? 2 : 1,
+    durationGyms: kind === "restrict" ? 6 : 1,
     expiresAtSeries: expires.expiresAtSeries,
     expiresAtGym: expires.expiresAtGym,
     testData: true,
-    payload: kind === "restrict" ? { preventsBattleTeamSubmission: true } : { protectionScope: ["moneySteal", "tokenSteal"] },
+    payload: kind === "restrict" ? { preventsBattleTeamSubmission: true } : { protectionScope: ["moneySteal", "moneyDestroy", "moneyCopy", "tokenSteal", "tokenDestroy", "tokenCopy", "followMe", "embargo"] },
     note: "Advanced Scenario Launcher"
   });
   return status.id;
@@ -43488,7 +44219,7 @@ function validateTokenSandboxCommitStructure(candidate) {
   const errors = [];
   if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) errors.push("State must be an object.");
   if (!Array.isArray(candidate?.players) || !candidate.players.length) errors.push("At least one player is required.");
-  ["pokemonRecords", "interactionEvents", "transactions", "log", "lingeringStatuses", "fieldTokens"].forEach((key) => {
+  ["pokemonRecords", "interactionEvents", "transactions", "log", "lingeringStatuses"].forEach((key) => {
     if (!Array.isArray(candidate?.[key])) errors.push(`${key} must be an array.`);
   });
   try {
@@ -43538,7 +44269,6 @@ function prepareTokenSandboxCommitState(workingState, baseline, info) {
     "tokenActivations",
     "playerNotifications",
     "lingeringStatuses",
-    "fieldTokens",
     "randomPokemonSessions",
     "encounterSessions",
     "wheelSessions"
@@ -44891,11 +45621,18 @@ function resolvePlayerNotification(notificationId) {
   if (!player || !pokemon) return;
   const isDaycareMoveNotification = ["breeder-egg-move", "daycare-tm-move"].includes(notification.type);
   const isDragonsDenReward = notification.type === "dragons-den-reward";
-  const isAbilityReward = isDragonsDenReward && notification.payload?.rewardType === "ability";
+  let resolvedDragonRewardType = notification.payload?.rewardType || "move";
+  if (isDragonsDenReward && resolvedDragonRewardType === "move-or-ability") {
+    const kind = prompt("Dragon's Den reward type: enter move or ability", "move")?.trim().toLowerCase();
+    if (!kind) return;
+    if (!['move', 'ability'].includes(kind)) return alert("Choose either move or ability.");
+    resolvedDragonRewardType = kind;
+  }
+  const isAbilityReward = isDragonsDenReward && resolvedDragonRewardType === "ability";
   const isMoveAccessReward = isDaycareMoveNotification || isDragonsDenReward && !isAbilityReward;
   const promptLabel = notification.type === "dragons-den-reward"
     ? isAbilityReward ? "Ability" : "Move"
-    : "TM Move";
+    : "TM";
   const value = prompt(`${promptLabel} for ${pokemon.name}`);
   if (!value?.trim()) return;
   const chosenInput = value.trim();
@@ -44907,10 +45644,20 @@ function resolvePlayerNotification(notificationId) {
     return;
   }
   if (isDaycareMoveNotification) {
-    const compatibleTmKeys = new Set(tmMoveOptionsForPokemon(pokemon, player, { includeUnavailable: true })
-      .map((move) => teambuilderCanonicalMoveKey(move.name)));
-    if (!compatibleTmKeys.has(teambuilderCanonicalMoveKey(chosen))) {
-      alert(`${pokemon.name} cannot learn ${chosen} through Rival Saga's TM movepool.`);
+    const compatibleEggKeys = new Set((notification.payload?.legalTmMoves || daycareTmMoveOptions(pokemon))
+      .map((move) => teambuilderCanonicalMoveKey(move)));
+    if (!compatibleEggKeys.has(teambuilderCanonicalMoveKey(chosen))) {
+      alert(`${pokemon.name} cannot learn ${chosen} as a TM.`);
+      return;
+    }
+  }
+  if (isDragonsDenReward && !isAbilityReward) {
+    const data = teambuilderPokemonData(pokemon) || {};
+    const legalKeys = new Set([...(data.levelUpMoves || []), ...(data.tmMoves || [])]
+      .filter((move) => !rivalSagaMoveIsExcluded(move))
+      .map((move) => teambuilderCanonicalMoveKey(move)));
+    if (!legalKeys.has(teambuilderCanonicalMoveKey(chosen))) {
+      alert(`${pokemon.name} cannot legally learn ${chosen} under the Dragon's Den rule.`);
       return;
     }
   }
@@ -44918,24 +45665,28 @@ function resolvePlayerNotification(notificationId) {
     alert(`${chosen} is not in the imported Rival Saga ability database.`);
     return;
   }
+  if (isAbilityReward && !arenaTrapCustomizationAbilityOptions().some((ability) => teambuilderDataKey(ability) === teambuilderDataKey(chosen))) {
+    alert(`${chosen} is not on the AAA-approved Ability list.`);
+    return;
+  }
   const previousPokemon = structuredClone(pokemon);
   const previousNotifications = structuredClone(state.playerNotifications || []);
   const previousMoveAccessGrants = structuredClone(player.moveAccessGrants || []);
   pokemon.buffs = (pokemon.buffs || []).filter((buff) => {
-    if (isDaycareMoveNotification) return buff !== "Egg Move Pending" && buff !== "TM Move Pending";
+    if (isDaycareMoveNotification) return buff !== "TM Move Pending";
     if (isDragonsDenReward) return !String(buff).startsWith("Dragon's Den ") || !String(buff).endsWith(" Pending");
     return true;
   });
   const buffLabel = isDaycareMoveNotification
-    ? `Daycare TM Move: ${chosen}`
+    ? `Day Care TM: ${chosen}`
     : isAbilityReward
       ? `Dragon's Den Ability: ${chosen}`
       : `Dragon's Den Move: ${chosen}`;
   pokemon.buffs = [...new Set([...(pokemon.buffs || []), buffLabel])];
   const moveAccessGrant = isMoveAccessReward ? grantTeambuilderMoveAccess(player, {
     sourceType: "location",
-    sourceName: isDaycareMoveNotification ? "Daycare" : "Dragon's Den",
-    sourceLabel: isDaycareMoveNotification ? "Daycare TM Move" : "Dragon's Den Move",
+    sourceName: isDaycareMoveNotification ? "Day Care" : "Dragon's Den",
+    sourceLabel: isDaycareMoveNotification ? "Day Care TM" : "Dragon's Den Move",
     sourceRefType: "player-notification",
     sourceRefId: notification.id,
     mode: "specific-moves",
@@ -44994,7 +45745,6 @@ function render() {
   els.seriesSelect.value = state.series;
   els.gymSelect.value = String(state.gym);
   renderPhaseControl();
-  renderFieldIndicator();
   const freeTestingMode = hostTestingOverrideEnabled();
   document.body?.classList.toggle("free-testing-mode", freeTestingMode);
   if (els.freeTestingBanner) {
@@ -45516,6 +46266,7 @@ function phaseAdvanceConfirmMessage(target = nextPhaseTarget()) {
 function honeyEligibleEncounterResults() {
   return (state.randomPokemonSessions || []).filter((session) => {
     if (session.sourceType !== "encounter" || session.status !== "confirmed") return false;
+    if (session.copiedFromRandomPokemonSessionId || session.sourceLabel === "Honey copied Encounter") return false;
     const parent = (state.encounterSessions || []).find((entry) => entry.id === session.encounterSessionId);
     return String(session.series || parent?.series || state.series) === String(state.series)
       && Number(session.gym || parent?.gym || state.gym) === Number(state.gym);
@@ -45603,6 +46354,7 @@ function resolveHoneyEndOfActionProcedure(activityId, sourceRandomPokemonSession
     alert("Honey's exact Token or Encounter selection is no longer available.");
     return false;
   }
+  const causalBeforeHoney = tokenUseRollbackSnapshot();
   const savedPlayers = structuredClone(state.players);
   const savedRandom = structuredClone(state.randomPokemonSessions || []);
   const savedCopies = structuredClone(state.encounterCopyRecords || []);
@@ -45628,11 +46380,29 @@ function resolveHoneyEndOfActionProcedure(activityId, sourceRandomPokemonSession
   activity.resolution = "honey-encounter-copied";
   state.selectedRandomPokemonSessionId = result.randomSession?.id || "";
   state.randomPokemonDrawerOpen = Boolean(result.randomSession);
+  const consumption = addTokenConsumptionRecord({
+    player,
+    token,
+    tokenName: "Honey",
+    metadata: tokenEffectMetadataByName("Honey"),
+    linkedEventId: activity.id,
+    source: "honey-end-of-action"
+  });
+  const causalUndo = buildCausalTokenEffectUndo(causalBeforeHoney, activity, { id: "honey-token", name: "Honey" });
+  causalUndo.procedureId = procedure.id;
+  causalUndo.copiedRandomPokemonSessionId = result.randomSession?.id || "";
   addLogEntry({
     action: "token", category: "pokemon", player: player.name,
     item: result.reason, title: `${player.name} used Honey`, summary: result.reason,
     type: "honey-encounter-copy", categories: ["tokens", "pokemon", "encounter"],
-    tags: ["honey", "encounter-copy", "end-of-action"], playerIds: [player.id], tokenNames: ["Honey"]
+    tags: ["honey", "encounter-copy", "end-of-action"], playerIds: [player.id], tokenNames: ["Honey"],
+    linkedEventId: activity.id,
+    tokenConsumptionId: consumption?.id || "",
+    encounterCopyRecordId: result.record?.id || "",
+    copiedRandomPokemonSessionId: result.randomSession?.id || "",
+    undoable: true,
+    undone: false,
+    undoData: causalUndo
   });
   saveState({ immediate: true });
   render();
@@ -45683,6 +46453,8 @@ function phaseAdvanceUndoSnapshot() {
     inventories: Object.fromEntries(state.players.map((player) => [player.id, structuredClone(player.inventory || [])])),
     pokemonRecords: structuredClone(state.pokemonRecords || []),
     playerNotifications: structuredClone(state.playerNotifications || []),
+    breederDeposits: structuredClone(state.breederDeposits || []),
+    dragonsDenSessions: structuredClone(state.dragonsDenSessions || []),
     lingeringStatuses: structuredClone(state.lingeringStatuses || []),
     globalPokemonRules: structuredClone(state.globalPokemonRules || {}),
     banlistHistory: structuredClone(state.banlistHistory || []),
@@ -45708,6 +46480,14 @@ function closePhaseAdvanceConfirm() {
 async function confirmPhaseAdvance({ skipPendingGuard = false } = {}) {
   if (!pendingPhaseAdvance) return;
   const target = pendingPhaseAdvance;
+  const unresolvedDevelopment = (state.playerNotifications || []).find((notification) =>
+    ["breeder-egg-move", "daycare-tm-move", "dragons-den-reward"].includes(notification.type)
+    && !["completed", "resolved", "cancelled", "dismissed"].includes(String(notification.status || "pending").toLowerCase()));
+  if (unresolvedDevelopment && (target.phase === "battle" || target.flowState === LIVE_REFEREE_FLOW_STATES.TEAM_LOCK)) {
+    const owner = state.players.find((player) => player.id === unresolvedDevelopment.playerId);
+    alert(`${owner?.name || "A trainer"} must resolve ${unresolvedDevelopment.title || "a facility reward"} before Team Lock.`);
+    return;
+  }
   const revisionOperation = currentBlockingBattleRevisionOperation();
   if (revisionOperation) {
     alert("Sabotage is paused until every required team revision is confirmed.");
@@ -45836,6 +46616,7 @@ async function performPhaseAdvance(target = nextPhaseTarget()) {
     if (next.series !== state.series) clearSeriesEvolutionLocksForSeries(state.series);
     state.series = next.series;
     state.gym = next.gym;
+    processAutomaticFacilityReturns();
     state.seriesOrder ||= [];
     if (!state.seriesOrder.includes(next.series)) state.seriesOrder.push(next.series);
     state.battleLogView = { series: next.series, gym: Number(next.gym) };
@@ -46436,7 +47217,29 @@ function teambuilderShowdownSlotTitle(slot, pokemon) {
   return `${nickname}${slot.item ? ` @ ${slot.item}` : ""}`;
 }
 
+function activeMoveDeleterMoveNames() {
+  return (controlTokenEffects?.activeMoveRestrictions?.(state, controlTokenEffectOptions()) || [])
+    .map((status) => teambuilderCanonicalMoveName(status.payload?.moveName || ""))
+    .filter(Boolean);
+}
+
+function moveDeleterViolationsForMoveLists(moveLists = []) {
+  const restrictedByKey = new Map(activeMoveDeleterMoveNames()
+    .map((name) => [teambuilderCanonicalMoveKey(name), name]));
+  return [...new Set((moveLists || []).flatMap((moves) => (moves || [])
+    .map((move) => restrictedByKey.get(teambuilderCanonicalMoveKey(move)) || "")
+    .filter(Boolean)))];
+}
+
+function moveDeleterViolationsForBuild(build, player) {
+  return moveDeleterViolationsForMoveLists((build?.slots || []).map((slot) => {
+    const pokemon = teambuilderPokemonForSlot(slot, player?.id || build?.playerId || "");
+    return teambuilderEffectiveSlot(slot, pokemon).moves || [];
+  }));
+}
+
 function teambuilderExportShowdownText(build, player) {
+  if (moveDeleterViolationsForBuild(build, player).length) return "";
   return (build?.slots || [])
     .map((slot) => {
       const pokemon = teambuilderPokemonForSlot(slot, player?.id || build?.playerId || "");
@@ -46552,6 +47355,11 @@ function importShowdownTeamToActiveBuild(text, player = activePlayer()) {
     alert("No Showdown-style sets were found.");
     return false;
   }
+  const moveDeleterViolations = moveDeleterViolationsForMoveLists(sets.map((set) => set.moves));
+  if (moveDeleterViolations.length) {
+    alert(`Import rejected: ${moveDeleterViolations.join(", ")} ${moveDeleterViolations.length === 1 ? "is" : "are"} unavailable because of Move Deleter.`);
+    return false;
+  }
   const build = activeTeamBuildDraftForPlayer(player.id, { create: true });
   if (!build) return false;
   if ((build.slots || []).some((slot) => teambuilderSlotHasPokemon(slot) || slot.moves?.some(Boolean))
@@ -46600,6 +47408,7 @@ function importShowdownTeamToActiveBuild(text, player = activePlayer()) {
 }
 
 function renderTeambuilderImportExportPanel(build, player) {
+  const moveDeleterViolations = moveDeleterViolationsForBuild(build, player);
   const exportText = teambuilderExportShowdownText(build, player);
   return `
     <details class="teambuilder-io-panel">
@@ -46607,6 +47416,7 @@ function renderTeambuilderImportExportPanel(build, player) {
         <strong>Showdown Import / Export</strong>
         <span>Pokepaste-style sets</span>
       </summary>
+      ${moveDeleterViolations.length ? `<p class="empty-state compact">Export unavailable: ${escapeHtml(moveDeleterViolations.join(", "))} ${moveDeleterViolations.length === 1 ? "is" : "are"} blocked by Move Deleter.</p>` : ""}
       <textarea data-teambuilder-showdown-text rows="9" spellcheck="false" placeholder="Paste Showdown/Pokepaste sets here, or copy the current export.">${escapeHtml(exportText)}</textarea>
       <div class="teambuilder-io-actions">
         <button class="ghost-button mini-button" type="button" data-teambuilder-copy-showdown>Copy Export</button>
@@ -46617,7 +47427,14 @@ function renderTeambuilderImportExportPanel(build, player) {
 }
 
 function copyTeambuilderShowdownExport(textarea) {
-  const text = textarea?.value || teambuilderExportShowdownText(activeTeamBuildDraftForPlayer(activePlayer().id), activePlayer());
+  const player = activePlayer();
+  const build = activeTeamBuildDraftForPlayer(player.id);
+  const moveDeleterViolations = moveDeleterViolationsForBuild(build, player);
+  if (moveDeleterViolations.length) {
+    alert(`Export rejected: ${moveDeleterViolations.join(", ")} ${moveDeleterViolations.length === 1 ? "is" : "are"} unavailable because of Move Deleter.`);
+    return;
+  }
+  const text = textarea?.value || teambuilderExportShowdownText(build, player);
   if (!text.trim()) {
     alert("There is no active draft to export yet.");
     return;
@@ -48222,9 +49039,11 @@ function currentRosterSnapshot(playerId) {
     .map((pokemon) => {
       const reasons = [];
       const ruleStatus = pokemonGlobalRuleStatus(pokemon);
-      if (["Banned", "Restricted"].includes(ruleStatus)) reasons.push(ruleStatus);
+      const restrictImmune = controlTokenEffects?.pokemonHasRestrictImmunity?.(state, pokemon, controlTokenEffectOptions()) === true;
+      if (ruleStatus === "Banned") reasons.push("Banned");
+      if (ruleStatus === "Restricted" && !restrictImmune) reasons.push("Restricted");
       if (pokemonNameHasActiveStatus(pokemon.name, "ban") && !reasons.includes("Banned")) reasons.push("Banned");
-      if (pokemonNameHasActiveStatus(pokemon.name, "restrict") && !reasons.includes("Restricted")) reasons.push("Restricted");
+      if (!restrictImmune && pokemonNameHasActiveStatus(pokemon.name, "restrict") && !reasons.includes("Restricted")) reasons.push("Restricted");
       if (pokemon.breederStatus?.status) reasons.push("Daycare");
       if (pokemon.dragonDenStatus?.status) reasons.push("Dragon's Den");
       return {
@@ -48256,7 +49075,7 @@ function currentPhaseTeams() {
     team.selected ||= [];
     team.badgeBoosts ||= [];
     team.badgeBoosts = (team.badgeBoosts || []).map((value) => Math.max(0, Number(value) || 0));
-    team.roster ||= currentRosterSnapshot(player.id);
+    team.roster = currentRosterSnapshot(player.id);
     if (team.locked) {
       team.gymId ||= key;
       team.playerId ||= player.id;
@@ -51046,6 +51865,7 @@ function resolvePostPayoutPurgeMarkers(broughtSnapshot) {
     && Number(status.gym || 0) === Number(state.gym || 0)
   ));
   return markers.map((marker) => {
+    const causalBeforePurge = tokenUseRollbackSnapshot();
     const result = controlTokenEffects.resolvePostPayoutPurge(state, {
       markerStatusId: marker.id,
       broughtSnapshotId: broughtSnapshot.id
@@ -51070,6 +51890,18 @@ function resolvePostPayoutPurgeMarkers(broughtSnapshot) {
         effectOperationId: result.operation?.id || "",
         eventOrder: nextEventOrder()
       });
+      const rootLog = (state.log || []).find((entry) => !entry.undone
+        && entry.linkedEventId === marker.sourceEffectId
+        && entry.undoData?.actionType === "undoTokenEffectContractCausal");
+      if (rootLog) {
+        const payoutUndo = buildCausalTokenEffectUndo(causalBeforePurge, {
+          id: marker.sourceEffectId,
+          payload: { tokenName: "Purge Curse" }
+        }, { id: "purge-curse", name: "Purge Curse" });
+        rootLog.undoData = mergeCausalTokenUndoData(rootLog.undoData, payoutUndo);
+        rootLog.purgePostPayoutCompleted = true;
+        rootLog.effectOperationId = result.operation?.id || "";
+      }
     }
     return result;
   });
@@ -52594,7 +53426,6 @@ function startTrainerClassWheelActivation(player, effect, definition, targetPlay
   const rollbackSnapshot = {
     players: structuredClone(state.players || []),
     pokemonRecords: structuredClone(state.pokemonRecords || []),
-    fieldTokens: structuredClone(state.fieldTokens || []),
     tokenActivations: structuredClone(state.tokenActivations || []),
     wheelSessions: structuredClone(state.wheelSessions || []),
     selectedWheelSessionId: state.selectedWheelSessionId || "",
@@ -52603,7 +53434,6 @@ function startTrainerClassWheelActivation(player, effect, definition, targetPlay
   const rollback = () => {
     state.players = structuredClone(rollbackSnapshot.players);
     state.pokemonRecords = structuredClone(rollbackSnapshot.pokemonRecords);
-    state.fieldTokens = structuredClone(rollbackSnapshot.fieldTokens);
     state.tokenActivations = structuredClone(rollbackSnapshot.tokenActivations);
     state.wheelSessions = structuredClone(rollbackSnapshot.wheelSessions);
     state.selectedWheelSessionId = rollbackSnapshot.selectedWheelSessionId;
@@ -52640,7 +53470,6 @@ function startTrainerClassWheelActivation(player, effect, definition, targetPlay
       definition,
       previousPlayers: rollbackSnapshot.players,
       previousPokemonRecords: rollbackSnapshot.pokemonRecords,
-      previousFieldTokens: rollbackSnapshot.fieldTokens,
       previousTokenActivations: rollbackSnapshot.tokenActivations,
       previousWheelSessions: rollbackSnapshot.wheelSessions
     });
@@ -52746,7 +53575,6 @@ function applyUtilityTokenActivation(player, effect, definition) {
   }
   const previousPlayers = structuredClone(state.players || []);
   const previousPokemonRecords = structuredClone(state.pokemonRecords || []);
-  const previousFieldTokens = structuredClone(state.fieldTokens || []);
   const previousLingeringStatuses = structuredClone(state.lingeringStatuses || []);
   const previousTokenActivations = structuredClone(state.tokenActivations || []);
   const previousWheelSessions = structuredClone(state.wheelSessions || []);
@@ -52854,25 +53682,6 @@ function applyUtilityTokenActivation(player, effect, definition) {
       if (index >= 0) removed.push(`${rival.name}: ${rival.inventory.splice(index, 1)[0].name}`);
     });
     details.push(removed.length ? `Removed: ${removed.join(", ")}` : `No matching non-Masterball Item/TM found: ${choice}`);
-  } else if (definition.effectType === "field") {
-    (state.fieldTokens || []).forEach((field) => {
-      if (field.status === "active") field.status = "replaced";
-    });
-    const field = {
-      id: `field-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-      fieldTokenId: consumedToken.id,
-      fieldTokenName: consumedToken.name,
-      placedByPlayerId: player.id,
-      series: state.series,
-      gym: Number(state.gym),
-      phase: currentPhase(),
-      status: "active",
-      note: definition.note || "",
-      createdAt: now
-    };
-    state.fieldTokens ||= [];
-    state.fieldTokens.unshift(field);
-    details.push(`Placed active field: ${consumedToken.name}`);
   } else {
     details.push(definition.note || "Activation recorded for future resolution.");
   }
@@ -52924,7 +53733,6 @@ function applyUtilityTokenActivation(player, effect, definition) {
       activationId: activation.id,
       previousPlayers,
       previousPokemonRecords,
-      previousFieldTokens,
       previousLingeringStatuses,
       previousTokenActivations,
       previousPlayerNotifications
@@ -52960,7 +53768,7 @@ async function applyActivationOverlay() {
       return;
     }
     const utilityDefinition = activationDraft.utilityDefinitionId ? utilityTokenDefinitions[activationDraft.utilityDefinitionId] : utilityTokenDefinitionByName(effect.name);
-    if (utilityDefinition && ["extraEncounter", "safeguard", "fieldState"].includes(engineMetadata.resolverId)) {
+    if (utilityDefinition && ["extraEncounter", "safeguard"].includes(engineMetadata.resolverId)) {
       const targetPlayer = engineMetadata.selfOnly
         ? player
         : state.players.find((candidate) => candidate.id === els.activationTargetPlayer.value) || player;
@@ -55206,7 +56014,7 @@ function upgradeShop(shop) {
     action: "upgrade",
     category: "player",
     player: player.name,
-    item: `${shop === "items" ? "Department Store" : "Move Dojo"} upgraded to ${shopLevelNames[next]}`,
+    item: `${shop === "items" ? "Department Store" : "Legacy TM shop"} upgraded to ${shopLevelNames[next]}`,
     type: shop,
     quantity: 1,
     price: 0,
@@ -55470,7 +56278,7 @@ function undoEncounterActionVisit(undoData) {
 function restoreTokenEffectContractUndoData(undoData) {
   if (undoData.previousPlayers) state.players = structuredClone(undoData.previousPlayers);
   if (undoData.previousPokemonRecords) state.pokemonRecords = structuredClone(undoData.previousPokemonRecords).map(normalizePokemonRecord);
-  if (undoData.previousFieldTokens) state.fieldTokens = structuredClone(undoData.previousFieldTokens);
+  if (undoData.previousPokemonLog) state.pokemonLog = structuredClone(undoData.previousPokemonLog);
   if (undoData.previousLingeringStatuses) state.lingeringStatuses = structuredClone(undoData.previousLingeringStatuses);
   if (undoData.previousTokenActivations) state.tokenActivations = structuredClone(undoData.previousTokenActivations);
   if (undoData.previousTokenConsumptions) state.tokenConsumptions = structuredClone(undoData.previousTokenConsumptions);
@@ -55510,7 +56318,7 @@ function restoreTokenEffectContractUndoData(undoData) {
 function newerCommittedTokenEffectLog(entry) {
   const order = Number(entry?.eventOrder || 0);
   return (state.log || [])
-    .filter((candidate) => !candidate.undone && candidate.undoable && candidate.undoData?.actionType === "undoTokenEffectContract")
+    .filter((candidate) => !candidate.undone && candidate.undoable && ["undoTokenEffectContract", "undoTokenEffectContractCausal"].includes(candidate.undoData?.actionType))
     .filter((candidate) => candidate.id !== entry.id && Number(candidate.eventOrder || 0) > order)
     .sort((a, b) => Number(b.eventOrder || 0) - Number(a.eventOrder || 0))[0] || null;
 }
@@ -55521,7 +56329,7 @@ function undoLogEntry(logId) {
   const entry = state.log.find((item) => item.id === logId);
   if (!entry || entry.undone || !entry.undoable || !entry.undoData) return;
   const { undoData } = entry;
-  if (undoData.actionType === "undoTokenEffectContract") {
+  if (["undoTokenEffectContract", "undoTokenEffectContractCausal"].includes(undoData.actionType)) {
     const newer = newerCommittedTokenEffectLog(entry);
     if (newer) {
       alert(`Rewind the newer Token event first:\n\n${describeLogEntry(newer)}`);
@@ -55589,8 +56397,8 @@ function undoLogEntry(logId) {
       syncPlayerPokemonLists();
     }
     if (undoData.previousPlayerNotifications) state.playerNotifications = structuredClone(undoData.previousPlayerNotifications);
-    if (undoData.previousFieldTokens) state.fieldTokens = structuredClone(undoData.previousFieldTokens);
     if (undoData.previousGraveyardSessions) state.graveyardSessions = structuredClone(undoData.previousGraveyardSessions);
+    if (undoData.previousDepartmentStoreVisits) state.departmentStoreVisits = structuredClone(undoData.previousDepartmentStoreVisits);
     if (undoData.previousPcSessions) state.pcSessions = structuredClone(undoData.previousPcSessions);
     if (undoData.previousRangerBaseSessions) state.rangerBaseSessions = structuredClone(undoData.previousRangerBaseSessions);
     if (undoData.previousPokemonCenterSessions) state.pokemonCenterSessions = structuredClone(undoData.previousPokemonCenterSessions);
@@ -55613,6 +56421,7 @@ function undoLogEntry(logId) {
     if (undoData.previousMoneyLedger) state.moneyLedger = structuredClone(undoData.previousMoneyLedger);
     if (undoData.previousPokemonRecords) state.pokemonRecords = structuredClone(undoData.previousPokemonRecords).map(normalizePokemonRecord);
     if (undoData.previousSilphCoSessions) state.silphCoSessions = structuredClone(undoData.previousSilphCoSessions);
+    if (player && undoData.previousMoveAccessGrants) player.moveAccessGrants = structuredClone(undoData.previousMoveAccessGrants);
     syncPlayerPokemonLists();
   } else if (undoData.actionType === "undoHiddenGrottoAction") {
     const key = actionPhaseKey(undoData.series, undoData.gym);
@@ -55762,6 +56571,8 @@ function undoLogEntry(logId) {
     restoreTokenEffectContractUndoData(undoData);
   } else if (undoData.actionType === "undoTokenEffectContract") {
     restoreTokenEffectContractUndoData(undoData);
+  } else if (undoData.actionType === "undoTokenEffectContractCausal") {
+    restoreCausalTokenEffectUndoData(undoData);
   } else if (undoData.actionType === "undoGameCornerTokenUse") {
     const player = state.players.find((candidate) => candidate.id === undoData.playerId);
     if (!player) return;
@@ -55792,6 +56603,8 @@ function undoLogEntry(logId) {
     });
     if (previous.pokemonRecords) state.pokemonRecords = structuredClone(previous.pokemonRecords).map(normalizePokemonRecord);
     if (previous.playerNotifications) state.playerNotifications = structuredClone(previous.playerNotifications);
+    if (previous.breederDeposits) state.breederDeposits = structuredClone(previous.breederDeposits);
+    if (previous.dragonsDenSessions) state.dragonsDenSessions = structuredClone(previous.dragonsDenSessions);
     if (previous.lingeringStatuses) state.lingeringStatuses = structuredClone(previous.lingeringStatuses);
     if (previous.globalPokemonRules) state.globalPokemonRules = structuredClone(previous.globalPokemonRules);
     if (previous.banlistHistory) state.banlistHistory = structuredClone(previous.banlistHistory);
@@ -56108,15 +56921,15 @@ function bindEvents() {
       loadSiteShellData();
     }
   });
-  document.querySelectorAll(".top-level-tab").forEach((tab) => {
-    tab.addEventListener("click", () => {
-      const nextPage = tab.dataset.page || "playerHub";
-      if (!TOP_LEVEL_PAGE_IDS.includes(nextPage)) return;
-      if (state.activePage === nextPage) return;
-      state.activePage = nextPage;
-      saveClientUiState();
-      render();
-    });
+  document.addEventListener("click", (event) => {
+    const tab = event.target.closest(".top-level-tab");
+    if (!tab) return;
+    const nextPage = tab.dataset.page || "playerHub";
+    if (!TOP_LEVEL_PAGE_IDS.includes(nextPage)) return;
+    if (state.activePage === nextPage) return;
+    state.activePage = nextPage;
+    saveClientUiState();
+    render();
   });
 
   document.querySelectorAll(".app-tab").forEach((tab) => {
@@ -57312,6 +58125,18 @@ function bindEvents() {
     applyRulesetPatchToGame(patchButton.dataset.sitePatchGame, patchButton.dataset.siteApplyPatch);
   });
   els.cancelActionVisit.addEventListener("click", clearSelectedActionLocation);
+  els.actionToggleDemoMode?.addEventListener("click", () => {
+    setAdminFreeTestingMode(!hostTestingOverrideEnabled());
+  });
+  els.actionTurnRail?.addEventListener("click", (event) => {
+    const playerButton = event.target.closest("[data-action-player-id]");
+    if (!playerButton || !hostTestingOverrideEnabled()) return;
+    const playerId = playerButton.dataset.actionPlayerId || "";
+    if (!switchActivePlayer(playerId, { testingOverride: true })) return;
+    setTestingToolsState({ controlledPlayerId: playerId });
+    saveState({ immediate: true });
+    render();
+  });
   els.actionLocationBoard.addEventListener("click", (event) => {
     const node = event.target.closest("[data-location-id]");
     if (!node || !els.actionLocationBoard.contains(node)) return;
@@ -57330,6 +58155,12 @@ function bindEvents() {
     if (tokenButton && els.actionLocationMeta.contains(tokenButton)) {
       event.preventDefault();
       if (!tokenButton.disabled) useGameCornerToken(tokenButton.dataset.gcTier);
+      return;
+    }
+    const ticketButton = event.target.closest("[data-gc-buy-ticket]");
+    if (ticketButton && els.actionLocationMeta.contains(ticketButton)) {
+      event.preventDefault();
+      if (!ticketButton.disabled) buyGameCornerTicket(ticketButton.dataset.gcBuyTicket);
       return;
     }
   });
@@ -57608,16 +58439,6 @@ function bindEvents() {
     els.globalThemeMenu.classList.add("hidden");
     els.trainerMenu.classList.add("hidden");
     els.themeMenu.classList.add("hidden");
-  });
-  els.fieldIndicator?.addEventListener("click", (event) => {
-    event.stopPropagation();
-    const field = activeFieldToken();
-    if (!field) {
-      alert("No active field.");
-      return;
-    }
-    const player = state.players.find((entry) => entry.id === field.placedByPlayerId);
-    alert(`${field.fieldTokenName}\nPlaced by: ${player?.name || "Unknown"}\n${field.series} Gym ${field.gym}${field.note ? `\n\n${field.note}` : ""}`);
   });
   els.mvpSearch.addEventListener("input", () => {
     state.mvpFilters.search = els.mvpSearch.value;

@@ -148,7 +148,7 @@ The Situation and five-seat table are an adaptive workspace. Surface classificat
 
 `state.liveTable` remains a derived prompt layer rather than a separate rules source. Precise `flowState` values distinguish Pregym, Gym Start, Action, Team Build, Team Lock, Sabotage, Team Preview, Rival Battles, Gym Payout, Victory Road, Shopping, and End Gym while preserving the broader rulebook phases.
 
-The persistent gameplay HUD is also derived. `deriveLiveRefereeHudViewModel` and adjacent presentation helpers read the current prompt, prompt priority, flow state, Action counts, team locks, revision windows, battle records, active Field, and lingering public effects. They render orientation, a stable five-player pentagon, phase progress, compact chain context, and the collapsed summary without storing a second gameplay cursor. Situation + Choices remains the replaceable center screen.
+The persistent gameplay HUD is also derived. `deriveLiveRefereeHudViewModel` and adjacent presentation helpers read the current prompt, prompt priority, flow state, Action counts, team locks, revision windows, battle records, and lingering public effects. They render orientation, a stable five-player pentagon, phase progress, compact chain context, and the collapsed summary without storing a second gameplay cursor. Situation + Choices remains the replaceable center screen.
 
 Decorative effect presentation is reconstructed from the current prompt or persistent result announcement. A new prompt may animate once during the current browser session; reload shows the correct final pending/result position without replaying travel motion. Token art is optional and falls back to a readable effect badge. The animation layer never advances priority, resolves effects, or mutates targets.
 
@@ -182,17 +182,17 @@ Canonical phase flow is defined in `TIMING_AND_PHASES.md`. The implementation cu
 - Pre-Gym resolves or expires queued effects before declarations open at Gym Start.
 - The Battle Phase sequence is Team Building, Team Lock, Sabotage, Team Preview, Rival Battle Phase, then Battle Payout.
 - Battle Payout owns salary, placement rewards, Victory Road resolution, Momentum calculation/rewards, player record updates, Pokemon record updates, and corrections.
-- Shop Phase owns normal purchases. Action Phase spending is allowed only when a specific location/effect permits it, such as Department Store for Items or Move Dojo for TMs.
+- Shop Phase owns ordinary shop purchases. Department Store is the Action Phase exception for its persisted full-catalog Item/TM visit.
 
 Action Phase:
 - Each player has 3 actions per Action Phase.
 - Each location visit costs 1 action.
 - Action Phase order is locked per Series/Gym when the gym's action state is created. The order follows placement/leaderboard order from first place downward, then cycles until each player has spent their actions.
 - Confirming an Action Phase location outside the active turn is blocked by the action confirmation helper.
+- Once the backend accepts an exact player/location/service destination reservation, that same reservation may pass through the local starter's duplicate-confirmation guard. Other destinations remain blocked, and a starter failure releases the accepted reservation without spending an Action.
 - Action selections should be draft/preview state until the player confirms the visit/effect.
 - Confirmed Action Phase visits should later create Activity Log entries and undo data where practical.
-- Series-scoped trackers should reset at series end, including Item Points, TM Points, and Ranger Credits.
-- Item Points and TM Points are single scaling discount sources: 1 point = 10%, 2 points = 20%, up to 5 points = 50%. They do not add together with separate discount sources; purchase logic should apply the highest applicable discount source.
+- Ranger Credits remain series-scoped. Item Points and TM Points are removed and legacy save fields are inert compatibility data.
 - Location definitions live in `actionPhaseRules` so future UI can consume one rules source instead of copying text.
 
 Battle Phase:
@@ -219,28 +219,28 @@ Pokemon management:
 
 ## Token Automation Status
 
-Token activation is intentionally incremental. The Activation Overlay is the commit point and should store enough prior state for undo before changing rosters, inventory, field state, lingering statuses, or trainer class wheel sessions.
+Token activation is intentionally incremental. The Activation Overlay is the commit point and should store enough prior state for undo before changing rosters, inventory, lingering statuses, or trainer class wheel sessions.
 
 Current first-pass token behavior:
 
-- Token/Ticket boundary: normal Tokens are effect objects and are usually consumed on use, except Field Tokens. Tickets are key-item-like reward/access resources tied to Pokemon reward systems. Legacy Ticket, Game Corner Ticket, and Badge Point are not normal Tokens.
-- Token Timing Engine v1 adds richer token metadata for object type, family, timing windows, activation pattern, persistence bucket, resolution payloads, target type/scope, duration, consumption behavior, response behavior, and resolver id. The first wired representatives are Extra Encounter, Restrict, Safeguard, Immunity, Drizzle, and Reroll Token. The engine deliberately separates consumed token records from created lingering/field/effect records.
+- Token/Ticket boundary: normal Tokens are effect objects and are usually consumed on use. Tickets are key-item-like reward/access resources tied to Pokemon reward systems. Legacy Ticket, Game Corner Ticket, and Badge Point are not normal Tokens.
+- Token Timing Engine v1 adds richer token metadata for object type, family, timing windows, activation pattern, persistence bucket, resolution payloads, target type/scope, duration, consumption behavior, response behavior, and resolver id. The first wired representatives are Extra Encounter, Restrict, Safeguard, Immunity, and Reroll Token. The engine deliberately separates consumed Token records from created lingering/effect records.
 - `token-control-effects.js` is the pure resolver foundation for Restrict, standard species-wide Curses, instance-scoped restrictions, Extra Ban, Unban, Substitute interception, Arena Trap, Clear Smog, Rage Candy Bar, Incinerate, Steal, Wicked Blow, Move Deleter, explicit ongoing-effect replacement/suppression, Smokescreen replacement, copied-activation provenance, post-payout Purge/Revenge, and delayed Teleport records. Effect records separate the declared target from `applicationScope` and preserve singular anchors plus selected, affected, protected, and excluded exact collections. Atomic operations retain pre-mutation snapshots, stable operation IDs, lifecycle state, and undo/refund data where required.
-- Control tokens: Rage Candy Bar, Arena Trap, Clear Smog, Wicked Blow, Incinerate, Steal, Class Change, Rebrand, Restrict, Extra Ban, Unban, and Move Deleter are the target Control timing group. Link Cable has been removed from Rival Saga and is filtered from legacy catalogs, inventories, and Pokemon buffs during migration. Arena Trap, Incinerate, and Pokemon-targeting Steal are `verifiedComplete` against their approved contracts. Wicked Blow remains `partial` and usable with exact Active Roster targeting. Move Deleter uses the legacy `move-deleter-curse` status ID only for save compatibility, but its current contract is ordinary Control Timing with a global exact-move restriction during the next Gym; Teambuilder selection, validation, imports, exports, and generated sets consult that restriction.
-- Live Referee effect choices are derived from exact owned inventory records that resolve to canonical Token contracts, then pass runtime-usability and current-timing checks. Token categories, Shop containers, unknown placeholders, Tickets, blocked/development-only effects, and legacy Electric/Grassy Field pseudo-Tokens never become activatable choices. Canonical Curse contracts expose an explicit Sabotage-only Curse window without opening Sabotage to ordinary Control or Field effects. Wicked Blow target eligibility waits for the production `pokemon-build-data.js` dataset and uses the resolver's existing evolution/final-tier path; asynchronous loading is represented as a non-terminal UI state rather than permanent target ineligibility.
+- Control tokens: Rage Candy Bar, Arena Trap, Clear Smog, Wicked Blow, Incinerate, Steal, Class Change, Rebrand, Restrict, Extra Ban, Unban, Cold Wave, and Move Deleter are the target Control timing group. Link Cable has been removed from Rival Saga and is filtered from legacy catalogs, inventories, and Pokemon buffs during migration. Cold Wave and Wicked Blow are `verifiedComplete`: ongoing-effect consumers use suppression-aware lookup, while Wicked Blow preserves exact Active-roster identity and only updates pre-existing team references. Mixed-tier terminal branches remain an explicit fail-closed boundary rather than an invented tier choice.
+- Live Referee effect choices are derived from exact owned inventory records that resolve to canonical Token contracts, then pass runtime-usability and current-timing checks. Token categories, Shop containers, unknown placeholders, Tickets, and blocked/development-only effects never become activatable choices. Canonical Curse contracts expose an explicit Sabotage-only Curse window without opening Sabotage to ordinary Control effects. Wicked Blow target eligibility waits for the production `pokemon-build-data.js` dataset and uses the resolver's existing evolution/final-tier path; asynchronous loading is represented as a non-terminal UI state rather than permanent target ineligibility.
 - Arena Trap is a team mutation, not only a Team Lock validator. Its exact-instance lingering status owns the forced draft insertion, forced slot reference, minimum Badge assignment, Curse protection, repair state, tier-at-resolution metadata, optional compensation grant, and cleanup boundary. Eligibility asks the same authoritative question as Teambuilder: whether the target owner can currently bring that exact Active-roster Pokemon after tier, Badge-capacity, Ban, Restrict, exact restriction, and exemption checks. Compensation is a separate calculation: two or more ordered Battle Tier steps below the Natural tier, with Elite tiers counted as distinct steps, requires the target owner to choose one approved injected Ability or move before Team Lock. Full teams temporarily carry the inserted seventh member and require the player to remove an unlocked member; forced members are never silently displaced.
 - Final effect presentation reads `finalResultSummary` rather than reconstructing causality from log prose. The structure preserves the original declaration, selected target/application scope, response effects, canonical final outcome, created/removed/prevented mutations, exact affected/excluded instances, consumption/refund records, continuation, and visual chain nodes. Detailed passes and priority events remain in History.
-- Protection and encounter tokens: Substitute has a structured owned-instance attachment and pre-mutation interception path. 7 Tools Of The Bandit and Counterspell share an exact-inventory runtime. A temporary 7 Tools copy retains canonical source identity, is usable only during its creation Gym, and expires once at the next Gym boundary. Follow Me creates a parent-gated Gym-long relationship and grants canonical real inventory copies after later real Token consumption; Drizzle shares that inventory mutation without sharing Follow Me's trigger. Ditto transforms one exact inventory record into a chosen canonical Token without activating it. After You creates a provenance-linked non-inventory activation above the original chain, with fresh targets for supported automatic Controls and explicit Immunity/Safeguard behavior; unsupported interactions fail closed individually. Smokescreen has a Guided replacement-target wheel flow: each player appears once, the original player/no-legal-target outcomes preserve the original target, and no additional target is created. Teleport persists exact root Control-controller Token declarations and reopens one deterministic response window at the next Gym's matching phase. Revenge persists an optional post-payout required-choice procedure based on exact Curse anchors and the immutable brought-team snapshot; both use terminal lifecycle state, refresh-safe IDs, History, and undo/refund boundaries.
-- Curses: Toxic, Iron Ball, Flame, Silencing, Imprison, Devolve, Haze, and Foresight are Pokemon-name species effects unless an individual contract says otherwise. Their declaration anchor is one exact Active Roster instance and their application enumerates matching Active Roster instances globally. Haze takes two different species anchors and preserves per-instance Substitute/Curse immunity. Devolve overlays one safe direct pre-evolution without changing roster identity. Knock Off remains exact-instance and destroys one exact held Item or TM grant, opening mandatory Team Revision when final TM access is lost. Purge targets one player and is an absolute post-payout operation with no ordinary response or Trade window; it ignores gameplay negation, redirection, Substitute, and Curse immunity. Foresight remains blocked until authenticated player-scoped move-only delivery exists, and the backend recursively strips private records from shared payloads.
-- Field tokens: Payday, Drizzle, Drought, Taunt, Snow Warning, Sand Stream, Infestation, and Surging Strikes place an active `state.fieldTokens` record with the field note. Full field-specific rule engines are intentionally deferred.
+- Protection and encounter tokens: Substitute has a structured owned-instance attachment and pre-mutation interception path. 7 Tools Of The Bandit and Counterspell share an exact-inventory runtime. Follow Me creates a parent-gated Gym-long relationship, while Ditto transforms one exact inventory record into a chosen canonical Token. After You creates a provenance-linked non-inventory activation; unsupported interactions fail closed individually. Teleport is verified for exact root Control-controller Token declarations and merges its delayed and returned phases into one causal History operation. Reroll is verified on exact unresolved Encounter and supported wheel results with superseded revision linkage. Honey is verified as a non-respondable End-of-Action exact-result copy that enters normal acquisition under a fresh identity. Revenge retains its verified post-payout required-choice lifecycle.
+- Curses: Toxic, Iron Ball, Flame, Silencing, Imprison, Devolve, Haze, and Foresight are Pokemon-name species effects unless an individual contract says otherwise. Their declaration anchor is one exact Active Roster instance and their application enumerates matching Active Roster instances globally. Haze takes two different species anchors and preserves per-instance Substitute/Curse immunity. Devolve overlays one safe direct pre-evolution without changing roster identity. Knock Off is exact-instance and destroys one exact held Item or TM grant; final TM access loss opens exactly one mandatory Sabotage revision from current locked-build provenance without silently deleting the move. Purge targets one player and is an absolute post-payout operation with no ordinary response or Trade window; it ignores gameplay negation, redirection, Substitute, and Curse immunity. Foresight remains blocked until authenticated player-scoped move-only delivery exists, and the backend recursively strips private records from shared payloads.
+- Gym Modifiers are a future system, separate from Tokens. A modifier may be selected randomly and change one or more settings for a Gym. No catalog, timing, stacking, persistence, UI, or automation contract is approved yet.
 
 Teambuilder consumes active lingering statuses and Pokemon buffs where the rules are already local: Rage Candy Bar raises EV caps, Imprison locks EVs/IVs/nature, Silencing locks extra move slots, forced-orb curses lock the item, Haze negates buff-derived bonuses, Move Deleter/Knock Off block selected moves, Foresight warns that a set will be revealed, and Devolve/Arena Trap show warnings.
 
 ## Simulation Harness
 
-`npm.cmd run simulate:series` runs a deterministic bot league simulation through encounters, shop purchases, battles, Game Corner-style rewards, token activations, lingering status expiry, steals, incinerates, and field placement. The harness reads real token/shop/Pokemon pool data from source files and fails on state-shape invariants such as negative balances, duplicate inventory IDs, missing token definitions, orphaned Pokemon/status records, and expired statuses that remain active.
+`npm.cmd run simulate:series` runs a deterministic bot league simulation through encounters, shop purchases, battles, Game Corner-style rewards, Token activations, lingering status expiry, steals, and incinerates. The harness reads real Token/shop/Pokemon pool data from source files and fails on state-shape invariants such as negative balances, duplicate inventory IDs, missing Token definitions, orphaned Pokemon/status records, and expired statuses that remain active.
 
-By default, each run writes a readable Markdown report and a full JSON report under `data/simulations/`. The Markdown report is for quick review of standings, rosters, inventories, statuses, fields, issues, and event timeline samples. The JSON report keeps the full event log for deeper debugging.
+By default, each run writes a readable Markdown report and a full JSON report under `data/simulations/`. The Markdown report is for quick review of standings, rosters, inventories, statuses, issues, and event timeline samples. The JSON report keeps the full event log for deeper debugging.
 
 Use seeds to replay failures:
 
@@ -276,7 +276,7 @@ Pokemon build data is generated offline into `pokemon-build-data.js`. The refres
 
 1. Import Rival Saga legal level-up learnsets with `scripts/import-levelup-build-data.js`.
 2. Enrich that file from PokeAPI with `scripts/import-pokeapi-build-data.js`.
-3. Import Bulbapedia `Rem.` rows with `scripts/import-bulbapedia-rem-moves.js`; these remain legal level-up moves even when PokeAPI classifies the same move as an Egg move.
+3. Import Bulbapedia `Rem.` rows with `scripts/import-bulbapedia-rem-moves.js`; these remain legal level-up moves. Every other legacy learn-method classification is normalized into the TM category because only level-up moves and TMs exist in gameplay.
 4. Run `npm.cmd run generate:move-classification` to rebuild rare-TM naturalization from the final imported compatibility data.
 5. Ship only the compact generated Rival Saga datasets to the browser.
 
@@ -308,7 +308,7 @@ Move legality starts with this rule:
 - Move options should carry a Rival Saga source label such as `level-up`, `natural`, `tm`, or future `buff` so the UI can filter by how that move is legal.
 - Teambuilder move access is resolved once for both the picker and final validation. Sources are imported level-up/Reminder moves, exact compatible TMs in the player's inventory, active Pokemon move buffs, owned perk rules such as Move Maniac, and targeted grants recorded by future perk/class effect handlers. Haze-negated Pokemon buffs do not grant moves. Stored effect grants may target a roster record or species and must identify their source as `perk`, `class`, `buff`, or `manual`.
 - Structured move-access grants live on the owning player in `moveAccessGrants`. Each grant records a stable ID, source/source record, target roster Pokemon or species, grant mode, canonical move names, duration and Series/Gym scope, uses/status, and timestamps. The shared resolver ignores canceled, consumed, expired, removed, replaced, and zero-use grants. Effect implementations should call `grantTeambuilderMoveAccess` instead of adding custom Teambuilder exceptions; `revokeTeambuilderMoveAccess` is the matching removal path.
-- Dragon's Den move rewards are a production writer for this contract: it validates that the selected move exists, retains a readable Pokemon buff label, stores a permanent targeted location grant, and includes the previous grant collection in notification-resolution undo data. Dragon's Den ability rewards remain ability buffs and do not create move grants. Daycare's current TM-reward writer is stale and must be migrated to the canonical Egg Move reward described below before that flow is considered rule-correct.
+- Dragon's Den move rewards are a production writer for this contract: they validate that the selected move exists, retain a readable Pokémon buff label, store a permanent targeted location grant, and include the previous grant collection in notification-resolution undo data. Dragon's Den Ability rewards remain Ability buffs. Day Care uses the same canonical TM taxonomy.
 - Inventory records identify TMs with `type: "TM"`; their elemental move type is stored separately as `moveType`. State normalization repairs older shop and Max Testing records whose `type` was incorrectly saved as the elemental type, using their `tm-*` catalog identity. New TM purchases and testing grants use the corrected schema.
 - `npm.cmd run audit:tm-shop` compares every non-excluded, non-naturalized TM-gated compatibility move in `pokemon-build-data.js` with the purchasable TM catalog. It reports naturalized rare moves, zero-compatibility removals, and event/restricted-only gaps separately from moves with ordinary teaching sources. Missing entries require an explicit Rival Saga tier and price decision; the audit does not invent shop balance.
 
@@ -515,17 +515,16 @@ The Action Phase uses location-based confirmed events. Players should choose whe
 Current location rule foundations:
 
 - Encounter: roll the Encounter Wheel for the current gym twice.
-- Department Store: upgrade usable Item level, shop for Items, and gain 1 Item Point. Item Points set the Item discount amount at 10% per point, up to 50%.
-- Move Dojo: upgrade usable TM level, shop for TMs, and gain 1 TM Point. TM Points set the TM discount amount at 10% per point, up to 50%.
-- Daycare: spend 1 action to visit Daycare. During that visit, the player may pick up eligible Pokemon already in Daycare and deposit up to two Pokemon. Deposits cost 1500 each. Daycare grants 3 extra levels on deposit and an Egg Move choice on pickup; Pokemon cannot be used until picked up after the Gym in which they were placed. Each extra Gym in Daycare grants 1 extra level. The Breeder Trainer Class may replace the normal Egg Move reward with Selective Breeding when its class effect is implemented.
+- Department Store: one persisted visit per Gym over the unrestricted Item and TM catalogs, with one 75% sale, capped normal savings, and three stable Clearance rolls. Move Dojo and Item/TM Points are removed.
+- Day Care: deposit up to two Pokémon for $1,500 each. They remain visible but unavailable and return automatically next Gym with +3 Levels and a TM choice.
 - Ranger Base: repeatable escalating actions. First action scouts one moveset from each player during Team Preview; second lowers one Pokemon to the next lowest gym level cap; third shields one Pokemon from bans until the next Ban Phase ends. Each action gives 1 Ranger Credit. Ranger Credit milestones reset each series.
-- Graveyard: discard Pokemon, roll the Curse Wheel for every discard, and destroy a token from any player equal to the BST value discarded, where every 100 BST equals 1000 Pokedollars.
-- Gamecorner: Gamecorner Wheel actions and Game Corner Tickets can only be used here. Pay 2000 per Gamble Wheel spin, up to 3 spins per action. The wheel cannot be rerolled.
+- Graveyard: confirm a batch release, total consolidated-tier Destroy Value, and grant one Curse Wheel reward per complete $6,000.
+- Game Corner: buy/use consolidated Battle Tier Tickets or play the $2,000 Slot Machine with the finalized 20/30/25/15/7/3 table.
 - PC: Legacy Tickets can only be used here. Supports Legacy releases and 1/2/3-ticket Legacy effects.
 - Pokemon Center: cleanse and protect the Encounter Wheel for the gym, restore recent released Pokemon for tier-scaled costs, or buy an Emergency Immunity Token for 5000 that expires at gym end.
 - Hidden Grotto: pay 1500, roll 3 random types, choose one, then roll 3 Pokemon from the chosen type and choose one. The Pokemon roll pool includes Battle Tiers up to two tier steps above the current Gym's natural Battle Tier, clamped at Master Elite. Pokemon in LC or LC Elite that can still evolve are excluded, but fully evolved or single-stage Pokemon in those low tiers remain eligible.
-- Dragons Den: leave a Pokemon for tier-scaled cost and duration to teach any move or almost any ability.
-- Silph Co R&D: develop a Pokemon for tier-scaled cost, rolling 2 abilities and 4 moves, then choosing one result.
+- Dragon's Den: leave exactly one Pokémon for one Gym at consolidated-tier cost, then choose a legal move or AAA-approved Ability.
+- Silph Co. R&D: develop up to three Pokémon at consolidated-tier costs; each persists two Ability and four Move options until one is selected.
 - Bulletin Board: once per Exploration/Action Phase, receive 3 random quests, reroll one for free, and complete quests for cash rewards. Completing all 3 grants a free Bulletin Board visit next gym.
 
 These rules should not become instant-apply buttons. They should become confirmed Action Phase events.
@@ -537,19 +536,16 @@ Daycare and Dragon's Den are temporary Pokemon facility systems. Pokemon should 
 Daycare behavior:
 
 - Placing a Pokemon in Daycare marks it unavailable with the legacy `breederStatus` save field until a future data migration renames the field.
-- Deposited Pokemon have pending facility rewards: `+3 Levels` and `Egg Move`.
-- A Pokemon deposited in the current Series/Gym is not eligible for pickup until a later gym/action phase.
-- Picking up an eligible Pokemon clears the unavailable Daycare status and makes the pending rewards permanent notes/buffs.
-- Pickup and deposit can happen in the same Daycare visit/session and should cost only one Daycare action total.
-- TODO: replace the stale Daycare TM reward runtime with Egg Move selection and support the Breeder class's Selective Breeding replacement without weakening ordinary Teambuilder move validation.
+- Deposited Pokémon have pending facility rewards: `+3 Levels` and `TM Move`.
+- Gym Start returns eligible Pokémon automatically, clears the unavailable status, applies +3 Levels once, and creates a choice from the species' complete canonical TM learnset.
+- `rewardApplied` makes repeated Gym Start processing idempotent.
 
 Dragon's Den direction:
 
 - Dragon's Den should use the same facility-status idea, but return automatically rather than through manual pickup.
-- Placement marks the Pokemon unavailable and stores pending reward data: `Dragon's Den Move Pending` or `Dragon's Den Ability Pending`.
-- Cost and stay length scale by acquisition family.
-- Future phase/gym advancement should decrement or evaluate `battlePhasesRemaining` / `returnAtSeries` / `returnAtGym`.
-- When the required Battle Phases have passed, the Pokemon should automatically return and make the selected move/ability reward permanent.
+- Placement marks the Pokémon unavailable and stores one generic reward choice.
+- Cost scales by consolidated Battle Tier; every stay lasts one Gym.
+- Gym Start returns the Pokémon idempotently and persists the unresolved legal move / AAA-approved Ability choice.
 
 ## Temporary Pokemon Grants
 
@@ -882,7 +878,7 @@ The implementation sources have narrower roles:
 - `token-effect-contract.js` is the executable Token declaration contract.
 - `TOKEN_EFFECT_MATRIX.md` is generated documentation derived from that contract.
 - `app.js` contains the actual runtime resolvers and state mutations.
-- The catalog and contract currently have 53/53 stable-ID parity, but parity does not prove that a resolver performs its complete Saga effect.
+- The catalog and contract currently have 45/45 stable-ID parity, but parity does not prove that a resolver performs its complete Saga effect.
 
 The declaration contract classifies Token resolution into three modes:
 
@@ -890,9 +886,9 @@ The declaration contract classifies Token resolution into three modes:
 - `Guided`: intended for effects that require a specific external result before a supported mutation can finish.
 - `Host Confirmed`: intended for effects that require a host-completed external operation.
 
-These labels describe the intended declaration contract. Many current Automatic and Guided resolvers are incomplete or text-only. Protection tags are largely unenforced, several timing declarations are incorrect, and ongoing Field behavior is largely absent. The Token system is under active implementation and is not functionally complete.
+These labels describe the intended declaration contract. Thirty of the 45 catalog Tokens have effect-specific `verifiedComplete` evidence; the remaining Automatic and Guided resolvers include partial and text-only behavior. Protection enforcement is category-specific and several effect-specific timing/lifecycle paths remain incomplete. The Token system is under active implementation and is not functionally complete.
 
-Runtime usability is a separate contract axis: `usable`, `guidedOnly`, `developmentOnly`, or `blocked`. Client timing checks, modern and legacy declaration paths, response recording, and prompt resolution consult the same fail-closed gate before consumption or mutation. `developmentOnly` and `blocked` effects cannot resolve through gameplay controls. Atomic completion checks enforce 7 Tools copy delivery and continue to protect incomplete Smokescreen, Follow Me, and private Foresight outcomes from closing as successful resolutions.
+Runtime usability is a separate contract axis: `usable`, `guidedOnly`, `developmentOnly`, or `blocked`. Client timing checks, modern and legacy declaration paths, response recording, and prompt resolution consult the same fail-closed gate before consumption or mutation. `developmentOnly` and `blocked` effects cannot resolve through gameplay controls. Atomic completion checks enforce 7 Tools copy delivery and continue to protect incomplete Smokescreen and private Foresight outcomes from closing as successful resolutions.
 
 The current backend has no authenticated player-scoped game-state delivery. Structured Foresight set fields are therefore stripped from shared storage and API/SSE delivery payloads. This is a containment boundary, not the future authorization model: a hosted implementation still needs a source-player-only channel and a separately authorized host view.
 
@@ -913,7 +909,7 @@ The evidence boundary is explicit:
 - Browser tests click visible controls, inspect rendered state, refresh from the authoritative backend, and fail on browser errors.
 - Static Wiring only proves source registration or ordering.
 
-Current-slice evidence is effect-specific: Arena Trap, Incinerate, and Steal are `verifiedComplete`; other controller-slice Tokens remain `partial` until their own end-to-end surfaces are proven. Full five-client multiplayer validation and unresolved effect-specific lifecycle rulings remain outside this QA hardening pass.
+Completion evidence is effect-specific. The first ordered completion slice adds production browser evidence for Follow Me, Ditto, Lingering Aroma, Move Deleter, Knock Off Curse, and Revenge; other Tokens remain `partial` or `textOnly` until their own end-to-end surfaces are proven. Full five-client multiplayer validation and unresolved effect-specific lifecycle rulings remain outside this QA hardening pass.
 
 ## Action Operation Lifecycle
 

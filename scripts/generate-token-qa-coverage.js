@@ -76,7 +76,7 @@ function validateCoverage() {
     (token.requirements || []).forEach((entry) => {
       if (!String(entry.name || "").trim()) errors.push(`${token.tokenId}: requirement lacks a name`);
       if (!COVERAGE_LABELS.has(entry.coverage)) errors.push(`${token.tokenId}/${entry.name}: invalid coverage ${entry.coverage}`);
-      const evidenceIds = String(entry.evidence || "").match(/[A-Z]{2,8}-\d{3}/g) || [];
+      const evidenceIds = String(entry.evidence || "").match(/[A-Z][A-Z0-9]*(?:-[A-Z][A-Z0-9]*)*-\d{3}[A-Z]?/g) || [];
       evidenceIds.forEach((id) => {
         if (!tests.has(id)) errors.push(`${token.tokenId}/${entry.name}: referenced requirement test ${id} does not exist`);
       });
@@ -152,7 +152,7 @@ function validateCoverage() {
       if (!tests.has(id)) errors.push(`${entry.tokenId}: referenced watchlist test ${id} does not exist`);
     });
   });
-  ["lingering-aroma", "cold-wave", "counterspell", "seven-tools", "smokescreen", "follow-me", "foresight-curse"].forEach((id) => {
+  ["cold-wave", "counterspell", "seven-tools", "smokescreen", "foresight-curse"].forEach((id) => {
     if (!watchlistIds.has(id)) errors.push(`${id}: approved catalog/revision behavior is missing from the QA watchlist`);
   });
 

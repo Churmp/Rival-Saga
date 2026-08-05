@@ -30,7 +30,6 @@
     AFTER_YOU: "afterYouImmediateActivation",
     FOLLOW_ME: "followMeOngoingActivation",
     DITTO: "dittoSelectedActivation",
-    DRIZZLE: "drizzleRewardActivation",
     CLASS_EFFECT: "classGrantedActivation",
     TEMPORARY_INVENTORY: "temporaryInventoryCopy"
   });
@@ -69,7 +68,6 @@
       [copyActivationModes.AFTER_YOU]: { ...common, sourceWindow: "currentDeclaredEffect", lifetime: "oneImmediateActivation" },
       [copyActivationModes.FOLLOW_ME]: { ...common, sourceWindow: "laterTokensUsedByRecordedPlayer", lifetime: "currentGymRelationship" },
       [copyActivationModes.DITTO]: { ...common, sourceWindow: "oneChosenLegalTokenDefinition", lifetime: "oneActivation", excludesTickets: true },
-      [copyActivationModes.DRIZZLE]: { ...common, sourceWindow: "DrizzleRewardTrigger", lifetime: "oneRewardActivation" },
       [copyActivationModes.CLASS_EFFECT]: { ...common, sourceWindow: "classEffectGrant", lifetime: "grantDefined" },
       [copyActivationModes.TEMPORARY_INVENTORY]: {
         ...common,
@@ -87,8 +85,7 @@
       "restrict-token", "arena-trap", "clear-smog", "rage-candy-bar", "extra-ban-token", "unban-token", "steal-token",
       "incinerate", "wicked-blow", "cold-wave", "move-deleter", "smokescreen", "after-you", "ditto-token", "purge-curse", "teleport", "revenge",
       "safeguard", "substitute", "seven-tools", "counterspell", "follow-me", "embargo", "reroll-token",
-      "devolve-token", "honey-token", "knock-off-curse", "haze-curse", "lingering-aroma", "payday-field", "drizzle-field", "drought-field",
-      "taunt-field", "snow-warning-field", "sand-stream-field", "infestation-field", "surging-strikes-field"
+      "devolve-token", "honey-token", "knock-off-curse", "haze-curse", "lingering-aroma"
     ],
     textOnly: [
       "class-change", "rebrand", "parting-shot",
@@ -100,20 +97,69 @@
   const runtimeStatusById = Object.freeze(Object.fromEntries(Object.entries(runtimeStatusGroups)
     .flatMap(([status, ids]) => ids.map((id) => [id, status]))));
 
-  const contractDefinitionRevision = "2026-07-29-production-runtime-surfaces-v2";
+  const contractDefinitionRevision = "2026-08-04-lifecycle-completion-slice-v3";
   const registeredRuntimeVerificationTests = Object.freeze([
     "token-declaration-timing",
     "token-response-parent-chain",
     "token-multi-target-validation",
-    "token-field-lifecycle",
     "token-reload-persistence",
     "token-sandbox-isolation",
     "token-undo-repair",
     "token-inventory-runtime",
     "standard-curse-species-lifecycle",
-    "encounter-token-runtime"
+    "encounter-token-runtime",
+    "follow-me-e2e",
+    "ditto-inventory-e2e",
+    "lingering-aroma-e2e",
+    "move-deleter-e2e",
+    "knock-off-e2e",
+    "revenge-post-payout-e2e",
+    "control-completion-slice-e2e",
+    "lifecycle-completion-slice-e2e"
   ]);
   const runtimeVerificationById = Object.freeze({
+    "restrict-token": Object.freeze({
+      status: runtimeImplementationStatuses.VERIFIED_COMPLETE,
+      tests: Object.freeze(["token-declaration-timing", "token-response-parent-chain", "token-reload-persistence", "token-sandbox-isolation", "token-undo-repair", "control-completion-slice-e2e"]),
+      evidence: "Six-Gym canonical species identity, exact Rage immunity, response priority, Teambuilder and submitted-team enforcement, expiration, production refresh, causal History undo, and idempotent sandbox isolation are covered by PD-RUNTIME-013, TCS-001, BROWSER-019, TCI-003/004, and TSB-026.",
+      verifiedAt: "2026-08-03",
+      contractDefinitionRevision
+    }),
+    "extra-ban-token": Object.freeze({
+      status: runtimeImplementationStatuses.VERIFIED_COMPLETE,
+      tests: Object.freeze(["token-declaration-timing", "token-response-parent-chain", "token-reload-persistence", "token-sandbox-isolation", "token-undo-repair", "control-completion-slice-e2e"]),
+      evidence: "Exact Active-roster anchor selection, selected-only Substitute interception, universal legality, other-copy isolation, production refresh, Teambuilder/submitted-team enforcement, causal History undo, and sandbox isolation are covered by TCS-002, TCF-006/007/009, BROWSER-020, and TSB-026.",
+      verifiedAt: "2026-08-03",
+      contractDefinitionRevision
+    }),
+    "unban-token": Object.freeze({
+      status: runtimeImplementationStatuses.VERIFIED_COMPLETE,
+      tests: Object.freeze(["token-declaration-timing", "token-response-parent-chain", "token-reload-persistence", "token-sandbox-isolation", "token-undo-repair", "control-completion-slice-e2e"]),
+      evidence: "Exact stable status selection, one-record removal, stale confirmation refund, six-Gym protection, unchanged unrelated schedules, production refresh, causal restoration, and sandbox isolation are covered by TCS-003, TCI-001/002, BROWSER-021, and TSB-026.",
+      verifiedAt: "2026-08-03",
+      contractDefinitionRevision
+    }),
+    "clear-smog": Object.freeze({
+      status: runtimeImplementationStatuses.VERIFIED_COMPLETE,
+      tests: Object.freeze(["token-declaration-timing", "token-response-parent-chain", "token-reload-persistence", "token-sandbox-isolation", "token-undo-repair", "control-completion-slice-e2e"]),
+      evidence: "Provenance-only permanent removal of Rage, Ability, and exact move grants, preservation of native and expired data, rendered results, production refresh, causal History undo, and sandbox isolation are covered by TCS-004, TCF-011, TCI-006, BROWSER-022, and TSB-026.",
+      verifiedAt: "2026-08-03",
+      contractDefinitionRevision
+    }),
+    "rage-candy-bar": Object.freeze({
+      status: runtimeImplementationStatuses.VERIFIED_COMPLETE,
+      tests: Object.freeze(["token-declaration-timing", "token-response-parent-chain", "token-reload-persistence", "token-sandbox-isolation", "token-undo-repair", "control-completion-slice-e2e"]),
+      evidence: "Exact owned-instance targeting, one shared enhancement, non-stacking extension, same-species isolation, Restrict immunity, Teambuilder level/EV consumption, expiration, production refresh, ordered causal undo, and sandbox isolation are covered by TCS-001/005, TCF-012/014, BROWSER-023, and TSB-026.",
+      verifiedAt: "2026-08-03",
+      contractDefinitionRevision
+    }),
+    "safeguard": Object.freeze({
+      status: runtimeImplementationStatuses.VERIFIED_COMPLETE,
+      tests: Object.freeze(["token-declaration-timing", "token-response-parent-chain", "token-reload-persistence", "token-sandbox-isolation", "token-undo-repair", "control-completion-slice-e2e"]),
+      evidence: "Exact self-player declaration, response-enabled production lifecycle, all eight approved protection categories, explicit non-protected boundaries, exact-player scope, expiration, refresh, causal History undo, and sandbox isolation are covered by TCS-006, BROWSER-008/024, TCF-029, and TSB-026.",
+      verifiedAt: "2026-08-03",
+      contractDefinitionRevision
+    }),
     "arena-trap": Object.freeze({
       status: runtimeImplementationStatuses.VERIFIED_COMPLETE,
       tests: Object.freeze([
@@ -217,12 +263,96 @@
       evidence: "Action-only declaration, exact chosen-player validation, one authoritative Encounter roll grant, open-session extension, standalone session creation, stable grant identity, duplicate prevention, refresh persistence, normal Encounter completion, and snapshot undo are covered by focused runtime and integration tests.",
       verifiedAt: "2026-07-29",
       contractDefinitionRevision
+    }),
+    "follow-me": Object.freeze({
+      status: runtimeImplementationStatuses.VERIFIED_COMPLETE,
+      tests: Object.freeze(["token-response-parent-chain", "token-reload-persistence", "token-undo-repair", "token-inventory-runtime", "follow-me-e2e"]),
+      evidence: "BROWSER-013 and SEB-005 cover legal corresponding-target redirection, parent-gated activation, exact real-consumption inventory copies, duplicate prevention, backend refresh, Gym-end relationship expiration, and newest-first History undo.",
+      verifiedAt: "2026-08-03",
+      contractDefinitionRevision
+    }),
+    "ditto-token": Object.freeze({
+      status: runtimeImplementationStatuses.VERIFIED_COMPLETE,
+      tests: Object.freeze(["token-declaration-timing", "token-reload-persistence", "token-undo-repair", "token-inventory-runtime", "ditto-inventory-e2e"]),
+      evidence: "BROWSER-015 and SEB-006 cover the production non-Ditto picker, exact source-record transformation, canonical identity and provenance, no immediate activation, duplicate-safe operation identity, backend refresh, and History undo.",
+      verifiedAt: "2026-08-03",
+      contractDefinitionRevision
+    }),
+    "lingering-aroma": Object.freeze({
+      status: runtimeImplementationStatuses.VERIFIED_COMPLETE,
+      tests: Object.freeze(["token-declaration-timing", "token-reload-persistence", "token-undo-repair", "lingering-aroma-e2e"]),
+      evidence: "BROWSER-016, STR-004, and PD-SERVER-007 cover exact benefiting-effect selection, linked replacement and expiration, confirmed outside targeting cost paid once, withdrawal and insufficient-funds behavior, cost retention after negation, backend refresh, and ordered History undo.",
+      verifiedAt: "2026-08-03",
+      contractDefinitionRevision
+    }),
+    "move-deleter": Object.freeze({
+      status: runtimeImplementationStatuses.VERIFIED_COMPLETE,
+      tests: Object.freeze(["token-declaration-timing", "token-reload-persistence", "token-undo-repair", "move-deleter-e2e"]),
+      evidence: "BROWSER-017, STR-005, STR-010, and TCI-013 cover canonical declaration, next-Gym global enforcement in selection and validation, explicit Showdown import/export rejection, backend refresh, exact expiration, and History/controller undo.",
+      verifiedAt: "2026-08-03",
+      contractDefinitionRevision
+    }),
+    "knock-off-curse": Object.freeze({
+      status: runtimeImplementationStatuses.VERIFIED_COMPLETE,
+      tests: Object.freeze(["token-declaration-timing", "token-reload-persistence", "token-undo-repair", "knock-off-e2e"]),
+      evidence: "BROWSER-018 and SEB-003 cover the production exact Pokemon/resource selector, exact Item/TM destruction, Master Ball exclusion, duplicate-TM access, final-TM Sabotage revision creation without silent set edits, backend refresh, and History undo.",
+      verifiedAt: "2026-08-03",
+      contractDefinitionRevision
+    }),
+    "revenge": Object.freeze({
+      status: runtimeImplementationStatuses.VERIFIED_COMPLETE,
+      tests: Object.freeze(["token-reload-persistence", "token-undo-repair", "revenge-post-payout-e2e"]),
+      evidence: "BROWSER-012, STR-008, and STR-012 cover real Gym payout-to-offer ordering, immutable brought snapshots, no pre-confirmation consumption, exact two-Pokemon release, optional exact held Item boundaries, terminal closure, backend refresh, decline behavior, and History undo.",
+      verifiedAt: "2026-08-03",
+      contractDefinitionRevision
+    }),
+    "cold-wave": Object.freeze({
+      status: runtimeImplementationStatuses.VERIFIED_COMPLETE,
+      tests: Object.freeze(["token-declaration-timing", "token-reload-persistence", "token-sandbox-isolation", "token-undo-repair", "lifecycle-completion-slice-e2e"]),
+      evidence: "Explicit ongoing-only suppression, suppression-aware status and Follow Me consumption, duration-only exclusion, Gym-end behavior, production refresh, rendered suppressed state, causal History undo, and idempotent sandbox isolation are covered by TLS-001, TCI-014, BROWSER-025, and TSB-027.",
+      verifiedAt: "2026-08-04",
+      contractDefinitionRevision
+    }),
+    "wicked-blow": Object.freeze({
+      status: runtimeImplementationStatuses.VERIFIED_COMPLETE,
+      tests: Object.freeze(["token-declaration-timing", "token-reload-persistence", "token-sandbox-isolation", "token-undo-repair", "lifecycle-completion-slice-e2e"]),
+      evidence: "Own/rival exact Active-roster targeting, non-Active and stale rejection, stable identity, acquisition and Evolution Lock checks, exact team-reference coherence without new membership, set cleanup, refresh, causal History undo, unresolved mixed-tier branch fail-closed behavior, and sandbox isolation are covered by TLS-002, TCI-012, BROWSER-026, and TSB-022/027.",
+      verifiedAt: "2026-08-04",
+      contractDefinitionRevision
+    }),
+    "teleport": Object.freeze({
+      status: runtimeImplementationStatuses.VERIFIED_COMPLETE,
+      tests: Object.freeze(["token-response-parent-chain", "token-reload-persistence", "token-sandbox-isolation", "token-undo-repair", "lifecycle-completion-slice-e2e"]),
+      evidence: "Exact root-Control delay, matching-phase return, no-retarget revalidation, gameplay no-effect and system-failure split, duplicate-terminal prevention, refresh, merged causal History restoration of both exact Tokens, and sandbox isolation are covered by TLS-003, STR-009/011, BROWSER-011/027, and TSB-027.",
+      verifiedAt: "2026-08-04",
+      contractDefinitionRevision
+    }),
+    "reroll-token": Object.freeze({
+      status: runtimeImplementationStatuses.VERIFIED_COMPLETE,
+      tests: Object.freeze(["encounter-token-runtime", "token-reload-persistence", "token-sandbox-isolation", "token-undo-repair", "lifecycle-completion-slice-e2e"]),
+      evidence: "Exact unresolved Encounter and wheel result identity, canonical replacement, superseded original revision, stale rejection, duplicate operation identity, multiple-copy inventory safety, normal acquisition continuation, production refresh, causal History undo, and sandbox isolation are covered by TLS-004, BROWSER-028, and TSB-027.",
+      verifiedAt: "2026-08-04",
+      contractDefinitionRevision
+    }),
+    "honey-token": Object.freeze({
+      status: runtimeImplementationStatuses.VERIFIED_COMPLETE,
+      tests: Object.freeze(["encounter-token-runtime", "token-reload-persistence", "token-sandbox-isolation", "token-undo-repair", "lifecycle-completion-slice-e2e"]),
+      evidence: "Exact finalized Encounter selection, fresh nonrecursive copy identity, canonical species/form/tier/level and intrinsic payload, normal acquisition handoff, duplicate and stale safety, production refresh, causal History undo through acquired roster creation, and sandbox isolation are covered by TLS-005, SEB-004, BROWSER-029, and TSB-027.",
+      verifiedAt: "2026-08-04",
+      contractDefinitionRevision
+    }),
+    "purge-curse": Object.freeze({
+      status: runtimeImplementationStatuses.VERIFIED_COMPLETE,
+      tests: Object.freeze(["token-declaration-timing", "token-reload-persistence", "token-sandbox-isolation", "token-undo-repair", "lifecycle-completion-slice-e2e"]),
+      evidence: "Non-respondable declaration, immutable exact brought-team snapshot, post-payout blocking and atomic release, exact-ID same-species isolation, later-change preservation, duplicate prevention, production refresh, causal History undo, and sandbox isolation are covered by TLS-006, STR-007/010, BROWSER-030, and TSB-027.",
+      verifiedAt: "2026-08-04",
+      contractDefinitionRevision
     })
   });
 
   const legalTimingValues = Object.freeze([
     "gymStartPreparationControl", "action", "actionOpen", "teamBuilding", "shop", "shopOpen", "postBattleControl", "responseWindow",
-    "encounterBeforeRoll", "encounterResult", "wheelWindow", "fieldPlacement", "sabotage", "teamPreview", "battlePayout",
+    "encounterBeforeRoll", "encounterResult", "wheelWindow", "sabotage", "teamPreview", "battlePayout",
     "endOfActionPhaseProcedure", "endOfBattlePhaseProcedure"
   ]);
   const legalControlContextValues = Object.freeze([
@@ -248,7 +378,7 @@
     "hostConfirmed", "trainerClassWheel", "restrict", "utilityEffect", "wickedBlow", "statusEffect", "safeguard", "delayParent",
     "substituteAttach", "redirectParentToSelf", "teamPreviewSwap", "playerStatus", "copyParentEffect", "randomRedirect", "immunity",
     "revengeRelease", "reroll", "extraEncounter", "encounterWheelEdit", "encounterTransfer", "encounterGrant", "encounterCopy",
-    "encounterChoose", "moveBan", "knockOff", "multiStatusEffect", "purgeAfterBattle", "fieldState", "copyToken",
+    "encounterChoose", "moveBan", "knockOff", "multiStatusEffect", "purgeAfterBattle", "copyToken",
     "arenaTrap", "clearSmog", "extraBan", "counterProtection", "ongoingEffectTextReplacement", "ongoingEffectSuppression",
     "hazeCurse", "devolveCurse", "copyTokenInventory",
     "restoreNegatedTokenWithCooldown", "smokescreenRedirect"
@@ -275,8 +405,7 @@
   const phaseSets = Object.freeze({
     response: ["responseWindow"],
     encounterBefore: ["encounterBeforeRoll"],
-    encounterResult: ["encounterResult"],
-    field: ["action", "fieldPlacement"]
+    encounterResult: ["encounterResult"]
   });
 
   const unresolvedMultiGymExpiration = "Needs Ruling: exact duration counter; expires during the Start-of-Gym expiration step after its approved duration.";
@@ -317,7 +446,7 @@
     if (config.id === "class-change" || config.id === "safeguard") return "The effect is self-only and has no legal alternate target.";
     if (config.id === "purge-curse") return "Purge explicitly ignores other gameplay effects and cannot be redirected.";
     if (config.id === "incinerate") return "Each opposing player contributes an independently selected resource; player/Pokemon target redirection does not apply.";
-    if (config.family === "Field" || config.targetType === "table" || config.targetScope === "tableWide") return "Field and table-wide effects do not have a redirectable chosen target.";
+    if (config.targetType === "table" || config.targetScope === "tableWide") return "Global and table-wide effects do not have a redirectable chosen target.";
     if (config.targetType === "currentPrompt" || config.targetScope === "currentPrompt" || config.isResponse) return "Current-prompt responses are not independently redirected as targets.";
     if (config.id === "honey-token") return "The encounter record is a boundary-offer selection, not a chosen gameplay target for redirection.";
     if (config.family === "Encounter") return "This encounter modifier does not expose a legal alternate gameplay target for this mechanism.";
@@ -384,18 +513,7 @@
   function requiredTestsFor(config, family, isResponse, maxTargets) {
     if (Array.isArray(config.requiredTests)) return config.requiredTests;
     const tests = ["Legal declaration timing", "Illegal declaration timing", "Outcome", "Reload persistence", "Newest-first undo/repair"];
-    if (family === "Field") {
-      tests.splice(0, tests.length,
-        "Field ownership remains after placement",
-        "No ordinary Token consumption",
-        "Active Field created",
-        "Previous Field replaced",
-        "Owner and placement history recorded",
-        "Reload persistence",
-        "Replacement restoration through supported undo/repair",
-        "Sandbox discard isolation"
-      );
-    } else if (isResponse) {
+    if (isResponse) {
       tests.push(
         "Requires legal parent prompt",
         "Response compatibility",
@@ -496,6 +614,9 @@
       createsPendingEvent: config.createsPendingEvent !== undefined ? Boolean(config.createsPendingEvent) : !isResponse && ["Control", "Curse"].includes(family),
       opensResponseWindow: config.opensResponseWindow !== undefined ? Boolean(config.opensResponseWindow) : !isResponse && ["Control", "Curse"].includes(family),
       canOpenPendingEvent: config.canOpenPendingEvent !== undefined ? Boolean(config.canOpenPendingEvent) : !isResponse && ["Control", "Curse"].includes(family),
+      canBeRespondedTo: config.canBeRespondedTo !== undefined ? Boolean(config.canBeRespondedTo)
+        : config.opensResponseWindow !== undefined ? Boolean(config.opensResponseWindow)
+          : !isResponse && ["Control", "Curse"].includes(family),
       requiresPendingEvent: config.requiresPendingEvent !== undefined ? Boolean(config.requiresPendingEvent) : isResponse,
       specialPriority: config.specialPriority || "Normal table priority",
       canRespondTo: config.canRespondTo || [],
@@ -568,10 +689,10 @@
       eligibleRecordWindow: config.eligibleRecordWindow || "",
       selectionCount: config.selectionCount ?? 0,
       copiedPayloadStatus: config.copiedPayloadStatus || "notApplicable",
-      stateClassification: config.stateClassification || (family === "Field" ? "Field" : config.persistence === "instant" || !config.persistence ? "Immediate" : "Lingering"),
+      stateClassification: config.stateClassification || (config.persistence === "instant" || !config.persistence ? "Immediate" : "Lingering"),
       outcomeTemplate: config.outcomeTemplate || "{token} {result}.",
       auditFields: ["declaration", "consumption", "responses", "passes", "selectedTarget", "selectedRosterInstanceId", "selectedSpeciesId", "applicationScope", "affectedEntities", "excludedEntities", "resolverMode", "result", "mutations", "relationships", "undo"],
-      undoPayload: config.undoPayload || ["players", "pokemonRecords", "fieldTokens", "lingeringStatuses", "tokenActivations", "interactionEvents"],
+      undoPayload: config.undoPayload || ["players", "pokemonRecords", "lingeringStatuses", "tokenActivations", "interactionEvents"],
       runtimeImplementationStatus,
       runtimeUsability,
       runtimeUsabilityReason: String(config.runtimeUsabilityReason || (runtimeUsability === runtimeUsabilityStatuses.BLOCKED
@@ -612,48 +733,23 @@
   });
   const protection = (config) => defineToken({ family: "Protection", timingCategory: "protection", legalPhases: phaseSets.response, isResponse: true, ...config });
   const encounter = (config) => defineToken({ family: "Encounter", timingCategory: "encounter", ...config });
-  const field = (config) => defineToken({
-    family: "Field",
-    timingCategory: "field",
-    legalPhases: phaseSets.field,
-    targetType: "table",
-    targetScope: "tableWide",
-    resolverMode: resolverModes.AUTOMATIC,
-    resolverId: "fieldState",
-    createsPendingEvent: false,
-    opensResponseWindow: false,
-    declarationCost: "None",
-    consumptionMode: "doNotConsume",
-    consumptionTiming: "Not consumed on placement",
-    consumesOnLegalUse: false,
-    consumeIfMisses: false,
-    consumeIfBlocked: false,
-    persistence: "fieldState",
-    duration: "Until removed, replaced, or expired by its rules",
-    expirationPoint: "Rule-defined removal or replacement",
-    replacementRules: "Replaces the current active Field and records the previous Field in history.",
-    stackingRules: "Only one Field may be active.",
-    automaticMutations: ["Mark the prior active Field replaced", "Create the new active Field", "Record owner, phase, and placement history"],
-    outcomeTemplate: "{actor} placed {token} as the active Field.",
-    ...config
-  });
 
   const definitions = [
     control({ id: "class-change", name: "Class Change", rulesText: "Roll the Trainer Class Wheel for yourself and take the new class", targetType: "player", targetScope: "singlePlayer", targetControllerRelation: "self", selfOnly: true, resolverMode: resolverModes.GUIDED, resolverId: "trainerClassWheel", requiredChoices: ["Wheel result"], guidedTask: { instruction: "Spin the Trainer Class Wheel for the acting player.", responsible: "Acting player", resultLabel: "New Trainer Class", placeholder: "Record the class rolled", confirmationLabel: "Apply Class Result" } }),
-    control({ id: "restrict-token", name: "Restrict", aliases: ["Restrict Token"], rulesText: "Prevent a Pokemon from being brought for 2 gyms", targetType: "pokemon", targetScope: "species", selectedTargetType: "pokemon", applicationScope: "globalSpecies", affectedEntityType: "pokemon", resolverMode: resolverModes.AUTOMATIC, resolverId: "restrict", persistence: "lingeringEffect", duration: "2 Gyms", expirationPoint: unresolvedMultiGymExpiration, automaticMutations: ["Create species-wide Restrict status", "Preserve roster-instance exemptions", "Update Pokemon legality", "Schedule expiration"], outcomeTemplate: "{target} is Restricted for 2 Gyms." }),
+    control({ id: "restrict-token", name: "Restrict", aliases: ["Restrict Token"], rulesText: "Prevent a Pokemon from being brought for 6 gyms", targetType: "pokemon", targetScope: "species", selectedTargetType: "pokemon", applicationScope: "globalSpecies", affectedEntityType: "pokemon", resolverMode: resolverModes.AUTOMATIC, resolverId: "restrict", persistence: "lingeringEffect", duration: "6 Gyms", expirationPoint: "At the approved start-of-Gym expiration checkpoint after 6 Gyms.", automaticMutations: ["Create species-wide Restrict status", "Preserve exact roster-instance Rage exemptions", "Update all authoritative Pokemon legality surfaces", "Schedule one expiration"], outcomeTemplate: "{target} is Restricted for 6 Gyms.", mechanicContract: { speciesWideRestriction: true, durationGyms: 6, rageCandyImmunityExactInstanceOnly: true, authoritativeTeamLegalityRequired: true, canonicalSpeciesNormalizationRequired: true, causalHistoryUndoRequired: true } }),
     control({ id: "arena-trap", name: "Arena Trap", rulesText: "Force a rival party Pokemon to be brought this Battle Phase. The trapped Pokemon cannot be cursed", targetType: "pokemon", targetScope: "rosterInstance", selectedTargetType: "rosterInstance", targetControllerRelation: "rival", otherPlayerOnly: true, excludeActor: true, differentControllerRequired: true, resolverMode: resolverModes.AUTOMATIC, resolverId: "arenaTrap", persistence: "lingeringEffect", duration: "Current Battle Phase", expirationPoint: "At the end of the current Battle Phase after applicable End-of-Battle procedures complete.", automaticMutations: ["Validate the exact Active-roster target with authoritative Teambuilder bring legality", "Immediately insert and lock the exact instance in the target player's Battle Phase team with its minimum Badge assignment", "Create mandatory team repair if insertion exceeds team size", "Prevent Curse targeting while active", "When at least two ordered Battle Tier steps below the Natural Battle Tier, require the target owner to choose one AAA-approved Ability or injectable move", "Expire the linked team lock, protection, and customization at Battle Results"], mechanicContract: { exactRosterInstanceRequired: true, targetEligibilityUsesAuthoritativeBringLegality: true, compensationThresholdIsIndependentOfEligibility: true, compensationThresholdOrderedTierStepsBelow: 2, eliteTiersCountAsSteps: true, compensationChoiceOwner: "targetPlayer", customizationKinds: ["ability", "move"], customizationUsesSharedInjectionRegistry: true, immediatelyMutatesCurrentBattleTeam: true, forcedMemberCannotBeRemovedOrReplaced: true, forcedSlotPreservesMinimumBadgeAssignment: true, unresolvedCompensationBlocksTeamLock: true, fullTeamCreatesMandatoryRepair: true, sameSpeciesDoesNotSatisfyRequirement: true, curseProtectionUsesExactInstance: true } }),
     control({ id: "cold-wave", name: "Cold Wave", rulesText: "When Activated, Suppress All Ongoing Activated Effects Until The End Of This Gym. Suppressed Effects Have No Effect Until This Gym Ends, Then Return To Normal", targetType: "table", targetScope: "tableWide", applicationScope: "tableWide", affectedEntityType: "ongoingEffect", resolverMode: resolverModes.AUTOMATIC, resolverId: "ongoingEffectSuppression", runtimeUsability: runtimeUsabilityStatuses.USABLE, runtimeUsabilityReason: "Cold Wave creates a same-Gym suppression record. Runtime effect checks ignore only records explicitly marked isOngoingEffect while preserving their state and expiration.", requiredChoices: [], persistence: "lingeringEffect", duration: "Until the end of this Gym", expirationPoint: "End of Gym after naturally expired effects remain expired.", effectTags: ["Suppress"], mechanicContract: { applicationScope: "tableWide", eligibleClassificationField: "isOngoingEffect", eligibleClassificationValue: true, operation: "suppressBehaviorWithoutRemovingRecord", preservesOwnerSourceDurationExpirationIdentity: true, restoreSurvivingEffectsAtGymEnd: true, reviveNaturallyExpiredEffects: false } }),
-    control({ id: "clear-smog", name: "Clear Smog", rulesText: "Remove permanent buffs from a chosen Pokemon, including levels, illegal abilities, and illegal moves", targetType: "pokemon", targetScope: "rosterInstance", selectedTargetType: "rosterInstance", targetControllerRelation: "anyPlayer", resolverMode: resolverModes.AUTOMATIC, resolverId: "clearSmog", automaticMutations: ["Remove clearable structured buffs from the selected Pokemon", "Remove permanent buff labels", "Revoke exact-instance move-access grants"] }),
+    control({ id: "clear-smog", name: "Clear Smog", rulesText: "Remove permanent buffs from a chosen Pokemon, including levels, illegal abilities, and illegal moves", targetType: "pokemon", targetScope: "rosterInstance", selectedTargetType: "rosterInstance", targetControllerRelation: "anyPlayer", resolverMode: resolverModes.AUTOMATIC, resolverId: "clearSmog", automaticMutations: ["Remove clearable structured buffs from the selected Pokemon", "Remove only labels proven to represent those removed buffs", "Revoke exact-instance move-access grants"], mechanicContract: { activeRosterRequired: true, provenanceRequired: true, destructiveSetDifferenceForbidden: true, causalHistoryUndoRequired: true } }),
     control({ id: "rage-candy-bar", name: "Rage Candy Bar", rulesText: "Give one of your Pokemon +3 levels, +252 EV cap, and Restrict immunity for 2 gyms", targetType: "pokemon", targetScope: "rosterInstance", targetControllerRelation: "self", selfOnly: true, magicianLegalAlternateTargetExplanation: "Magician may change the target only to a different Pokemon owned by the same acting player.", resolverMode: resolverModes.AUTOMATIC, resolverId: "utilityEffect", persistence: "lingeringEffect", duration: "2 Gyms; another use extends the shared duration by 2 Gyms", expirationPoint: unresolvedMultiGymExpiration, replacementRules: "Another Rage Candy Bar on the same roster instance extends the one composite enhancement by 2 Gyms.", stackingRules: "The +3 Levels and +252 EV-cap bonuses do not stack.", automaticMutations: ["Create or extend one timed Rage Candy enhancement", "Grant +3 Levels", "Grant EV Cap +252", "Grant Restrict immunity", "Remove all remaining components when the shared duration expires"] }),
     control({ id: "lingering-aroma", name: "Lingering Aroma", rulesText: "When A Player Has An Ongoing Effect In Play, Use This Token. Replace That Effect's Text With 'Players Who Target Me Gain 500' Until That Effect Ends", targetType: "resource", targetScope: "singleResource", targetScopeStatus: "settled", targetControllerRelation: "anyPlayer", targetCollectionType: "activeOngoingEffectRecord", targetValidation: "The selected active record must explicitly have isOngoingEffect set to true.", resolverMode: resolverModes.AUTOMATIC, resolverId: "ongoingEffectTextReplacement", runtimeUsability: runtimeUsabilityStatuses.BLOCKED, runtimeUsabilityReason: "Lingering Aroma is blocked before consumption until the rules identify who 'me' means and which player pays and receives the $500 when the replacement trigger occurs.", requiredChoices: ["One active record explicitly classified as an ongoing effect"], persistence: "linkedEffectTextReplacement", duration: "For the remainder of the selected effect", expirationPoint: "Automatically when the selected original effect ends.", effectTags: ["Replace Text"], mechanicContract: { eligibilityStatus: "settled", eligibleClassificationField: "isOngoingEffect", eligibleClassificationValue: true, replacementText: "Players Who Target Me Gain 500", replacementTriggerStatus: "needsRuling", meIdentityStatus: "needsRuling", payerStatus: "needsRuling", recipientStatus: "needsRuling", removeOriginalEffect: false, preserveOriginalText: true, preserveSourceOwnerDurationExpirationIdentity: true, relationshipPersistsForDisplayReloadUndo: true, expiresWithOriginalEffect: true, durationAloneDoesNotImplyEligibility: true } }),
     control({ id: "wicked-blow", name: "Wicked Blow", rulesText: "Choose A Pokemon On A Player's Team. Reroll It For A Random Pokemon 3 Battle Tiers Below Its Final Evolution Tier.", targetType: "pokemon", targetScope: "rosterInstance", selectedTargetType: "rosterInstance", applicationScope: "rosterInstance", affectedEntityType: "pokemon", targetControllerRelation: "anyPlayer", resolverMode: resolverModes.AUTOMATIC, resolverId: "wickedBlow", effectTags: ["Reroll"], automaticMutations: ["Validate one exact Pokemon in any player's Active Roster", "Determine the target's final-evolution Battle Tier", "Roll from the exact Battle Tier three ordered tier steps below", "Replace the Pokemon while preserving its stable roster-instance identity", "Reset species-specific Teambuilder fields through the canonical slot replacement path", "Update any current team, locked-team, and Teambuilder references to that exact instance atomically"], mechanicContract: { exactRosterInstanceRequired: true, activeRosterRequired: true, currentBattlePhaseTeamRequired: false, sourcePlayerMayTargetOwnPokemon: true, sourcePlayerMayTargetAnotherPlayersPokemon: true, orderedBattleTierStepsBelow: 3, eliteTiersCountAsSteps: true, finalEvolutionTierRequired: true, stablePokemonIdRequired: true, acquisitionRulesApplyToReplacement: true, speciesSpecificTeamBuildFieldsReset: true, exactInstanceStatusesRemainAttached: true, existingTeamReferencesRemainCoherent: true, doesNotCreateTeamMembership: true, atomicMutationRequired: true } }),
     control({ id: "rebrand", name: "Rebrand", aliases: ["Rebrand Token"], rulesText: "Force a rival to roll the Trainer Class Wheel and change class. Trainer Class abilities cannot respond", targetType: "player", targetScope: "singlePlayer", targetControllerRelation: "otherPlayer", otherPlayerOnly: true, excludeActor: true, resolverMode: resolverModes.GUIDED, resolverId: "trainerClassWheel", requiredChoices: ["Target player", "Wheel result"], guidedTask: { instruction: "Spin the Trainer Class Wheel for the targeted player.", responsible: "Target player", resultLabel: "New Trainer Class", placeholder: "Record the class rolled", confirmationLabel: "Apply Class Result" } }),
-    control({ id: "extra-ban-token", name: "Extra Ban", aliases: ["Extra Ban Token", "Ban Token"], rulesText: "Ban any Pokemon from play", targetType: "pokemon", targetScope: "rosterInstance", selectedTargetType: "rosterInstance", selectedTargetRecordFields: ["selectedRosterInstanceId", "selectedSpeciesId"], applicationScope: "globalSpecies", affectedEntityType: "pokemon", targetControllerRelation: "anyPlayer", substituteInterceptionPolicy: "negateEntireEffect", substituteChecksSelectedTargetOnly: true, resolverMode: resolverModes.AUTOMATIC, resolverId: "extraBan", persistence: "lingeringEffect", duration: "Indefinite", expirationPoint: "Removed by Unban or a rules reset", automaticMutations: ["Retain the selected roster-instance declaration anchor", "Check Substitute only on that selected instance", "Create species-wide Ban status if not intercepted", "Update global Pokemon legality"] }),
+    control({ id: "extra-ban-token", name: "Extra Ban", aliases: ["Extra Ban Token", "Ban Token"], rulesText: "Ban any Pokemon from play", targetType: "pokemon", targetScope: "rosterInstance", selectedTargetType: "rosterInstance", selectedTargetRecordFields: ["selectedRosterInstanceId", "selectedSpeciesId"], applicationScope: "globalSpecies", affectedEntityType: "pokemon", targetControllerRelation: "anyPlayer", substituteInterceptionPolicy: "negateEntireEffect", substituteChecksSelectedTargetOnly: true, resolverMode: resolverModes.AUTOMATIC, resolverId: "extraBan", persistence: "lingeringEffect", duration: "Indefinite", expirationPoint: "Removed by Unban or a rules reset", automaticMutations: ["Retain the selected Active-roster instance declaration anchor", "Check Substitute only on that selected instance", "Create species-wide Ban status if not intercepted", "Update global Pokemon legality"], mechanicContract: { activeRosterRequired: true, exactSelectedAnchorRequired: true, selectedAnchorSubstituteOnly: true, causalHistoryUndoRequired: true } }),
     control({ id: "unban-token", name: "Unban", aliases: ["Unban Token"], rulesText: "Unban a Pokemon. It cannot be banned again for 6 gyms", targetType: "pokemon", targetScope: "species", resolverMode: resolverModes.AUTOMATIC, resolverId: "statusEffect", persistence: "lingeringEffect", duration: "6 Gyms", expirationPoint: unresolvedMultiGymExpiration, automaticMutations: ["Remove active Ban or Restrict", "Create Unban protection", "Update global Pokemon legality"] }),
     control({ id: "incinerate", name: "Incinerate", rulesText: "Choose one Item or TM from every other player except Masterball items and remove it from their bag", targetType: "resource", targetScope: "allMatchingResources", selectedTargetType: "resource", applicationScope: "allPlayers", affectedEntityType: "resource", targetControllerRelation: "everyOtherPlayer", excludeActor: true, resolverMode: resolverModes.AUTOMATIC, resolverId: "utilityEffect", requiredChoices: ["One exact legal Item or TM record from each other player who has one"], effectTags: ["Destroy"], automaticMutations: ["Validate one stable-ID non-Master-Ball Item or TM selection for each eligible opposing player", "Skip opposing players who have no legal target", "Atomically destroy every exact selected inventory record", "Record each destruction as a stable-ID effect operation"], mechanicContract: { resourceCategories: ["Item", "TM"], independentSelectionPerOtherPlayer: true, differentSelectionsAllowed: true, oneSelectedRecordPerEligibleOpponent: true, playersWithoutLegalTargetsAreSkipped: true, excludesSourcePlayer: true, excludesMasterBallItems: true, stableInventoryIdsRequired: true, emptyMatchResolvesNoEffect: true, atomicMutationRequired: true } }),
     control({ id: "steal-token", name: "Steal", rulesText: "Steal a Pokemon from another player", targetType: "pokemon", targetScope: "rosterInstance", selectedTargetType: "rosterInstance", applicationScope: "rosterInstance", affectedEntityType: "pokemon", targetControllerRelation: "differentController", otherPlayerOnly: true, excludeActor: true, differentControllerRequired: true, resolverMode: resolverModes.AUTOMATIC, resolverId: "utilityEffect", effectTags: ["Steal"], automaticMutations: ["Transfer the exact selected Pokemon record to the acting player's Active roster", "Remove stale current-team references owned by the previous player", "Record the transfer as a stable-ID ownership operation"], mechanicContract: { exactRosterInstanceRequired: true, transfersToActingPlayerActiveRoster: true, formalStealTagRequired: true, stickyHoldBlocksAllPokemonSteal: true, safeguardDoesNotProtectPokemon: true, substituteMayProtectSelectedInstance: true, stablePokemonIdRequired: true, atomicMutationRequired: true } }),
 
-    protection({ id: "safeguard", name: "Safeguard", rulesText: "Your Money And Tokens Cannot Be Stolen, Destroyed, Or Copied. You Are Unaffected By Follow Me, Taunt, Payday, And Embargo.", isResponse: false, usesControlTiming: true, controlWindowRequired: true, legalControlContexts: ordinaryControlContexts, activationPattern: "proactive", activationType: "Declaration", requiresPendingEvent: false, targetType: "player", targetScope: "singlePlayer", targetControllerRelation: "self", selfOnly: true, resolverMode: resolverModes.AUTOMATIC, resolverId: "safeguard", createsPendingEvent: true, opensResponseWindow: true, persistence: "lingeringEffect", duration: "Until Gym end", expirationPoint: "At the approved End-of-Gym expiration checkpoint.", protectionScope: ["moneySteal", "moneyDestroy", "moneyCopy", "tokenSteal", "tokenDestroy", "tokenCopy", "followMe", "taunt", "payday", "embargo"], automaticMutations: ["Create Safeguard player protection"] }),
+    protection({ id: "safeguard", name: "Safeguard", rulesText: "Your Money And Tokens Cannot Be Stolen, Destroyed, Or Copied. You Are Unaffected By Follow Me And Embargo.", isResponse: false, usesControlTiming: true, controlWindowRequired: true, legalControlContexts: ordinaryControlContexts, activationPattern: "proactive", activationType: "Declaration", requiresPendingEvent: false, targetType: "player", targetScope: "singlePlayer", targetControllerRelation: "self", selfOnly: true, resolverMode: resolverModes.AUTOMATIC, resolverId: "safeguard", createsPendingEvent: true, opensResponseWindow: true, canBeRespondedTo: true, persistence: "lingeringEffect", duration: "Until Gym end", expirationPoint: "At the approved End-of-Gym expiration checkpoint.", protectionScope: ["moneySteal", "moneyDestroy", "moneyCopy", "tokenSteal", "tokenDestroy", "tokenCopy", "followMe", "embargo"], automaticMutations: ["Create exact-player Safeguard protection", "Block only canonical Safeguard operation categories"], mechanicContract: { exactPlayerScopeRequired: true, categoryMatrixRequired: true, protectedCategories: ["moneySteal", "moneyDestroy", "moneyCopy", "tokenSteal", "tokenDestroy", "tokenCopy", "followMe", "embargo"], explicitNonProtectedCategories: ["itemSteal", "itemDestroy", "tmSteal", "tmDestroy", "pokemonSteal", "forcedPayment", "counterspellRestoration"] } }),
     protection({ id: "teleport", name: "Teleport", rulesText: "Delay an effect until the start of the next matching phase during the next gym", targetType: "currentPrompt", targetScope: "currentPrompt", resolverMode: resolverModes.AUTOMATIC, resolverId: "delayParent", canRespondTo: ["delayableEffect"], runtimeUsability: runtimeUsabilityStatuses.USABLE, runtimeUsabilityReason: "Teleport is production-usable for exact declared Token events handled by the Control controller. Unsupported or nested response effects are hidden and fail before consumption.", requiredChoices: [], parentInteraction: "Close the parent as delayed and preserve one authoritative delayed-effect record. At the next Gym's matching phase, revalidate without retargeting and resolve using the actual resolution phase anchor.", persistence: "delayedEffectRecord", duration: "Until the start of the next matching phase during the next Gym", expirationPoint: "Terminal after resolution, gameplay-illegal no-effect, or system-failure cancellation and refund.", mechanicContract: { nextGymSamePhaseRequired: true, declarationPhaseAnchorPreserved: true, resolutionDurationAnchorsToActualResolutionPhase: true, revalidateAtReturn: true, gameplayIllegalityResult: "resolvedNoEffect", gameplayIllegalityConsumesTeleportAndParent: true, gameplayIllegalityRetargets: false, gameplayIllegalityRefunds: false, systemCorruptUnsupportedResult: "canceledRefunded", duplicateResolutionForbidden: true, refreshPersistenceRequired: true, supportedProductionParents: "exact declared Token events handled by the Control controller", unsupportedParentsFailBeforeConsumption: true } }),
     protection({ id: "substitute", name: "Substitute", rulesText: "Choose a Pokemon to protect from one effect. If it would be banned, it is not banned and cannot be banned again during this phase", isResponse: false, legalPhases: ["action", "teamBuilding"], timingWindows: ["action", "teamBuilding"], activationPattern: "proactive", requiresPendingEvent: false, targetType: "pokemon", targetScope: "rosterInstance", selectedTargetType: "pokemon", applicationScope: "rosterInstance", affectedEntityType: "pokemon", targetControllerRelation: "self", selfOnly: true, magicianLegalAlternateTargetExplanation: "Magician may change the target only to another Pokemon owned by the Substitute user.", resolverMode: resolverModes.AUTOMATIC, resolverId: "substituteAttach", createsPendingEvent: false, opensResponseWindow: false, persistence: "lingeringEffect", duration: "Until used or Gym end", expirationPoint: "When its one-use protection is spent or at the approved End-of-Gym expiration checkpoint, whichever occurs first.", automaticMutations: ["Attach one-use Substitute protection to the selected roster instance", "Intercept after responses and before parent mutation", "Normally exempt only that roster instance", "Negate an entire species-wide Ban and create current-phase Ban protection"] }),
     protection({ id: "follow-me", name: "Follow Me", rulesText: "When Another Player Or Another Player's Pokemon Is Targeted By An Effect, Change The Target To You Or One Of Your Legal Pokemon Instead. The New Target Must Be A Legal Target For The Original Effect. After This Effect Resolves, For The Rest Of This Gym, Copy Each Token Used By The Player Whose Effect You Redirected. Follow Me Cannot Redirect Global Effects Or Effects That Do Not Target A Player Or Pokemon", targetType: "currentPrompt", targetScope: "currentPrompt", resolverMode: resolverModes.AUTOMATIC, resolverId: "redirectParentToSelf", copyActivationMode: copyActivationModes.FOLLOW_ME, canRespondTo: ["singlePlayerTarget", "rosterInstanceTarget"], parentInteraction: "Replace one corresponding target with the Follow Me user or one of that user's legal Pokemon, preserve unaffected targets, then after the redirected parent resolves create the Gym-long Copy relationship.", persistence: "lingeringEffect", duration: "Through the current Gym after the redirected parent resolves", expirationPoint: "End of Gym", effectTags: ["Redirect", "Copy"], runtimeUsability: runtimeUsabilityStatuses.BLOCKED, runtimeUsabilityReason: "Follow Me is unavailable because its Gym-long Copy relationship is not implemented and the mandatory/optional plus relative-resolution order of each later copied activation is not settled. No target is redirected and the Token is not consumed.", automaticMutations: ["Replace one corresponding parent target", "Preserve source, cost, text, target type, target count, and unaffected targets", "Record the redirected effect's source player", "Create a Gym-long ongoing Copy relationship after parent resolution"], mechanicContract: { initialRedirectOperation: "replaceOneCorrespondingTarget", requiresLegalCorrespondingTarget: true, excludesGlobalAndTargetlessEffects: true, preserveSourceCostTextTargetTypeTargetCountAndUnaffectedTargets: true, ongoingEffectBeginsAfterRedirectedParentResolves: true, ongoingEffectDuration: "currentGym", copyEachLaterTokenUsedByRecordedPlayer: true, copiedActivationChoiceRequirement: "needsRuling", copiedActivationRelativeOrder: "needsRuling", copySemanticsStatus: "settled" } }),
@@ -666,7 +762,7 @@
     protection({ id: "immunity", name: "Immunity", aliases: ["Emergency Immunity Token"], rulesText: "Negate any effect or global effect. Does not stop Series Restricts or bans", targetType: "currentPrompt", targetScope: "currentPrompt", resolverMode: resolverModes.AUTOMATIC, resolverId: "immunity", canRespondTo: ["targetedEffect", "globalEffect"], protectionScope: ["targetedEffect", "globalEffect"], runtimeUsability: runtimeUsabilityStatuses.USABLE, runtimeUsabilityReason: "Immunity atomically negates its exact current parent prompt and is covered across reload, undo, results, and sandbox isolation.", automaticMutations: ["Negate the parent prompt"] }),
     protection({ id: "revenge", name: "Revenge", rulesText: "After a Battle Phase where an opponent cursed a Pokemon you brought, release 2 Pokemon from their brought team and destroy the held item", isResponse: false, legalPhases: [], timingWindows: ["endOfBattlePhaseProcedure"], phaseBoundaryProcedure: "endOfBattlePhaseProcedure", explicitPhaseTiming: "postPayoutBeforeControl", activationPattern: "phaseBoundaryOptionalTrigger", activationType: "Post-payout optional offer", requiresPendingEvent: false, createsPendingEvent: true, opensResponseWindow: false, targetType: "team", targetScope: "singleTeam", targetControllerRelation: "otherPlayer", otherPlayerOnly: true, excludeActor: true, differentControllerRequired: true, resolverMode: resolverModes.AUTOMATIC, resolverId: "revengeRelease", runtimeUsability: runtimeUsabilityStatuses.USABLE, runtimeUsabilityReason: "Revenge is offered after payout from exact current-Gym Curse anchors and the immutable brought-team snapshot. It consumes only after the affected player confirms two exact Pokemon and an optional eligible held Item.", requiredChoices: ["Exactly two exact Pokemon from the offender's immutable brought team", "At most one eligible held item from those two"], guidedTask: { instruction: "Choose exactly two exact roster instances from the offending player's immutable brought-team snapshot, then optionally choose one eligible exactly referenced held item from those two.", responsible: "Affected player", resultLabel: "Revenge Choices", placeholder: "Two exact roster IDs and optional exact held item ID", confirmationLabel: "Apply Revenge" }, mechanicContract: { postPayoutBeforeControl: true, immutableBroughtSnapshotRequired: true, exactReleaseCount: 2, qualifyingCurseMustTargetExactBroughtInstance: true, heldItemSelectionMaximum: 1, heldItemMustBelongToSelectedReleasedPokemon: true, exactHeldInventoryReferenceRequired: true, masterBallTierProtected: true, sameNameInventoryGuessingForbidden: true, atomicResolutionRequired: true, idempotentResolutionRequired: true, adminUndoRequired: true, optionalOfferCanBeDeclinedWithoutConsumption: true, productionChoiceScreenRequired: true } }),
 
-    encounter({ id: "reroll-token", name: "Reroll", aliases: ["Reroll Token"], rulesText: "Reroll any wheel result", legalPhases: ["encounterResult", "wheelWindow"], timingWindows: ["encounterResult", "wheelWindow"], isResponse: true, targetType: "encounterResult", targetScope: "currentPrompt", resolverMode: resolverModes.AUTOMATIC, resolverId: "reroll", createsPendingEvent: false, opensResponseWindow: false, canRespondTo: ["wheelResult"], automaticMutations: ["Record the previous result", "Roll and replace the current result"] }),
+    encounter({ id: "reroll-token", name: "Reroll", aliases: ["Reroll Token"], rulesText: "Reroll any wheel result", legalPhases: ["encounterResult", "wheelWindow"], timingWindows: ["encounterResult", "wheelWindow"], isResponse: true, targetType: "encounterResult", targetScope: "currentPrompt", resolverMode: resolverModes.AUTOMATIC, resolverId: "reroll", createsPendingEvent: false, opensResponseWindow: false, canRespondTo: ["wheelResult"], automaticMutations: ["Select one exact unresolved result revision", "Mark the original revision superseded", "Generate one canonical replacement linked to the original", "Resume the normal acquisition path"], mechanicContract: { exactUnresolvedResultRequired: true, encounterAndWheelResultsSupported: true, historicalAcquiredDeclinedTransferredOrSupersededResultsIllegal: true, consumeOnceAtConfirmation: true, canonicalReplacementGeneratorRequired: true, originalRevisionStatus: "superseded", supersededResultCannotBeAcquired: true, causalRevisionLinkRequired: true, stableOperationIdentityRequired: true, duplicateCompletionForbidden: true, normalAcquisitionFlowResumes: true, staleConfirmationResult: "resolvedNoEffect", causalHistoryUndoRequired: true } }),
     encounter({ id: "extra-encounter-token", name: "Extra Encounter Token", aliases: ["Extra Encounter"], rulesText: "Use in Action Phase to roll an extra encounter", legalPhases: ["action"], targetType: "player", targetScope: "singlePlayer", resolverMode: resolverModes.AUTOMATIC, resolverId: "extraEncounter", runtimeUsability: runtimeUsabilityStatuses.USABLE, runtimeUsabilityReason: "Extra Encounter grants exactly one stable authoritative Encounter roll to the chosen player through the normal Encounter session lifecycle.", requiredChoices: ["Target player"], automaticMutations: ["Create or extend one authoritative Encounter session for the chosen player", "Grant exactly one additional Encounter Wheel roll", "Open the normal Encounter review flow"], mechanicContract: { actionPhaseOnly: true, exactChosenPlayerRequired: true, actionCostRequired: false, rollsGranted: 1, reusesOpenEncounterSession: true, createsStandaloneSessionWhenNeeded: true, stableGrantIdentityRequired: true, duplicateGrantForbidden: true } }),
     encounter({ id: "repel-token", name: "Repel", rulesText: "Remove one Pokemon for every 5 entries on an encounter wheel", legalPhases: phaseSets.encounterBefore, timingWindows: phaseSets.encounterBefore, isResponse: true, targetType: "encounterResult", targetScope: "currentPrompt", resolverMode: resolverModes.GUIDED, resolverId: "encounterWheelEdit", requiredChoices: ["Pokemon entries removed"], guidedTask: { instruction: "Before the roll, remove one wheel entry for every five entries.", responsible: "Acting player", resultLabel: "Removed Entries", placeholder: "Pokemon names removed", confirmationLabel: "Apply Repel" } }),
     encounter({ id: "quick-ball-token", name: "Quick Ball Token", rulesText: "Release an encounter and steal another player's encounter", legalPhases: phaseSets.encounterResult, timingWindows: phaseSets.encounterResult, isResponse: true, targetType: "encounterResult", targetScope: "currentPrompt", resolverMode: resolverModes.GUIDED, resolverId: "encounterTransfer", requiredChoices: ["Encounter released", "Encounter stolen"], guidedTask: { instruction: "Release the user's encounter and choose another pending encounter to transfer.", responsible: "Acting player", resultLabel: "Transferred Encounter", placeholder: "Gold's Abra -> Steevee", confirmationLabel: "Apply Encounter Transfer" } }),
@@ -686,15 +782,6 @@
     curse({ id: "devolve-token", name: "Devolve", aliases: ["Devolve Token"], rulesText: "Selected Pokemon is devolved for 1 gym. During team submission, the target may adjust its set before preview", targetType: "pokemon", targetScope: "rosterInstance", selectedTargetType: "rosterInstance", applicationScope: "globalSpecies", affectedEntityType: "pokemon", resolverMode: resolverModes.AUTOMATIC, resolverId: "statusEffect", persistence: "lingeringEffect", duration: "1 Gym", expirationPoint: unresolvedMultiGymExpiration, automaticMutations: ["Use the selected roster instance as a species anchor", "Create species-wide Devolved status with exact protected-instance exclusions", "Permit Team Submission set revision"], runtimeUsability: runtimeUsabilityStatuses.BLOCKED, runtimeUsabilityReason: "Devolve is unavailable until branch/form selection, temporary species state, set revision, and exact restoration rules are canonical and implemented." }),
     curse({ id: "purge-curse", name: "Purge Curse", rulesText: "All Pokemon brought to this Battle Phase are released after battle completes. This Token ignores other effects", targetType: "player", targetScope: "singlePlayer", selectedTargetType: "player", applicationScope: "submittedTeamInstances", affectedEntityType: "pokemon", targetControllerRelation: "anyPlayer", resolverMode: resolverModes.AUTOMATIC, resolverId: "purgeAfterBattle", runtimeUsability: runtimeUsabilityStatuses.USABLE, runtimeUsabilityReason: "Purge records an absolute target-player marker, then atomically releases that player's immutable brought-team snapshot after Gym payout.", opensResponseWindow: false, persistence: "lingeringEffect", duration: "Until the post-payout checkpoint of the current Battle Phase", expirationPoint: "Immediately after Gym payout and before ordinary Control Timing reopens.", automaticMutations: ["Create an absolute Purge marker without an ordinary response window", "Capture the immutable exact brought-team snapshot", "After payout release every exact brought roster instance atomically", "Ignore Substitute, Curse Immunity, redirection, negation, and other gameplay prevention"], mechanicContract: { postPayoutBeforeControl: true, immutableBroughtSnapshotRequired: true, absoluteGameplayEffect: true, canBeRespondedTo: false, canBeNegated: false, canBeRedirected: false, canBeProtected: false, ignoresSubstitute: true, ignoresCurseImmunity: true, atomicResolutionRequired: true, idempotentResolutionRequired: true, adminUndoRequired: true, systemFailureRollbackAndRefundRequired: true } }),
     curse({ id: "foresight-curse", name: "Foresight Curse", rulesText: "Choose 6 Pokemon. If Any Of Those Pokemon Are Brought To This Battle Phase, Their Sets Become Revealed To You. This Is Not A Nerf/Debuff", targetType: "pokemon", targetScope: "rosterInstance", selectedTargetType: "rosterInstance", applicationScope: "globalSpecies", affectedEntityType: "pokemon", targetControllerRelation: "needsRuling", minTargets: 6, maxTargets: 6, targetCollectionType: "validatedRosterInstances", resolverMode: resolverModes.GUIDED, resolverId: "multiStatusEffect", requiredChoices: ["Exactly six Pokemon species anchors"], guidedTask: { instruction: "Choose exactly six Active Roster Pokemon as species anchors. If matching species are brought, reveal their sets only to the Foresight Curse user. Which controllers are legal remains Needs Ruling.", responsible: "Acting player", resultLabel: "Privately Marked Species", placeholder: "List the six selected Pokemon", confirmationLabel: "Apply Private Foresight" }, persistence: "privateInformationMarker", duration: "Current Battle Phase", expirationPoint: "At the end of the current Battle Phase after its private reveal obligation is complete.", visibility: "sourcePlayerOnly", effectClassification: "privateInformationMarkerNotDebuff", removableBy: [], runtimeUsability: runtimeUsabilityStatuses.BLOCKED, runtimeUsabilityReason: "Foresight Curse is unavailable because player-scoped private set delivery is not implemented. No selections or set data are placed in shared game state and the Token is not consumed.", mechanicContract: { selectionCount: 6, selectionUsesRosterInstanceAnchors: true, applicationScope: "globalSpecies", revealOnlyToSourcePlayer: true, authorizedViewer: "sourcePlayer", unauthorizedViewers: "everyOtherPlayer", hostAccessPolicy: "separateAdministrativeAuthorization", clientSideHidingSufficient: false, sharedStatePayloadMayContainSetData: false, automaticRevealEnabled: false, publicReveal: false, privateVisibilityData: true, nerfOrDebuff: false, removableByClearSmog: false, removableByGenericNerfRemoval: false, ownedPokemonRestriction: false, unauthorizedViewsMustNotReceiveOrRenderSetData: true } }),
-
-    field({ id: "payday-field", name: "Payday", rulesText: "Active field: Payday pot, effect bidding, and salary pressure. Full field rules tracked in activation notes" }),
-    field({ id: "drizzle-field", name: "Drizzle", rulesText: "Active Field: rain tools, combined encounter wheels, Token-copy reward, and winner extra encounter", copyActivationMode: copyActivationModes.DRIZZLE }),
-    field({ id: "drought-field", name: "Drought", rulesText: "Active Field: sun tools, encounter discard upgrades, and smaller encounter wheels" }),
-    field({ id: "taunt-field", name: "Taunt", rulesText: "Active Field: Token theft, one-status-move battle rule, required Token usage, and protection limit" }),
-    field({ id: "snow-warning-field", name: "Snow Warning", rulesText: "Active Field: lost actions, snow-related tools, effect fail chance, and shelter pot" }),
-    field({ id: "sand-stream-field", name: "Sand Stream", rulesText: "Active Field: buried resources, sand tools, unbury actions, and no discounts" }),
-    field({ id: "infestation-field", name: "Infestation", rulesText: "Active Field: hidden infestation counters, setup-move restrictions, hatching, and cleansing" }),
-    field({ id: "surging-strikes-field", name: "Surging Strikes", rulesText: "Active Field: tier toggles, buff loss after battle, Action Wicked Blow, Rage Boost, and encounter rerolls" }),
 
     control({ id: "ditto-token", name: "Ditto", rulesText: "Transforms into any Token except Game Corner Tickets", targetType: "resource", targetScope: "singleResource", resolverMode: resolverModes.GUIDED, resolverId: "copyToken", copyActivationMode: copyActivationModes.DITTO, runtimeUsability: runtimeUsabilityStatuses.BLOCKED, runtimeUsabilityReason: "Ditto is unavailable because its legal Token picker and fresh declaration controller are not implemented, and the handling of phase-boundary-only, response-only, and delayed Tokens outside their native windows is not settled.", requiredChoices: ["Token to copy", "Fresh targets and choices", "Explicit copied-effect costs"], guidedTask: { instruction: "Choose one legal normal Token definition, then create one copied activation with fresh targets, choices, and explicit costs. Do not add that Token to inventory.", responsible: "Acting player", resultLabel: "Copied Activation", placeholder: "Restrict", confirmationLabel: "Use Ditto Activation" }, mechanicContract: { selectedDefinitionMustBeCurrentlyTimingLegal: "needsRuling", phaseBoundaryResponseAndDelayedTokenHandling: "needsRuling" } })
   ];
@@ -852,16 +939,6 @@
     const nameOwners = new Map();
     const aliasOwners = new Map();
     const hasRequiredTest = (definition, expected) => definition.requiredTests.some((test) => test === expected);
-    const fieldRequiredTests = [
-      "Field ownership remains after placement",
-      "No ordinary Token consumption",
-      "Active Field created",
-      "Previous Field replaced",
-      "Owner and placement history recorded",
-      "Reload persistence",
-      "Replacement restoration through supported undo/repair",
-      "Sandbox discard isolation"
-    ];
     const responseRequiredTests = [
       "Requires legal parent prompt",
       "Response compatibility",
@@ -927,17 +1004,6 @@
       if (definition.maxTargets === 0 && definition.targetCollectionType !== "none") errors.push(`${definition.id}: targetless effect cannot declare ${definition.targetCollectionType}`);
       if (definition.resolverMode === resolverModes.GUIDED && !definition.guidedTask?.instruction) errors.push(`${definition.id}: Guided effect needs a task`);
       if (definition.resolverMode === resolverModes.HOST_CONFIRMED && !definition.hostTask?.instruction) errors.push(`${definition.id}: Host Confirmed effect needs a task`);
-      if (definition.family === "Field" && (definition.consumptionMode !== "doNotConsume" || definition.consumesOnLegalUse || definition.consumeIfMisses || definition.consumeIfBlocked || definition.declarationCost !== "None")) {
-        errors.push(`${definition.id}: Field inherits ordinary Token consumption`);
-      }
-      if (definition.family === "Field") {
-        fieldRequiredTests.forEach((test) => {
-          if (!hasRequiredTest(definition, test)) errors.push(`${definition.id}: Field missing required test: ${test}`);
-        });
-        if (definition.requiredTests.some((test) => /consumed once|declaration consumed/i.test(test))) {
-          errors.push(`${definition.id}: Field requires an ordinary consumption test`);
-        }
-      }
       if (definition.isResponse) responseRequiredTests.forEach((test) => {
         if (!hasRequiredTest(definition, test)) errors.push(`${definition.id}: response Token missing required test: ${test}`);
       });
@@ -1037,7 +1103,7 @@
       }
       if (definition.id === "lingering-aroma") {
         const mechanic = definition.mechanicContract;
-        if (definition.runtimeImplementationStatus !== runtimeImplementationStatuses.PARTIAL
+        if (definition.runtimeImplementationStatus !== runtimeImplementationStatuses.VERIFIED_COMPLETE
           || definition.runtimeUsability !== runtimeUsabilityStatuses.USABLE
           || mechanic.exactOngoingEffectRecordRequired !== true || mechanic.mustBenefitActingPlayer !== true
           || mechanic.removeOriginalEffect !== true || mechanic.originalBehaviorStopsApplying !== true
@@ -1131,7 +1197,7 @@
           || definition.activationPattern !== "phaseBoundaryOptionalTrigger" || definition.eligibleRecordType !== "encounter"
           || definition.eligibleRecordWindow !== "currentActionPhase" || definition.selectionCount !== 1
           || definition.copiedPayloadStatus !== "settled" || !definition.createsPendingEvent || definition.opensResponseWindow
-          || definition.runtimeImplementationStatus !== runtimeImplementationStatuses.PARTIAL
+          || definition.runtimeImplementationStatus !== runtimeImplementationStatuses.VERIFIED_COMPLETE
           || definition.runtimeUsability !== runtimeUsabilityStatuses.USABLE) {
           errors.push(`${definition.id}: incomplete End-of-Action boundary-offer metadata`);
         }

@@ -203,6 +203,10 @@ function runInSandbox(code, label) {
 function loadSourceData() {
   const appSource = readWorkspaceFile("app.js");
   const appDataCode = [
+    extractObjectFreezeStatement(appSource, "TOKEN_TIMING_CATEGORIES"),
+    extractObjectFreezeStatement(appSource, "EFFECT_TARGET_TYPES"),
+    extractObjectFreezeStatement(appSource, "EFFECT_TARGET_SCOPES"),
+    extractObjectFreezeStatement(appSource, "EFFECT_APPLICATION_SCOPES"),
     extractObjectFreezeStatement(appSource, "defaultTokenShopData"),
     extractObjectFreezeStatement(appSource, "utilityTokenDefinitions"),
     extractObjectFreezeStatement(appSource, "statusTokenDefinitions"),
@@ -274,7 +278,6 @@ function createLeague(options, data) {
     players: [],
     pokemonRecords: [],
     lingeringStatuses: [],
-    fieldTokens: [],
     log: [],
     counters: {
       battles: 0,
@@ -284,14 +287,12 @@ function createLeague(options, data) {
       statusesCreated: 0,
       steals: 0,
       incinerates: 0,
-      fieldsPlaced: 0,
       classTokensSkipped: 0,
       gameCornerRewards: 0
     },
     nextPokemonId: 1,
     nextInventoryId: 1,
     nextStatusId: 1,
-    nextFieldId: 1,
     issues: [],
     errorCount: 0,
     warningCount: 0
@@ -627,25 +628,6 @@ function activateUtilityToken(league, actor, token, tokenInfo, data, rng) {
     targetPlayer.buffs = [...new Set([...(targetPlayer.buffs || []), definition.buff])];
   } else if (definition.effectType === "player-nerf") {
     targetPlayer.nerfs = [...new Set([...(targetPlayer.nerfs || []), definition.nerf])];
-  } else if (definition.effectType === "field") {
-    league.fieldTokens.forEach((field) => {
-      if (field.status === "active") field.status = "replaced";
-    });
-    league.fieldTokens.unshift({
-      id: `sim-field-${league.nextFieldId++}`,
-      fieldTokenName: token.name,
-      placedByPlayerId: actor.id,
-      series: league.series,
-      gym: league.gym,
-      status: "active",
-      note: definition.note || ""
-    });
-    league.counters.fieldsPlaced += 1;
-    logEvent(league, "field", `${actor.name} placed ${token.name}.`, {
-      token: token.name,
-      actor: actor.name,
-      note: definition.note || ""
-    });
   }
 
   league.counters.tokensActivated += 1;
@@ -827,11 +809,6 @@ function validateLeague(league, data, lookups) {
       issue(league, "error", "Expired status is still active.", { status });
     }
   });
-  league.fieldTokens.forEach((field) => {
-    if (!playerIds.has(field.placedByPlayerId)) {
-      issue(league, "error", "Field token points at missing player.", { field });
-    }
-  });
 }
 
 function bootstrapRosters(league, data, rng) {
@@ -879,7 +856,6 @@ function summarize(league) {
     inventory: league.players.reduce((sum, player) => sum + player.inventory.length, 0),
     activeStatuses: league.lingeringStatuses.filter((status) => status.status === "active").length,
     expiredStatuses: league.lingeringStatuses.filter((status) => status.status === "expired").length,
-    activeField: league.fieldTokens.find((field) => field.status === "active")?.fieldTokenName || "",
     counters: league.counters,
     errors: league.errorCount,
     warnings: league.warningCount,
@@ -931,7 +907,6 @@ function reportPayload(league, summary) {
     standings: standingsForReport(league),
     activeStatuses: league.lingeringStatuses.filter((status) => status.status === "active"),
     expiredStatuses: league.lingeringStatuses.filter((status) => status.status === "expired").slice(-80),
-    fields: league.fieldTokens,
     issues: league.issues,
     eventLog: league.log
   };
@@ -959,7 +934,7 @@ function eventRowsForMarkdown(log) {
 }
 
 function buildMarkdownReport(payload) {
-  const { summary, standings, activeStatuses, fields, issues, eventLog } = payload;
+  const { summary, standings, activeStatuses, issues, eventLog } = payload;
   const counterRows = Object.entries(summary.counters).map(([key, value]) => [key, value]);
   const eventCountRows = Object.entries(payload.eventTypeCounts).sort((a, b) => b[1] - a[1]).map(([key, value]) => [key, value]);
   const standingRows = standings.map((player, index) => [
@@ -986,13 +961,6 @@ function buildMarkdownReport(payload) {
     status.targetPlayerId || "-",
     status.expiresRound ?? "-"
   ]);
-  const fieldRows = fields.slice(0, 40).map((field) => [
-    field.fieldTokenName,
-    field.status,
-    field.series,
-    field.gym,
-    field.note || "-"
-  ]);
   const issueRows = issues.slice(0, 80).map((entry) => [
     entry.severity,
     `${entry.series} G${entry.gym}`,
@@ -1016,7 +984,6 @@ function buildMarkdownReport(payload) {
     `Pokemon records: ${summary.pokemon}`,
     `Inventory entries: ${summary.inventory}`,
     `Active statuses: ${summary.activeStatuses}; expired statuses: ${summary.expiredStatuses}`,
-    `Active field: ${summary.activeField || "None"}`,
     "",
     "## Counters",
     "",
@@ -1037,10 +1004,6 @@ function buildMarkdownReport(payload) {
     "## Active Statuses",
     "",
     statusRows.length ? markdownTable(["Name", "Type", "Pokemon", "Target Player", "Expires Round"], statusRows) : "No active statuses.",
-    "",
-    "## Field Tokens",
-    "",
-    fieldRows.length ? markdownTable(["Field", "Status", "Series", "Gym", "Note"], fieldRows) : "No field tokens placed.",
     "",
     "## Issues",
     "",
@@ -1088,7 +1051,6 @@ function main() {
     console.log(`Pokemon records: ${summary.pokemon}`);
     console.log(`Inventory entries: ${summary.inventory}`);
     console.log(`Active statuses: ${summary.activeStatuses}; expired: ${summary.expiredStatuses}`);
-    console.log(`Active field: ${summary.activeField || "None"}`);
     console.log(`Counters: ${JSON.stringify(summary.counters)}`);
     if (summary.counters.classTokensSkipped) {
       console.log(`Class token activations skipped by design: ${summary.counters.classTokensSkipped} (trainer classes intentionally excluded from this pass).`);

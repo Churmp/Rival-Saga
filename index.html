@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Rival Saga</title>
     <link rel="icon" href="data:,">
-    <link rel="stylesheet" href="styles.css?v=306">
+    <link rel="stylesheet" href="styles.css?v=310">
     <script defer src="game-shell-contract.js?v=1"></script>
     <script defer src="move-classification-data.js?v=5"></script>
     <script defer src="shop-data.js?v=7"></script>
@@ -22,7 +22,8 @@
     <script defer src="item-reference-data.js?v=3"></script>
     <script defer src="pokemon-balance-tiers.js?v=188"></script>
     <script defer src="silph-data.js?v=3"></script>
-    <script defer src="app.js?v=395"></script>
+    <script defer src="action-phase-balance.js?v=1"></script>
+    <script defer src="app.js?v=405"></script>
   </head>
   <body>
     <aside id="tokenSandboxBanner" class="token-sandbox-banner" role="status" aria-live="polite" hidden>
@@ -330,9 +331,6 @@
       <div class="phase-controls" aria-label="App controls">
         <button id="siteShellToggle" class="ghost-button mini-button" type="button">Site Menu</button>
         <button id="openAdminToolsTop" class="ghost-button mini-button admin-top-button" type="button">League Manager</button>
-        <button id="fieldIndicator" class="field-indicator" type="button" aria-label="No active field" title="No active field">
-          <span aria-hidden="true">F</span>
-        </button>
         <div class="phase-status-card" aria-live="polite">
           <button id="phaseAgendaToggle" class="phase-agenda-toggle" type="button" aria-expanded="false">
             <span id="currentPhaseStatus">Kanto - Gym 1 - Start of Gym Phase</span>
@@ -762,6 +760,13 @@
               </div>
             </div>
             <div id="actionTurnRail" class="action-turn-rail" aria-label="Action Phase turn order"></div>
+            <div class="action-demo-controls">
+              <div>
+                <span>Action Phase Demo Mode</span>
+                <strong id="actionDemoStatus">Off - normal turn order is enforced</strong>
+              </div>
+              <button id="actionToggleDemoMode" class="secondary-button" type="button" aria-pressed="false">Turn Demo Mode On</button>
+            </div>
             <p id="actionPhaseWarning" class="battle-rule-warning hidden"></p>
           </section>
           <section class="action-map-layout">
@@ -1635,7 +1640,6 @@
                 Existing Persistent Effect
                 <select id="adminTokenScenarioPersistent">
                   <option value="none">None</option>
-                  <option value="field">Active Drizzle Field</option>
                   <option value="safeguard">Active Safeguard</option>
                   <option value="restrict">Active Restrict</option>
                 </select>

@@ -118,9 +118,9 @@ test("[TCI-001] Unban removes Restrict, mirrors one protection, blocks recurrenc
   const restrictStatus = activeStatuses(restrictedState, "restrict")[0];
   assert.equal(restrictStatus.sourceTokenId, "steevee-restrict-1");
   assert.equal(restrictStatus.sourceTokenName, "Restrict");
-  assert.equal(restrictStatus.durationGyms, 2);
+  assert.equal(restrictStatus.durationGyms, 6);
   assert.equal(restrictStatus.expiresAtSeries, "Kanto");
-  assert.equal(restrictStatus.expiresAtGym, 3);
+  assert.equal(restrictStatus.expiresAtGym, 7);
   assert.equal(restrictedState.globalPokemonRules.garchomp.sourceStatusId, restrictStatus.id);
   assert.equal(restrict.declared.event.currentPriorityPlayerId, "red");
 
@@ -499,7 +499,7 @@ test("[TCI-006] Clear Smog removes exact Rage buffs and move grants while preser
     ["levelBonus", 3, "removed"],
     ["evCapBonus", 252, "removed"]
   ]);
-  assert.deepEqual(cleared.buffs, ["TM Move Pending"]);
+  assert.deepEqual(cleared.buffs, ["Custom Buff", "TM Move Pending"]);
   assert.equal(findPlayer(controller.getState(), "gold").moveAccessGrants.find((grant) => grant.id === "exact-grant").status, "removed");
   assert.equal(findPlayer(controller.getState(), "gold").moveAccessGrants.find((grant) => grant.id === "other-grant").status, "active");
   assert.deepEqual({

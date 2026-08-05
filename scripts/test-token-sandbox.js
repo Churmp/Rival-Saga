@@ -13,6 +13,7 @@ const {
   synchronizeConnectedRevision
 } = require("../token-sandbox-session.js");
 const { createScenarioController } = require("../token-control-controller.js");
+const controlTokenEffects = require("../token-control-effects.js");
 const encounterTokenRuntime = require("../encounter-token-runtime.js");
 const { controlStateFixture } = require("./token-controller-test-fixture.js");
 
@@ -25,7 +26,6 @@ function stateFixture(marker = "real") {
     transactions: [],
     log: [],
     lingeringStatuses: [],
-    fieldTokens: [],
     effectAuditRecords: [],
     tokenConsumptions: [],
     tokenActivations: [],
@@ -138,7 +138,6 @@ test("[TSB-006] clean discard removes sandbox gameplay and uses authoritative re
   entered.workingState.players[0].inventory.push({ id: "sandbox-token" });
   entered.workingState.pokemonRecords.push({ id: "sandbox-pokemon" });
   entered.workingState.lingeringStatuses.push({ id: "sandbox-status" });
-  entered.workingState.fieldTokens.push({ id: "sandbox-field" });
   entered.workingState.interactionEvents.push({ id: "sandbox-event" });
   const discarded = harness.manager.discard({ authoritativeState: stateFixture("latest-real") });
   assert.equal(discarded.usedFallback, false);
@@ -1055,4 +1054,121 @@ test("[TSB-025] Immunity negation and both consumptions remain isolated in the s
   assert.equal(discarded.state.tokenConsumptions.length, 0);
   assert.equal(discarded.state.players.find((player) => player.id === "red").inventory.some((item) => item.id === "red-immunity-1"), true);
   assert.equal(discarded.state.players.find((player) => player.id === "steevee").inventory.some((item) => item.id === "steevee-restrict-1"), true);
+});
+
+test("[TSB-026] completion-slice statuses, buffs, grants, and protection remain isolated through discard and commit preparation", () => {
+  const baseline = controlStateFixture("sandbox-completion-slice");
+  baseline.players.find((player) => player.id === "gold").inventory.push({ id: "gold-safeguard-1", name: "Safeguard", type: "TOKEN" });
+  baseline.pokemonRecords.find((pokemon) => pokemon.id === "gold-garchomp").effectBuffs.push({ id: "sandbox-clear-buff", type: "abilityGrant", label: "AAA Ability: Levitate", status: "active", clearable: true });
+  baseline.pokemonRecords.find((pokemon) => pokemon.id === "gold-garchomp").buffs.push("AAA Ability: Levitate");
+  const baselineBytes = JSON.stringify(baseline);
+  const manager = createSessionManager({ createSessionId: () => "sandbox-completion-slice" });
+  const entered = manager.enter({ realState: baseline, revision: 11, revisionVerified: true, persistenceQuiescent: true, scenarioName: "Token completion slice" });
+  const controller = createScenarioController(entered.workingState, { idPrefix: "sandbox-completion-slice", seriesOrder: ["Kanto", "Johto", "Hoenn"] });
+  const resolve = (input) => {
+    const declaration = controller.declare(input);
+    assert.equal(declaration.ok, true, declaration.reason);
+    const resolution = controller.resolve(declaration.event.id);
+    assert.equal(resolution.ok, true, resolution.reason);
+    return resolution;
+  };
+  const restrict = resolve({ tokenId: "restrict-token", actorPlayerId: "steevee", tokenInventoryId: "steevee-restrict-1", targetPokemonId: "red-garchomp", speciesName: "Garchomp" });
+  resolve({ tokenId: "extra-ban-token", actorPlayerId: "steevee", tokenInventoryId: "steevee-extra-ban-1", targetPokemonId: "red-lucario" });
+  resolve({ tokenId: "unban-token", actorPlayerId: "steevee", tokenInventoryId: "steevee-unban-1", targetPokemonId: "red-garchomp", speciesName: "Garchomp", selectedStatusId: restrict.resolution.status.id });
+  resolve({ tokenId: "clear-smog", actorPlayerId: "steevee", tokenInventoryId: "steevee-clear-1", targetPokemonId: "gold-garchomp" });
+  resolve({ tokenId: "rage-candy-bar", actorPlayerId: "gold", tokenInventoryId: "gold-rage-1", targetPokemonId: "gold-garchomp" });
+  const working = controller.getState();
+  const safeguard = controlTokenEffects.resolveSafeguard(working, {
+    sourceTokenId: "gold-safeguard-1", sourceTokenName: "Safeguard", actorPlayerId: "gold", targetPlayerId: "gold",
+    expiresAtSeries: "Kanto", expiresAtGym: 2, expiresAtPhase: "start"
+  }, { state: working, series: "Kanto", gym: 1, phase: "action", makeId: (prefix) => `${prefix}-sandbox-safeguard` });
+  assert.equal(safeguard.result, "resolved");
+  assert.equal(JSON.stringify(baseline), baselineBytes);
+
+  manager.setWorkingState(working);
+  const candidate = prepareCommitCandidate({ workingState: working, baselineState: baseline });
+  assert.equal(candidate.lingeringStatuses.some((status) => status.type === "ban" && status.status === "active"), true);
+  assert.equal(candidate.lingeringStatuses.some((status) => status.type === "unban-protection" && status.status === "active"), true);
+  assert.equal(candidate.lingeringStatuses.some((status) => status.type === "rage-candy-enhancement" && status.status === "active"), true);
+  assert.equal(candidate.lingeringStatuses.some((status) => status.type === "safeguard" && status.status === "active"), true);
+  assert.equal(candidate.pokemonRecords.find((pokemon) => pokemon.id === "gold-garchomp").effectBuffs.some((buff) => buff.sourceDefinitionId === "rage-candy-bar"), true);
+  const duplicateCandidate = prepareCommitCandidate({ workingState: working, baselineState: baseline });
+  assert.equal(JSON.stringify(duplicateCandidate), JSON.stringify(candidate));
+
+  const discarded = manager.discard({ authoritativeState: structuredClone(baseline) });
+  assert.equal(JSON.stringify(discarded.state), baselineBytes);
+});
+
+test("[TSB-027] lifecycle-slice delayed, encounter, suppression, evolution, and payout mutations commit idempotently and discard exactly", () => {
+  const baseline = controlStateFixture("sandbox-lifecycle-slice");
+  const steevee = baseline.players.find((player) => player.id === "steevee");
+  const gold = baseline.players.find((player) => player.id === "gold");
+  steevee.inventory.push(
+    { id: "sandbox-cold-token", canonicalId: "cold-wave", name: "Cold Wave", type: "TOKEN" },
+    { id: "sandbox-purge-token", canonicalId: "purge-curse", name: "Purge Curse", type: "TOKEN" }
+  );
+  gold.inventory.push({ id: "sandbox-reroll-token", canonicalId: "reroll-token", name: "Reroll", type: "TOKEN" });
+  baseline.lingeringStatuses.push({ id: "sandbox-explicit-ongoing", type: "class-aura", status: "active", isOngoingEffect: true, series: "Kanto", gym: 1 });
+  baseline.randomPokemonSessions = [
+    { id: "sandbox-honey-source", sourceType: "encounter", sourceLabel: "Encounter Wheel", status: "confirmed", series: "Kanto", gym: 1, resultDisplayName: "Rotom-Wash", tierId: "B", level: 51, resultMetadata: { speciesId: "rotom", speciesName: "Rotom", form: "Wash" } },
+    { id: "sandbox-reroll-result", sourceType: "encounter", status: "pending", rerollable: true, playerId: "gold", ownerPlayerId: "gold", resultOwnerPlayerId: "gold", resultPokemonName: "abra", resultDisplayName: "Abra", resultMetadata: { key: "abra", displayName: "Abra" } }
+  ];
+  const baselineBytes = JSON.stringify(baseline);
+  const manager = createSessionManager({ createSessionId: () => "sandbox-lifecycle-slice" });
+  const entered = manager.enter({ realState: baseline, revision: 12, revisionVerified: true, persistenceQuiescent: true, scenarioName: "Token lifecycle slice" });
+  const controller = createScenarioController(entered.workingState, {
+    idPrefix: "sandbox-lifecycle-slice",
+    seriesOrder: ["Kanto", "Johto", "Hoenn"],
+    wickedBlowReplacementPlan: (_state, pokemon, targetContext) => targetContext.preview
+      ? { ok: true, poolSize: 1, tierCalculation: { finalEvolutionTier: "Great Elite", replacementTier: "Poke" } }
+      : { ok: true, replacementSpecies: "Barbaracle", pokemonPatch: { ...pokemon, name: "Barbaracle", currentSpecies: "Barbaracle", moves: [] }, assignedBadgePoints: 0, poolSize: 1, tierCalculation: { finalEvolutionTier: "Great Elite", replacementTier: "Poke" } }
+  });
+  const resolve = (input) => {
+    const declaration = controller.declare(input);
+    assert.equal(declaration.ok, true, declaration.reason);
+    const resolution = controller.resolve(declaration.event.id);
+    assert.equal(resolution.ok, true, resolution.reason);
+    return resolution;
+  };
+  resolve({ tokenId: "cold-wave", actorPlayerId: "steevee", tokenInventoryId: "sandbox-cold-token" });
+  resolve({ tokenId: "wicked-blow", actorPlayerId: "steevee", tokenInventoryId: "steevee-wicked-1", targetPokemonId: "red-garchomp-2" });
+  const purge = resolve({ tokenId: "purge-curse", actorPlayerId: "steevee", tokenInventoryId: "sandbox-purge-token", targetPlayerId: "red" });
+  const working = controller.getState();
+  const teleport = controlTokenEffects.scheduleTeleportDelayedEffect(working, {
+    sourceResponseId: "sandbox-teleport-response", sourcePlayerId: "gold",
+    parentEffect: { id: "sandbox-teleport-parent", payload: { tokenName: "Restrict", targetPokemonId: "gold-garchomp" } }
+  }, { series: "Kanto", gym: 1, phase: "action", seriesOrder: ["Kanto", "Johto", "Hoenn"], makeId: () => "sandbox-teleport-delay" });
+  assert.equal(teleport.result, "delayed");
+  const honey = controlTokenEffects.resolveHoneyEncounterCopy(working, {
+    sourceEffectId: "sandbox-honey-effect", ownerPlayerId: "gold", sourceRandomPokemonSessionId: "sandbox-honey-source"
+  }, { series: "Kanto", gym: 1, phase: "action", makeId: (prefix) => `${prefix}-sandbox-honey` });
+  assert.equal(honey.result, "resolved");
+  const reroll = controlTokenEffects.resolveRerollResultRecord(working, {
+    sourceEffectId: "sandbox-reroll-effect", actorPlayerId: "gold", tokenInventoryRecordId: "sandbox-reroll-token",
+    targetResultId: "sandbox-reroll-result", replacementResult: { key: "ralts", displayName: "Ralts" }
+  }, { makeId: (prefix) => `${prefix}-sandbox-reroll`, now: "2026-08-04T12:00:00.000Z" });
+  assert.equal(reroll.result, "resolved");
+  const brought = controlTokenEffects.createImmutableBroughtSnapshot(working, {
+    id: "sandbox-purge-snapshot", broughtByPlayer: { red: [{ rosterInstanceId: "red-garchomp" }, { rosterInstanceId: "red-lucario" }] }
+  }, { series: "Kanto", gym: 1, phase: "payout", now: "2026-08-04T12:01:00.000Z" });
+  const purged = controlTokenEffects.resolvePostPayoutPurge(working, {
+    markerStatusId: purge.resolution.status.id, broughtSnapshotId: brought.id
+  }, { now: "2026-08-04T12:02:00.000Z", makeId: () => "sandbox-purge-operation" });
+  assert.equal(purged.result, "resolved");
+  assert.equal(JSON.stringify(baseline), baselineBytes);
+
+  manager.setWorkingState(working);
+  const candidate = prepareCommitCandidate({ workingState: working, baselineState: baseline });
+  assert.equal(candidate.lingeringStatuses.some((status) => status.type === "cold-wave-suppression"), true);
+  assert.equal(candidate.pokemonRecords.find((pokemon) => pokemon.id === "red-garchomp-2").name, "Barbaracle");
+  assert.equal(candidate.delayedEffects.some((entry) => entry.id === "sandbox-teleport-delay"), true);
+  assert.equal(candidate.randomPokemonSessions.some((entry) => entry.copiedFromRandomPokemonSessionId === "sandbox-honey-source"), true);
+  assert.equal(candidate.randomPokemonSessions.find((entry) => entry.id === "sandbox-reroll-result").resultDisplayName, "Ralts");
+  assert.equal(candidate.pokemonRecords.find((pokemon) => pokemon.id === "red-garchomp").status, "Released");
+  assert.equal(candidate.pokemonRecords.find((pokemon) => pokemon.id === "red-garchomp-2").status, "Active");
+  const duplicateCandidate = prepareCommitCandidate({ workingState: working, baselineState: baseline });
+  assert.equal(JSON.stringify(duplicateCandidate), JSON.stringify(candidate));
+
+  const discarded = manager.discard({ authoritativeState: structuredClone(baseline) });
+  assert.equal(JSON.stringify(discarded.state), baselineBytes);
 });

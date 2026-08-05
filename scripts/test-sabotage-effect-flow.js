@@ -21,7 +21,7 @@ test("Sabotage permissions are explicit contract data", () => {
   ["toxic-curse", "iron-ball-curse", "flame-curse", "silencing-curse", "imprison-curse"].forEach((id) => {
     assert.equal(contract.definitionFor(id).timingPermissions.sabotageCurseWindow, true);
   });
-  ["wicked-blow", "payday-field", "immunity-token"].forEach((id) => {
+  ["wicked-blow", "immunity-token"].forEach((id) => {
     assert.notEqual(contract.definitionFor(id)?.timingPermissions?.sabotageCurseWindow, true);
   });
 });

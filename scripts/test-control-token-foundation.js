@@ -443,7 +443,7 @@ test("[TCF-011] Clear Smog removes selected-instance buffs and grants without to
   const resolution = effects.resolveClearSmog(state, source({ targetPokemonId: "gold-garchomp" }), options(state));
   assert.equal(resolution.result, "resolved");
   assert.equal(target.effectBuffs[0].status, "removed");
-  assert.deepEqual(target.buffs, ["TM Move Pending"]);
+  assert.deepEqual(target.buffs, ["Dragon's Den Ability: Levitate", "TM Move Pending"]);
   assert.equal(gold.moveAccessGrants[0].status, "removed");
   assert.equal(gold.moveAccessGrants[0].active, false);
   assert.equal(gold.moveAccessGrants[1].status, "active");

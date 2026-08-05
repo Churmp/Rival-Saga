@@ -62,7 +62,7 @@ Ordinary Control Timing is open whenever no phase-boundary procedure, pending ef
 - Ordinary Control Timing is closed during Team Lock, Sabotage, Team Preview, Rival Battle Phase, unfinished Battle Payout, and all Start- or End-of-phase procedures. It reopens after Battle Payout reaches its terminal result.
 - A phase-specific effect cannot be inserted through ordinary Control Timing.
 - Control Timing does not naturally include Sabotage.
-- Curse Tokens have an explicit Sabotage Curse window in addition to their normal Control windows. This exception belongs to canonical Curse contracts and does not open Sabotage to ordinary Control or Field effects.
+- Curse Tokens have an explicit Sabotage Curse window in addition to their normal Control windows. This exception belongs to canonical Curse contracts and does not open Sabotage to ordinary Control effects.
 - "Usable during Sabotage" and "causes a Sabotage Revision Window" are separate properties.
 - Control legality is a semantic controller state, not merely membership in a broad phase-name list.
 
@@ -112,9 +112,9 @@ Approved Magician wording:
 
 Magician may change exactly one chosen gameplay target when a different legal corresponding target exists. The replacement must preserve the original effect's target type, controller restrictions, target count, costs, source player, effect text, and every other selected target. For a multi-target effect, only one selected target changes.
 
-Fields, global/table-wide effects, targetless effects, current-prompt responses, encounter modifiers without a chosen gameplay target, Incinerate, Class Change, Move Deleter, Purge Curse, and Safeguard do not permit Magician. Haze and Foresight permit one selected Pokemon to change, but the replacement remains governed by their unresolved controller relationship. Purge is absolute and cannot be redirected. Ditto uses the copied-activation model below rather than inventory duplication.
+Global/table-wide effects, targetless effects, current-prompt responses, encounter modifiers without a chosen gameplay target, Incinerate, Class Change, Move Deleter, Purge Curse, and Safeguard do not permit Magician. Haze and Foresight permit one selected Pokemon to change, but the replacement remains governed by their unresolved controller relationship. Purge is absolute and cannot be redirected. Ditto transforms its exact inventory record rather than creating a redirected activation.
 
-Follow Me replaces one corresponding target with its user or one of that user's legal Pokemon. It preserves the original effect's source, cost, text, target type, target count, and unaffected targets. Global and targetless effects are ineligible. After the redirected effect resolves, Follow Me creates an Ongoing Effect through the current Gym that records the redirected effect's player and makes that player's later Tokens eligible for Follow Me Copy behavior. The post-resolution Copy semantics and runtime are not implemented, so gameplay activation currently fails before redirect or Token consumption.
+Follow Me replaces one corresponding target with its user or one of that user's legal Pokemon. It preserves the original effect's source, cost, text, target type, target count, and unaffected targets. Global and targetless effects are ineligible. After the redirected effect resolves, Follow Me creates an Ongoing Effect through the current Gym that records the redirected effect's player. When that player later consumes a real Token, the Follow Me user gains one canonical inventory copy; virtual activations do not trigger the relationship. The relationship expires at Gym end, while copies already earned remain ordinary inventory.
 
 Smokescreen uses replacement redirection. Spin a wheel containing every player exactly once. If the wheel lands on the original targeted player, the original target remains. If it lands on another player who has a legal corresponding target, the Smokescreen user chooses one of those targets and replaces the original target. If that player has no legal corresponding target, the original target remains. Do not reroll. Smokescreen is consumed even when the original target remains. Player targets must remain Player targets and Pokemon targets must remain Pokemon targets.
 
@@ -158,7 +158,7 @@ Sneak Peek grants a special Team Preview timing permission for Curses. It does n
 
 ## Token Consumption Baseline
 
-All Tokens are single-use consumables except Fields.
+Tokens are single-use consumables unless an exact Token contract defines a different inventory lifecycle.
 
 The exact consumption behavior for these outcomes is not yet fully approved:
 
@@ -172,12 +172,6 @@ The exact consumption behavior for these outcomes is not yet fully approved:
 - Guided UI closure
 
 One generic "canceled" result must not be presented as a settled rule for all of these outcomes. The current consumption implementation remains provisional until the lifecycle distinctions are approved.
-
-## Fields
-
-Fields are Tokens, but they are the exception to ordinary single-use Token behavior.
-
-The active Field and ownership of a Field Token are separate concepts. The current runtime can structurally record one active Field and replace the prior active Field, but most ongoing Field mechanics are not implemented. Field implementation is not complete.
 
 ## Mechanical Effect Tags
 
@@ -198,7 +192,6 @@ Known required tags include:
 - Delay
 - Redirect
 - Curse
-- Field
 - Global
 - Protection
 
@@ -230,15 +223,15 @@ Sticky Hold must check a formal Steal tag. It must not rely on Token names or th
 
 Current approved wording:
 
-> Your Money And Tokens Cannot Be Stolen, Destroyed, Or Copied. You Are Unaffected By Follow Me, Taunt, Payday, And Embargo.
+> Your Money And Tokens Cannot Be Stolen, Destroyed, Or Copied. You Are Unaffected By Follow Me And Embargo.
 
-Safeguard behavior is not yet fully enforced by the runtime.
+Safeguard creates one exact-player status through the normal proactive response lifecycle. Its executable protected-category matrix is limited to money steal/destroy/copy, Token steal/destroy/copy, Follow Me, and Embargo. It does not protect Item or TM theft/destruction, Pokemon transfer, forced declaration payments, or Counterspell restoration. Protection is checked against the target player before irreversible mutation. The status persists through refresh, expires at the approved Gym boundary, and supports causal History undo.
 
 ## Copy
 
 Ordinary Copy effects create a new activation, not a copied inventory item. The copied activation records its source and Copy mode, makes fresh targets and choices unless its effect explicitly says otherwise, pays explicit activation costs unless waived, and cannot itself be copied. Copy does not consume the original Token or a nonexistent copied inventory record.
 
-After You, Follow Me, Ditto, Drizzle, and Trainer Class Copy effects each use their own trigger and lifetime while sharing those activation rules. Their production controllers remain effect-specific work; the common contract must not erase those distinctions. Before enabling the first three, the rules still need to settle: which non-Token effect sources After You may copy and its chain order; whether each Follow Me copy is optional or mandatory and its order relative to the original later Token; and whether Ditto may choose phase-boundary/response-only Tokens outside their native legal window.
+After You, Follow Me, Ditto, and Trainer Class Copy effects each use their own trigger and lifetime; their effect-specific contracts must not be collapsed into one generic Copy rule. After You creates a non-inventory copied activation for its supported interactions. Follow Me grants a canonical inventory copy after a qualifying later consumption. Ditto transforms its exact owned record into the chosen canonical activatable non-Ditto Token without activating it.
 
 7 Tools Of The Bandit is the explicit exception. Immediately after a Protection Token activates, it negates that Protection Token and creates one temporary inventory copy for the 7 Tools user. The copy follows the copied Token's normal timing, targeting, and effect rules and expires unused at End of Gym. Exact temporary copied inventory, Gym-end expiration, and Safeguard Copy protection are implemented for this Token-specific model.
 
@@ -248,7 +241,7 @@ After You, Follow Me, Ditto, Drizzle, and Trainer Class Copy effects each use th
 
 > When A Player Has An Ongoing Effect In Play, Use This Token. Replace That Effect's Text With 'Players Who Target Me Gain 500' Until That Effect Ends.
 
-Lingering Aroma may target only a record explicitly marked `isOngoingEffect`. Duration alone does not qualify a record. It keeps the original effect record, source, owner, duration, expiration, identity, and original text, then records a linked active-text replacement that ends with the original effect. Passive effects, ordinary statuses, Fields, protections, and permanent rules are not eligible unless their own contract explicitly classifies them as ongoing.
+Lingering Aroma may target only a record explicitly marked `isOngoingEffect`. Duration alone does not qualify a record. It keeps the original effect record, source, owner, duration, expiration, identity, and original text, then records a linked active-text replacement that ends with the original effect. Passive effects, ordinary statuses, protections, and permanent rules are not eligible unless their own contract explicitly classifies them as ongoing.
 
 ### Cold Wave
 
@@ -300,9 +293,9 @@ Approved broad timing:
 
 > At End of Action Phase, choose an eligible Pokemon encountered during that Action Phase and copy that encounter.
 
-Honey is an optional `endOfActionPhaseProcedure` trigger, not an `encounterResult` response. Live Referee must gather structured completed-encounter records, show each encounter's Pokemon, original player, source, and relevant modifications, then let the eligible player choose one or Skip. Honey resolves before Team Building and may create its own pending event and normal response window.
+Honey is an optional `endOfActionPhaseProcedure` trigger, not an `encounterResult` response. Live Referee gathers exact finalized Encounter-result records, shows each eligible result, and lets the eligible player choose one or Skip before Team Building. The procedure is non-respondable.
 
-Only the copied payload remains unresolved. Do not assume whether Honey copies only species/form, the full encounter record, Dream Ball Ability access, Beast Ball move access, or other encounter-granted modifications.
+Honey creates one acquisition-ready copy with a fresh stable result identity. It preserves the finalized species, form, Battle Tier, level, and intrinsic rolled properties only. It does not copy ownership, acquired or terminal state, the original session identity, transfer state, reroll History, consumed modifiers, bonuses, Items, UI state, or stale references. The copy enters the normal acquisition flow and cannot recursively become a Honey source.
 
 ## Teleport And Delay
 
@@ -318,6 +311,18 @@ The delayed-effect record, production phase-return scheduler, deterministic Live
 ## Move Deleter
 
 Move Deleter uses ordinary Control Timing and selects one exact canonical move. That move is globally unavailable during the next Gym. Teambuilder selection, import/export, validation, and generated sets must reject the move while the restriction is active. The restriction expires after that next Gym and does not affect the declaration Gym.
+
+## Restrict, Extra Ban, And Unban
+
+Restrict selects one canonical Pokemon species and creates a six-Gym global species restriction. Canonical normalization covers display casing, punctuation, symbols, and registered form aliases. Every authoritative team-legality surface enforces it, except that an active Rage Candy Bar grants immunity only to its exact roster instance. Restrict expires once at the start-of-Gym duration checkpoint.
+
+Extra Ban selects one exact Active-roster anchor and creates an indefinite global species Ban. Substitute is checked only on that selected anchor. A valid Substitute there negates the entire Ban and creates current-phase repeat-Ban protection; a Substitute on another matching instance is neither inspected nor consumed.
+
+Unban selects one exact active Ban or Restrict record, removes only that record, and creates six-Gym Ban/Restrict protection for the canonical species. Ambiguous or stale status choices fail before consumption. Undo restores the selected record with its original expiration metadata and does not change unrelated restriction schedules.
+
+## Clear Smog
+
+Clear Smog permanently removes clearable structured buffs, approved temporary Ability grants, and exact-instance move-access grants from one exact Active-roster Pokemon. Removal is provenance-based. It does not infer removals from visible set differences, alter native moves or Abilities, revive expired records, suppress effects for later restoration, or erase unrelated labels and build fields.
 
 ## Revenge
 
@@ -371,13 +376,12 @@ Purge is absolute: it cannot be responded to, negated, redirected, or protected 
 
 ## Current Completion Status
 
-- All 53 catalog Token IDs have declaration-contract coverage.
+- All 45 catalog Token IDs have declaration-contract coverage.
 - The generated Token matrix matches the declarative contract.
 - Response-priority infrastructure is partially functional.
 - Many Automatic and Guided Token resolvers do not perform their complete Saga effects.
-- Immunity and Extra Encounter Token are verified complete. Extra Encounter creates or extends the chosen player's authoritative Encounter session by exactly one roll and uses the normal Encounter overlay, persistence, History undo, and sandbox boundaries.
-- Protection tags remain incomplete overall. Sticky Hold is enforced for the verified Pokemon-targeting Steal Token; Safeguard and future theft/destruction/copy categories remain effect-specific work.
-- The declarative contract and Live Referee now share the corrected ordinary Control Timing model for Action decisions, Team Building, Shopping, and completed Battle Payout. Effect-specific timing still requires verification before a Token is complete.
-- Field ongoing mechanics are largely absent.
-- Teleport and Revenge are `usablePartial` through production scheduler/choice flows with browser refresh evidence. Teleport intentionally supports only exact root Control-controller Token events, and Revenge still needs one complete payout-to-offer phase-through smoke test. Drizzle Copy, Follow Me Copy, Safeguard's wider operation coverage, and many Guided Tokens remain incomplete.
+- Thirty Tokens are verified complete. Cold Wave, Wicked Blow, Teleport, Reroll, Honey, and Purge Curse are the current lifecycle-completion slice.
+- Protection remains category-specific. Sticky Hold covers formal Steal effects; Safeguard covers only its eight approved operation categories.
+- The declarative contract and Live Referee share the corrected ordinary Control Timing model for pre-Gym preparation, Action decisions, Team Building, Shopping, and completed Battle Payout. Active procedures and unresolved choices remain closed.
+- Teleport is `verifiedComplete` for exact root Control-controller Token events; unsupported nested or non-Token parents still fail closed before consumption. Many Guided Tokens remain incomplete.
 - The Token system is under active implementation and is not functionally complete.

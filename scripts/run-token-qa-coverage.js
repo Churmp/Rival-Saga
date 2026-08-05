@@ -6,6 +6,8 @@ const { buildReport, checkFreshness, printSummary } = require("./generate-token-
 const testFiles = [
   "scripts/test-control-token-foundation.js",
   "scripts/test-token-controller-integration.js",
+  "scripts/test-token-completion-slice.js",
+  "scripts/test-token-lifecycle-slice.js",
   "scripts/test-encounter-token-runtime.js",
   "scripts/test-token-result-summary.js",
   "scripts/test-standard-curse-tokens.js",

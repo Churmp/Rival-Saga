@@ -125,7 +125,6 @@ function controlStateFixture(marker = "controller-fixture") {
     lingeringStatuses: [],
     globalPokemonRules: {},
     banlistHistory: [],
-    fieldTokens: [],
     effectAuditRecords: [],
     effectOperations: [],
     tokenConsumptions: [],

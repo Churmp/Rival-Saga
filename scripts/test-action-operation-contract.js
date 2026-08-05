@@ -5,6 +5,7 @@ const path = require("node:path");
 
 const appSource = fs.readFileSync(path.join(__dirname, "..", "app.js"), "utf8");
 const cssSource = fs.readFileSync(path.join(__dirname, "..", "styles.css"), "utf8");
+const htmlSource = fs.readFileSync(path.join(__dirname, "..", "index.html"), "utf8");
 
 function harness() {
   const state = { visits: [], operations: [], pending: false, manualTask: false };
@@ -113,7 +114,7 @@ test("reload preserves committed cost, owner, Action number, and session", () =>
 
 test("completing an operation selects the exact next player", () => {
   const h = harness();
-  const visit = h.commit("p2", "field-token");
+  const visit = h.commit("p2", "hidden-grotto");
   assert.equal(h.turn(["p2", "p3", "p1"]), "p2");
   h.complete(visit.id);
   assert.equal(h.turn(["p2", "p3", "p1"]), "p3");
@@ -134,9 +135,28 @@ test("closing an intermediate submenu cannot complete an operation", () => {
 test("required completion hooks and bounded picker layout are wired", () => {
   for (const hook of [
     "silph-co-choice-complete", "hidden-grotto-choice-complete", "bulletin-quests-confirmed",
-    "encounter-session-closed", "wheel-session-closed", "field-token-placed", "dragons-den-placement-complete"
+    "encounter-session-closed", "wheel-session-closed", "dragons-den-placement-complete"
   ]) assert.match(appSource, new RegExp(hook));
   assert.match(appSource, /data-finish-action-operation/);
   assert.match(cssSource, /\.live-referee-picker-scroll\s*\{[^}]*min-height:\s*0;[^}]*overflow-y:\s*auto;/s);
   assert.match(cssSource, /\.live-referee-stage \.live-referee-tokens-screen\s*\{[^}]*overflow:\s*hidden;/s);
+});
+
+test("accepted destination reservations continue into their exact local starter", () => {
+  assert.match(appSource, /function matchingAcceptedActionDestination\(\{ playerId = "", locationId = "", serviceId = "" \} = \{\}\)/);
+  assert.match(appSource, /function createLocationActionVisit[\s\S]*matchingAcceptedActionDestination\(\{ playerId: player\.id, locationId: location\.id, serviceId \}\)/);
+  assert.match(appSource, /function createGameCornerActionSession[\s\S]*matchingAcceptedActionDestination\(\{ playerId: player\.id, locationId: location\.id, serviceId: service\.id \}\)/);
+  assert.match(appSource, /function startEncounterSession\(\{ skipConfirmCheck = false \} = \{\}\)/);
+  assert.match(appSource, /startEncounterSession\(\{ skipConfirmCheck: true \}\)/);
+  assert.match(appSource, /if \(!startEncounterSession\([\s\S]*throw new Error\("The Encounter location could not start\."\)/);
+});
+
+test("Action Phase Demo Mode controls and player switching are wired", () => {
+  assert.match(htmlSource, /id="actionDemoStatus"/);
+  assert.match(htmlSource, /id="actionToggleDemoMode"/);
+  assert.match(appSource, /function renderActionDemoControls\(\)/);
+  assert.match(appSource, /data-action-player-id=/);
+  assert.match(appSource, /setTestingToolsState\(\{ controlledPlayerId: playerId \}\)/);
+  assert.match(cssSource, /\.action-demo-controls\s*\{/);
+  assert.match(cssSource, /\.action-turn-chip\.selectable/);
 });

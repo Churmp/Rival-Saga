@@ -195,7 +195,7 @@ test("[SEB-004] Honey creates an acquisition-ready identity without copying owne
   assert.equal(state.randomPokemonSessions.length, 2);
 });
 
-test("[SEB-005] Follow Me and Drizzle share idempotent real inventory-copy mutation without virtual recursion", () => {
+test("[SEB-005] Follow Me creates idempotent real inventory copies without virtual recursion", () => {
   const state = stateFixture();
   const relationship = effects.createFollowMeCopyRelationship(state, {
     sourceEffectId: "follow-response-1", activateAfterEffectId: "parent-1", sourcePlayerId: "red", beneficiaryPlayerId: "gold"
@@ -214,12 +214,6 @@ test("[SEB-005] Follow Me and Drizzle share idempotent real inventory-copy mutat
   assert.equal(state.players.find((entry) => entry.id === "gold").inventory.length, 1);
   const virtual = effects.copyConsumedTokenForRelationships(state, { ...consumption, id: "virtual-1", isVirtualActivation: true }, options());
   assert.deepEqual(virtual, []);
-
-  const drizzle = effects.createDrizzleTokenCopyRelationship(state, {
-    sourceEffectId: "drizzle-reward-1", sourcePlayerId: "blue", beneficiaryPlayerId: "gold"
-  }, options());
-  assert.equal(drizzle.record.relationshipType, "drizzle");
-  assert.equal(drizzle.record.status, "active");
 });
 
 test("[SEB-006] Ditto copy records are canonical, idempotent, non-activating, and undoable", () => {

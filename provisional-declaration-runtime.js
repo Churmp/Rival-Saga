@@ -26,6 +26,7 @@
     RELEASED: "released"
   });
   const ORDINARY_CONTROL_CONTEXTS = Object.freeze({
+    GYM_START_PREPARATION: "gymStartPreparationControl",
     ACTION_OPEN: "actionOpenControl",
     TEAM_BUILDING: "teamBuilding",
     SHOP: "shop",
@@ -187,6 +188,18 @@
       return { open: false, reason: externalBlockReason, phase, flowState, decision };
     }
 
+    if (phase === "start" && flowState === "preGym") {
+      return {
+        open: true,
+        reason: "",
+        phase,
+        flowState,
+        context: ORDINARY_CONTROL_CONTEXTS.GYM_START_PREPARATION,
+        provisionalDestinationRace: false,
+        decision
+      };
+    }
+
     if (phase === "action") {
       if (decision.operation) {
         return { open: false, reason: "A location operation is already active.", phase, flowState, decision };
@@ -270,6 +283,7 @@
     return {
       targetPokemonId: String(source.targetPokemonId || ""),
       targetPokemonIds: Array.isArray(source.targetPokemonIds) ? [...new Set(source.targetPokemonIds.map((id) => String(id || "")).filter(Boolean))] : [],
+      selectedStatusId: String(source.selectedStatusId || ""),
       targetPlayerId: String(source.targetPlayerId || ""),
       targetPlayerIds: Array.isArray(source.targetPlayerIds) ? [...new Set(source.targetPlayerIds.map((id) => String(id || "")).filter(Boolean))] : [],
       targetText: String(source.targetText || "").slice(0, 160),

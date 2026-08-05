@@ -3,16 +3,16 @@
 
 # Token QA Coverage
 
-- Coverage revision: `2026-07-29-settled-copy-and-curse-runtime-v2`
-- Token contract revision: `2026-07-29-production-runtime-surfaces-v2`
-- Tracked partial/verified Tokens: **44/44**
-- Current partial Tokens: **32**
-- Verified-complete Tokens with retained QA evidence: **12**
-- Contract definitions: **53**
-- Runtime usability: **43 usable**, **9 Guided only**, **0 development only**, **1 blocked**
-- Catalog/revision watchlist entries: **7**
-- Named scenarios: **144**
-- Unique executable Browser tests: **13**
+- Coverage revision: `2026-08-04-lifecycle-completion-slice-v3`
+- Token contract revision: `2026-08-04-lifecycle-completion-slice-v3`
+- Tracked partial/verified Tokens: **36/36**
+- Current partial Tokens: **6**
+- Verified-complete Tokens with retained QA evidence: **30**
+- Contract definitions: **45**
+- Runtime usability: **35 usable**, **9 Guided only**, **0 development only**, **1 blocked**
+- Catalog/revision watchlist entries: **5**
+- Named scenarios: **164**
+- Unique executable Browser tests: **28**
 - Source: `scripts/token-qa-coverage-data.js`
 - Freshness check: `npm run test:token-coverage`
 - Regenerate after intentional inventory edits: `npm run generate:token-coverage`
@@ -35,9 +35,9 @@
 
 | Coverage | Count |
 | --- | ---: |
-| Covered | 115 |
-| Partially Covered | 17 |
-| Static Only | 12 |
+| Covered | 149 |
+| Partially Covered | 13 |
+| Static Only | 2 |
 | Manual Only | 0 |
 | Not Covered | 0 |
 | Blocked By Ruling | 0 |
@@ -46,22 +46,22 @@
 
 | Coverage | Count |
 | --- | ---: |
-| Covered | 197 |
-| Partially Covered | 16 |
-| Static Only | 11 |
+| Covered | 237 |
+| Partially Covered | 5 |
+| Static Only | 1 |
 | Manual Only | 0 |
-| Not Covered | 22 |
+| Not Covered | 7 |
 | Blocked By Ruling | 0 |
 
 ### Test Level
 
 | Level | Count |
 | --- | ---: |
-| Unit | 66 |
-| Integration | 37 |
-| Browser | 29 |
+| Unit | 72 |
+| Integration | 47 |
+| Browser | 43 |
 | Manual-only | 0 |
-| Static Wiring | 12 |
+| Static Wiring | 2 |
 
 Browser scenarios use visible controls, backend refresh, visible result assertions, and console/error collection. They do not mark a Token verified complete.
 
@@ -71,12 +71,10 @@ These entries are explicit non-coverage records. Catalog presence, contract meta
 
 | Token | Runtime status | Runtime usability | Approved/revised behavior | Coverage | Evidence | Current gap |
 | --- | --- | --- | --- | --- | --- | --- |
-| Lingering Aroma | partial | usable | Replace one exact benefiting Ongoing Effect for its linked remaining lifetime and charge confirmed outside targeting declarations $500 once. | Partially Covered | STR-004 | Selection, linked replacement, declaration cost, duplicate-target protection, and expiration are covered in isolation; production browser withdrawal/negation/undo remains unverified. |
-| Cold Wave | partial | usable | Suppress all Ongoing Activated Effects table-wide until Gym end without removing or reviving records. | Partially Covered | STR-003 | Explicit classification and non-mutating suppression are covered; browser presentation and enforcement by every future ongoing-effect consumer remain unverified. |
+| Cold Wave | verifiedComplete | usable | Suppress all Ongoing Activated Effects table-wide until Gym end without removing or reviving records. | Covered | TLS-001, TCI-014, BROWSER-025, and TSB-027 | None within the explicit isOngoingEffect classification boundary; future ongoing-effect consumers must continue using the suppression-aware lookup. |
 | Counterspell | verifiedComplete | usable | Restore the user's exact negated Token and place that exact inventory record on a two-Gym phase-anchored cooldown. | Manual Only | TIR-003, TIR-004, and BROWSER-008 cover the implemented lifecycle | Normal five-client simultaneous priority remains manual validation. |
 | 7 Tools Of The Bandit | verifiedComplete | usable | Negate one just-activated Protection Token and create one same-Gym temporary copy for the responder. | Manual Only | TIR-001, TIR-002, TCF-019, and BROWSER-008 cover the implemented lifecycle | Normal five-client simultaneous priority remains manual validation. |
 | Smokescreen | partial | guidedOnly | Spin every player exactly once; the original player's target remains, while another landed player may replace one chosen target with one legal corresponding target. | Partially Covered | STR-001, STR-002, and TCF-020 | Pure wheel/replacement semantics and production guided wiring are covered; destructive browser refresh, History undo, and five-player execution remain unverified. |
-| Follow Me | partial | usable | Redirect one legal corresponding target, then grant one real inventory copy of each later real Token consumed by the recorded player for the rest of the Gym. | Partially Covered | SEB-005, TCF-021, and BROWSER-013 | Redirect, parent-gated relationship activation, canonical inventory copy, persistence, and duplicate prevention are covered; Gym-end expiration and History undo remain unverified. |
 | Foresight Curse | textOnly | blocked | Reveal only matching brought-set moves to the Foresight user as private information, never through shared state, Live Referee, or History. | Not Covered | TCF-018, TCF-022, and SEB-008 prove fail-closed activation and recursive shared-payload stripping | Authenticated player-scoped delivery, authorized refresh, private rendering, six-target production resolution, and revocation are not implemented, so gameplay activation remains blocked. |
 
 ## Token Inventory
@@ -84,7 +82,7 @@ These entries are explicit non-coverage records. Catalog presence, contract meta
 ### Restrict
 
 - **Token ID:** `restrict-token`
-- **Runtime status:** `partial`
+- **Runtime status:** `verifiedComplete`
 - **Runtime usability:** `usable` - This Token may be declared through its current runtime flow.
 - **Resolver:** `automatic` / `restrict`
 
@@ -102,6 +100,9 @@ These entries are explicit non-coverage records. Catalog presence, contract meta
 | Undo | Covered | TCI-004 | None recorded. |
 | Sandbox discard | Covered | TSB-019 | None recorded. |
 | Sandbox commit | Covered | TSB-019 | None recorded. |
+| Completion-slice effect contract | Covered | TCS-001, BROWSER-019, and TSB-026 | None recorded. |
+| Production Live Referee refresh and causal History undo | Covered | BROWSER-019 | None recorded. |
+| Sandbox discard and idempotent commit preparation | Covered | TSB-026 | None recorded. |
 
 #### Named Scenarios
 
@@ -253,6 +254,67 @@ These entries are explicit non-coverage records. Catalog presence, contract meta
 - **Sandbox commit tested:** Yes
 - **Teambuilder enforcement tested:** No
 - **Current gaps:** The universal post-negation consumption ruling remains provisional.
+
+##### RESTRICT-TOKEN-COMPLETION - Six-Gym canonical species Restrict with exact Rage immunity
+
+- **Coverage:** Covered
+- **Test level:** Unit
+- **Test file:** `scripts/test-token-completion-slice.js`
+- **Test ID:** `TCS-001`
+- **Setup:** Create the exact structured statuses, roster instances, buffs, grants, or player records required by the approved effect contract.
+- **Action:** Resolve the effect and assert its exact target identity, protected scope, enforcement, and expiration semantics.
+- **Expected gameplay result:** Six-Gym canonical species Restrict with exact Rage immunity
+- **Exact assertions:**
+  - Canonical punctuation and capitalization normalize to stable keys.
+  - Only the exact Rage-enhanced instance remains legal.
+  - Expiration occurs once at Gym 7.
+- **Reload tested:** No
+- **Undo tested:** No
+- **Sandbox discard tested:** No
+- **Sandbox commit tested:** No
+- **Teambuilder enforcement tested:** Yes
+- **Current gaps:** A result-level automated scenario is required.
+
+##### RESTRICT-TOKEN-BROWSER-019 - Production Six-Gym canonical species Restrict with exact Rage immunity
+
+- **Coverage:** Covered
+- **Test level:** Browser
+- **Test file:** `scripts/test-token-browser.js`
+- **Test ID:** `BROWSER-019`
+- **Setup:** Load the real production page against an isolated authoritative backend with exact inventory and target records.
+- **Action:** Render the production picker and response UI, confirm the declaration, refresh, inspect the rendered result, and use History undo.
+- **Expected gameplay result:** The exact effect persists once through refresh and causal undo restores only its records and inventory without reopening the terminal chain.
+- **Exact assertions:**
+  - The species picker and response UI render.
+  - Teambuilder and submitted-roster paths reject the unprotected instance.
+  - Refresh preserves the stable status ID.
+  - Causal History undo restores the exact Token and preserves a later roster edit.
+- **Reload tested:** Yes
+- **Undo tested:** Yes
+- **Sandbox discard tested:** No
+- **Sandbox commit tested:** No
+- **Teambuilder enforcement tested:** Yes
+- **Current gaps:** A result-level automated scenario is required.
+
+##### RESTRICT-TOKEN-SANDBOX-026 - Completion-slice sandbox isolation
+
+- **Coverage:** Covered
+- **Test level:** Integration
+- **Test file:** `scripts/test-token-sandbox.js`
+- **Test ID:** `TSB-026`
+- **Setup:** Clone the exact completion-slice baseline into a revision-bound Token sandbox.
+- **Action:** Resolve the six effects, prepare the same commit candidate twice, then discard.
+- **Expected gameplay result:** Candidate preparation is idempotent and discard restores the byte-identical authoritative baseline.
+- **Exact assertions:**
+  - The baseline never mutates.
+  - Both prepared candidates are byte-identical.
+  - Discard removes all slice statuses, buffs, grants, and protection.
+- **Reload tested:** No
+- **Undo tested:** No
+- **Sandbox discard tested:** Yes
+- **Sandbox commit tested:** Yes
+- **Teambuilder enforcement tested:** Yes
+- **Current gaps:** A result-level automated scenario is required.
 
 ### Arena Trap
 
@@ -548,7 +610,7 @@ These entries are explicit non-coverage records. Catalog presence, contract meta
 ### Cold Wave
 
 - **Token ID:** `cold-wave`
-- **Runtime status:** `partial`
+- **Runtime status:** `verifiedComplete`
 - **Runtime usability:** `usable` - Cold Wave creates a same-Gym suppression record. Runtime effect checks ignore only records explicitly marked isOngoingEffect while preserving their state and expiration.
 - **Resolver:** `automatic` / `ongoingEffectSuppression`
 
@@ -556,58 +618,78 @@ These entries are explicit non-coverage records. Catalog presence, contract meta
 
 | Required outcome | Coverage | Evidence | Current gap |
 | --- | --- | --- | --- |
-| Suppress only records explicitly classified as ongoing effects without deleting, mutating, reviving, or rescheduling them | Partially Covered | STR-003 | Controller declaration, backend reload, and undo are covered by TCI-014. Production-browser display and behavior gating for every future ongoing-effect consumer remain unverified. |
-| Controller declaration, persistence, and undo | Covered | TCI-014 | None recorded. |
-| Production browser lifecycle | Not Covered | None | A destructive production-browser scenario has not been approved for this slice. |
-| Refresh and administrative undo | Not Covered | None | The pure resolver snapshot is covered where applicable; the production UI lifecycle still needs focused evidence. |
+| Explicit ongoing-only suppression without source mutation or revival | Covered | TLS-001, BROWSER-025, STR-003 and TCI-014 | None recorded. |
+| Production refresh, retry/idempotency, and causal History undo | Covered | BROWSER-025 | None recorded. |
+| Sandbox discard and idempotent commit candidate | Covered | TSB-027 | None recorded. |
 
 #### Named Scenarios
 
-##### COLD-WAVE-SETTLED-001 - Suppress only records explicitly classified as ongoing effects without deleting, mutating, reviving, or rescheduling them
+##### COLD-WAVE-LIFECYCLE-001 - Explicit ongoing-only suppression without source mutation or revival exact lifecycle
 
-- **Coverage:** Partially Covered
+- **Coverage:** Covered
 - **Test level:** Unit
-- **Test file:** `scripts/test-settled-token-rulings.js`
-- **Test ID:** `STR-003`
-- **Setup:** Create the smallest isolated state required by the settled mechanic contract.
-- **Action:** Run the pure resolver or contract-safety boundary.
-- **Expected gameplay result:** Explicit ongoing records are suppressed through Gym end; duration-only and ordinary records remain active.
+- **Test file:** `scripts/test-token-lifecycle-slice.js`
+- **Test ID:** `TLS-001`
+- **Setup:** Create isolated exact records for the Token's approved runtime boundary and its stale or unsupported cases.
+- **Action:** Resolve the canonical exact-record operation, retry it, and inspect every linked record and fail-closed branch.
+- **Expected gameplay result:** The approved mutation occurs once, stale or unsupported inputs fail closed, and exact identities remain causally linked.
 - **Exact assertions:**
-  - Only isOngoingEffect records are selected.
-  - Source records remain present and unchanged.
-  - The suppression record has a Gym-end boundary.
+  - Explicit isOngoingEffect records are suppressed.
+  - Duration-only records remain active.
+  - Follow Me consumption is suppression-aware.
+  - Naturally expired sources are not revived.
 - **Reload tested:** No
 - **Undo tested:** No
 - **Sandbox discard tested:** No
 - **Sandbox commit tested:** No
 - **Teambuilder enforcement tested:** No
-- **Current gaps:** Controller declaration, backend reload, and undo are covered by TCI-014. Production-browser display and behavior gating for every future ongoing-effect consumer remain unverified.
+- **Current gaps:** None within the approved supported runtime boundary.
 
-##### COLD-WAVE-INTEGRATION-001 - Suppress only records explicitly classified as ongoing effects without deleting, mutating, reviving, or rescheduling them through the scenario controller
+##### COLD-WAVE-BROWSER-025 - Explicit ongoing-only suppression without source mutation or revival in production
+
+- **Coverage:** Covered
+- **Test level:** Browser
+- **Test file:** `scripts/test-token-browser.js`
+- **Test ID:** `BROWSER-025`
+- **Setup:** Load the production app against an isolated authoritative backend with exact Token and target records.
+- **Action:** Use the production surface, persist, refresh, finish the lifecycle, refresh again, then undo from History.
+- **Expected gameplay result:** The exact effect persists and completes once; causal undo restores exact Token and effect records without replacing unrelated later state.
+- **Exact assertions:**
+  - Suppressed and unaffected records render distinctly.
+  - Refresh preserves suppression.
+  - Gym-end expiration restores only surviving source behavior.
+  - Causal undo removes only Cold Wave.
+- **Reload tested:** Yes
+- **Undo tested:** Yes
+- **Sandbox discard tested:** No
+- **Sandbox commit tested:** No
+- **Teambuilder enforcement tested:** No
+- **Current gaps:** None within the approved supported runtime boundary.
+
+##### COLD-WAVE-SANDBOX-027 - Explicit ongoing-only suppression without source mutation or revival sandbox isolation
 
 - **Coverage:** Covered
 - **Test level:** Integration
-- **Test file:** `scripts/test-token-controller-integration.js`
-- **Test ID:** `TCI-014`
-- **Setup:** Declare the owned exact Token through the scenario controller and persist the result through a temporary backend.
-- **Action:** Resolve, reload, verify the authoritative effect record, and undo the exact activation.
-- **Expected gameplay result:** The owned Token declares and resolves once, only explicit ongoing records are suppressed after backend reload, and undo restores the Token without mutating source records.
+- **Test file:** `scripts/test-token-sandbox.js`
+- **Test ID:** `TSB-027`
+- **Setup:** Apply the six-Token lifecycle slice only to a sandbox clone.
+- **Action:** Prepare the commit candidate twice and then discard against the unchanged authoritative baseline.
+- **Expected gameplay result:** Both candidates are byte-identical and discard restores the exact baseline.
 - **Exact assertions:**
-  - Duration-only records remain unsuppressed.
-  - The exact source status remains active.
-  - Reload preserves suppression.
-  - Undo removes suppression and restores the exact Token.
+  - The candidate contains this Token's exact mutation.
+  - Candidate preparation is idempotent.
+  - The authoritative baseline remains byte-identical.
 - **Reload tested:** No
 - **Undo tested:** No
-- **Sandbox discard tested:** No
-- **Sandbox commit tested:** No
+- **Sandbox discard tested:** Yes
+- **Sandbox commit tested:** Yes
 - **Teambuilder enforcement tested:** No
-- **Current gaps:** Controller declaration, backend reload, and undo are covered by TCI-014. Production-browser display and behavior gating for every future ongoing-effect consumer remain unverified.
+- **Current gaps:** None within the shared sandbox isolation contract.
 
 ### Clear Smog
 
 - **Token ID:** `clear-smog`
-- **Runtime status:** `partial`
+- **Runtime status:** `verifiedComplete`
 - **Runtime usability:** `usable` - This Token may be declared through its current runtime flow.
 - **Resolver:** `automatic` / `clearSmog`
 
@@ -623,6 +705,9 @@ These entries are explicit non-coverage records. Catalog presence, contract meta
 | Does not delete player-wide class/perk state | Covered | TCI-006 | None recorded. |
 | Reload | Covered | TCI-006 and BROWSER-003 | None recorded. |
 | Undo | Covered | TCI-006 | None recorded. |
+| Completion-slice effect contract | Covered | TCS-004, BROWSER-022, and TSB-026 | None recorded. |
+| Production Live Referee refresh and causal History undo | Covered | BROWSER-022 | None recorded. |
+| Sandbox discard and idempotent commit preparation | Covered | TSB-026 | None recorded. |
 
 #### Named Scenarios
 
@@ -638,7 +723,7 @@ These entries are explicit non-coverage records. Catalog presence, contract meta
 - **Exact assertions:**
   - Resolver returns resolved.
   - The selected effectBuff status becomes removed.
-  - Selected visible buffs become exactly [TM Move Pending].
+  - Only labels backed by removed provenance are removed; unproven native labels and TM Move Pending remain.
   - The selected exact move grant becomes removed and inactive.
   - The unrelated move grant remains active.
 - **Reload tested:** No
@@ -690,10 +775,71 @@ These entries are explicit non-coverage records. Catalog presence, contract meta
 - **Teambuilder enforcement tested:** No
 - **Current gaps:** The browser board does not enumerate every preserved natural field; Integration evidence does.
 
+##### CLEAR-SMOG-COMPLETION - Provenance-only permanent Clear Smog removal
+
+- **Coverage:** Covered
+- **Test level:** Unit
+- **Test file:** `scripts/test-token-completion-slice.js`
+- **Test ID:** `TCS-004`
+- **Setup:** Create the exact structured statuses, roster instances, buffs, grants, or player records required by the approved effect contract.
+- **Action:** Resolve the effect and assert its exact target identity, protected scope, enforcement, and expiration semantics.
+- **Expected gameplay result:** Provenance-only permanent Clear Smog removal
+- **Exact assertions:**
+  - Rage, AAA Ability, and exact move grants are removed by provenance.
+  - Expired records are not revived.
+  - Native Ability, moves, and unrelated labels remain.
+- **Reload tested:** No
+- **Undo tested:** No
+- **Sandbox discard tested:** No
+- **Sandbox commit tested:** No
+- **Teambuilder enforcement tested:** Yes
+- **Current gaps:** A result-level automated scenario is required.
+
+##### CLEAR-SMOG-BROWSER-022 - Production Provenance-only permanent Clear Smog removal
+
+- **Coverage:** Covered
+- **Test level:** Browser
+- **Test file:** `scripts/test-token-browser.js`
+- **Test ID:** `BROWSER-022`
+- **Setup:** Load the real production page against an isolated authoritative backend with exact inventory and target records.
+- **Action:** Render the production picker and response UI, confirm the declaration, refresh, inspect the rendered result, and use History undo.
+- **Expected gameplay result:** The exact effect persists once through refresh and causal undo restores only its records and inventory without reopening the terminal chain.
+- **Exact assertions:**
+  - The exact Active-roster picker and response UI render.
+  - The rendered result names the permanent removals.
+  - Refresh preserves removal.
+  - Causal undo restores only removed records while preserving a later move edit.
+- **Reload tested:** Yes
+- **Undo tested:** Yes
+- **Sandbox discard tested:** No
+- **Sandbox commit tested:** No
+- **Teambuilder enforcement tested:** Yes
+- **Current gaps:** A result-level automated scenario is required.
+
+##### CLEAR-SMOG-SANDBOX-026 - Completion-slice sandbox isolation
+
+- **Coverage:** Covered
+- **Test level:** Integration
+- **Test file:** `scripts/test-token-sandbox.js`
+- **Test ID:** `TSB-026`
+- **Setup:** Clone the exact completion-slice baseline into a revision-bound Token sandbox.
+- **Action:** Resolve the six effects, prepare the same commit candidate twice, then discard.
+- **Expected gameplay result:** Candidate preparation is idempotent and discard restores the byte-identical authoritative baseline.
+- **Exact assertions:**
+  - The baseline never mutates.
+  - Both prepared candidates are byte-identical.
+  - Discard removes all slice statuses, buffs, grants, and protection.
+- **Reload tested:** No
+- **Undo tested:** No
+- **Sandbox discard tested:** Yes
+- **Sandbox commit tested:** Yes
+- **Teambuilder enforcement tested:** Yes
+- **Current gaps:** A result-level automated scenario is required.
+
 ### Rage Candy Bar
 
 - **Token ID:** `rage-candy-bar`
-- **Runtime status:** `partial`
+- **Runtime status:** `verifiedComplete`
 - **Runtime usability:** `usable` - This Token may be declared through its current runtime flow.
 - **Resolver:** `automatic` / `utilityEffect`
 
@@ -712,6 +858,9 @@ These entries are explicit non-coverage records. Catalog presence, contract meta
 | Clear Smog removes stat buffs correctly | Covered | TCI-006 and BROWSER-003 | None recorded. |
 | Reload | Covered | TCI-006 and BROWSER-003 | None recorded. |
 | Undo | Not Covered | None | None recorded. |
+| Completion-slice effect contract | Covered | TCS-005, BROWSER-023, and TSB-026 | None recorded. |
+| Production Live Referee refresh and causal History undo | Covered | BROWSER-023 | None recorded. |
+| Sandbox discard and idempotent commit preparation | Covered | TSB-026 | None recorded. |
 
 #### Named Scenarios
 
@@ -799,10 +948,70 @@ These entries are explicit non-coverage records. Catalog presence, contract meta
 - **Teambuilder enforcement tested:** No
 - **Current gaps:** No final production HUD duration countdown is asserted.
 
+##### RAGE-CANDY-BAR-COMPLETION - One shared Rage enhancement with exact-instance immunity and extension
+
+- **Coverage:** Covered
+- **Test level:** Unit
+- **Test file:** `scripts/test-token-completion-slice.js`
+- **Test ID:** `TCS-005`
+- **Setup:** Create the exact structured statuses, roster instances, buffs, grants, or player records required by the approved effect contract.
+- **Action:** Resolve the effect and assert its exact target identity, protected scope, enforcement, and expiration semantics.
+- **Expected gameplay result:** One shared Rage enhancement with exact-instance immunity and extension
+- **Exact assertions:**
+  - Reuse retains one status and two buffs.
+  - Duration extends from two to four Gyms.
+  - Another same-species instance receives an independent status.
+- **Reload tested:** No
+- **Undo tested:** No
+- **Sandbox discard tested:** No
+- **Sandbox commit tested:** No
+- **Teambuilder enforcement tested:** Yes
+- **Current gaps:** A result-level automated scenario is required.
+
+##### RAGE-CANDY-BAR-BROWSER-023 - Production One shared Rage enhancement with exact-instance immunity and extension
+
+- **Coverage:** Covered
+- **Test level:** Browser
+- **Test file:** `scripts/test-token-browser.js`
+- **Test ID:** `BROWSER-023`
+- **Setup:** Load the real production page against an isolated authoritative backend with exact inventory and target records.
+- **Action:** Render the production picker and response UI, confirm the declaration, refresh, inspect the rendered result, and use History undo.
+- **Expected gameplay result:** The exact effect persists once through refresh and causal undo restores only its records and inventory without reopening the terminal chain.
+- **Exact assertions:**
+  - Production Teambuilder reads +3 levels and +252 EV cap from structured records.
+  - Refresh preserves one four-Gym status.
+  - Newest-first causal undo reverses extension before first use and preserves later edits.
+- **Reload tested:** Yes
+- **Undo tested:** Yes
+- **Sandbox discard tested:** No
+- **Sandbox commit tested:** No
+- **Teambuilder enforcement tested:** Yes
+- **Current gaps:** A result-level automated scenario is required.
+
+##### RAGE-CANDY-BAR-SANDBOX-026 - Completion-slice sandbox isolation
+
+- **Coverage:** Covered
+- **Test level:** Integration
+- **Test file:** `scripts/test-token-sandbox.js`
+- **Test ID:** `TSB-026`
+- **Setup:** Clone the exact completion-slice baseline into a revision-bound Token sandbox.
+- **Action:** Resolve the six effects, prepare the same commit candidate twice, then discard.
+- **Expected gameplay result:** Candidate preparation is idempotent and discard restores the byte-identical authoritative baseline.
+- **Exact assertions:**
+  - The baseline never mutates.
+  - Both prepared candidates are byte-identical.
+  - Discard removes all slice statuses, buffs, grants, and protection.
+- **Reload tested:** No
+- **Undo tested:** No
+- **Sandbox discard tested:** Yes
+- **Sandbox commit tested:** Yes
+- **Teambuilder enforcement tested:** Yes
+- **Current gaps:** A result-level automated scenario is required.
+
 ### Lingering Aroma
 
 - **Token ID:** `lingering-aroma`
-- **Runtime status:** `partial`
+- **Runtime status:** `verifiedComplete`
 - **Runtime usability:** `usable` - Lingering Aroma selects an exact benefiting ongoing-effect record, replaces its behavior without extending it, and atomically charges confirmed outside targeting declarations.
 - **Resolver:** `automatic` / `ongoingEffectTextReplacement`
 
@@ -810,9 +1019,10 @@ These entries are explicit non-coverage records. Catalog presence, contract meta
 
 | Required outcome | Coverage | Evidence | Current gap |
 | --- | --- | --- | --- |
-| Replace one exact benefiting ongoing effect for its remaining lifetime and charge outside confirmed targeting declarations $500 once | Partially Covered | STR-004 | The pure resolver and declaration-cost hooks are covered; a destructive production browser scenario for withdrawal, later negation, refresh, and History undo remains outstanding. |
-| Production browser lifecycle | Not Covered | None | A destructive production-browser scenario has not been approved for this slice. |
-| Refresh and administrative undo | Not Covered | None | The pure resolver snapshot is covered where applicable; the production UI lifecycle still needs focused evidence. |
+| Replace one exact benefiting ongoing effect for its remaining lifetime and charge outside confirmed targeting declarations $500 once | Covered | STR-004 | None within the settled Lingering Aroma contract; simultaneous multi-client declaration races remain covered by the shared authoritative declaration infrastructure rather than this effect-specific browser scenario. |
+| Server-authoritative confirmation cost, insufficient-funds rejection, and provisional withdrawal | Covered | PD-SERVER-007 | None recorded. |
+| Production browser lifecycle | Covered | BROWSER-016 | None within the settled Lingering Aroma contract; simultaneous multi-client declaration races remain covered by the shared authoritative declaration infrastructure rather than this effect-specific browser scenario. |
+| Refresh and administrative undo | Covered | BROWSER-016 | The production browser scenario covers backend refresh and History undo. |
 
 #### Named Scenarios
 
@@ -835,12 +1045,54 @@ These entries are explicit non-coverage records. Catalog presence, contract meta
 - **Sandbox discard tested:** No
 - **Sandbox commit tested:** No
 - **Teambuilder enforcement tested:** No
-- **Current gaps:** The pure resolver and declaration-cost hooks are covered; a destructive production browser scenario for withdrawal, later negation, refresh, and History undo remains outstanding.
+- **Current gaps:** None within the settled Lingering Aroma contract; simultaneous multi-client declaration races remain covered by the shared authoritative declaration infrastructure rather than this effect-specific browser scenario.
+
+##### LINGERING-AROMA-INTEGRATION-001 - Replace one exact benefiting ongoing effect for its remaining lifetime and charge outside confirmed targeting declarations $500 once through the scenario controller
+
+- **Coverage:** Covered
+- **Test level:** Integration
+- **Test file:** `scripts/test-provisional-declaration-server.js`
+- **Test ID:** `PD-SERVER-007`
+- **Setup:** Seed isolated games with an active Lingering Aroma beneficiary and an exact player-targeting Token declaration.
+- **Action:** Confirm once, retry confirmation, confirm with insufficient funds, and withdraw a separate provisional declaration.
+- **Expected gameplay result:** Successful confirmation transfers exactly $500 once; insufficient funds consume nothing; withdrawal transfers nothing.
+- **Exact assertions:**
+  - Duplicate confirmation preserves one payment.
+  - Insufficient funds preserve both balances and the Token.
+  - Withdrawal preserves both balances and creates no consumption.
+- **Reload tested:** Yes
+- **Undo tested:** No
+- **Sandbox discard tested:** No
+- **Sandbox commit tested:** No
+- **Teambuilder enforcement tested:** No
+- **Current gaps:** None within the settled Lingering Aroma contract; simultaneous multi-client declaration races remain covered by the shared authoritative declaration infrastructure rather than this effect-specific browser scenario.
+
+##### LINGERING-AROMA-BROWSER-001 - Replace one exact benefiting ongoing effect for its remaining lifetime and charge outside confirmed targeting declarations $500 once in the production browser runtime
+
+- **Coverage:** Covered
+- **Test level:** Browser
+- **Test file:** `scripts/test-token-browser.js`
+- **Test ID:** `BROWSER-016`
+- **Setup:** Load the production app against an isolated temporary authoritative backend.
+- **Action:** Complete the production flow, persist it, refresh, and inspect its terminal behavior.
+- **Expected gameplay result:** The exact benefiting record is replaced for its linked lifetime; a confirmed outside targeting declaration pays once even when later negated; refresh retains both results; ordered History undo restores both declarations exactly.
+- **Exact assertions:**
+  - The exact ongoing-effect ID is selected.
+  - The original behavior is replaced without deleting its record.
+  - One $500 transfer survives later negation.
+  - Linked expiration survives refresh.
+  - Newest-first History undo restores balances, Tokens, and the original effect.
+- **Reload tested:** Yes
+- **Undo tested:** Yes
+- **Sandbox discard tested:** No
+- **Sandbox commit tested:** No
+- **Teambuilder enforcement tested:** No
+- **Current gaps:** None within the settled Lingering Aroma contract; simultaneous multi-client declaration races remain covered by the shared authoritative declaration infrastructure rather than this effect-specific browser scenario.
 
 ### Wicked Blow
 
 - **Token ID:** `wicked-blow`
-- **Runtime status:** `partial`
+- **Runtime status:** `verifiedComplete`
 - **Runtime usability:** `usable` - This Token may be declared through its current runtime flow.
 - **Resolver:** `automatic` / `wickedBlow`
 
@@ -848,151 +1100,78 @@ These entries are explicit non-coverage records. Catalog presence, contract meta
 
 | Required outcome | Coverage | Evidence | Current gap |
 | --- | --- | --- | --- |
-| Own or rival exact Active Roster target | Covered | TCF-031 and TCI-012 | None recorded. |
-| No current Battle Phase team required | Covered | TCF-030, TCI-012, and BROWSER-005 | None recorded. |
-| Reserve, Released, Daycare/facility, Temporary, and other non-Active records rejected | Covered | TCI-012 | None recorded. |
-| Duplicate species remain exact-ID targets | Covered | TCF-031 and TCI-012 | None recorded. |
-| Existing exact-ID team and Teambuilder references remain coherent without creating membership | Covered | TCF-031, TCI-012, and BROWSER-005 | None recorded. |
-| Canonical three-ordered-tier reroll and acquisition replacement | Covered | TCF-030, TCI-012, and TRS-009 | None recorded. |
-| Production evolution-data hydration before target eligibility | Covered | BROWSER-007 | None recorded. |
-| Preview is mutation-free and does not consume | Covered | TCI-012 | None recorded. |
-| Stale target cancels and refunds | Covered | TCI-012 | None recorded. |
-| Reload, duplicate completion, and undo | Covered | TCI-012 and BROWSER-005 | None recorded. |
-| Sandbox discard | Covered | TSB-022 | None recorded. |
+| Exact Active-roster replacement with stable identity and coherent existing team references | Covered | TLS-002, BROWSER-026, TCI-012 and TSB-022 | None recorded. |
+| Production refresh, retry/idempotency, and causal History undo | Covered | BROWSER-026 | None recorded. |
+| Sandbox discard and idempotent commit candidate | Covered | TSB-027 | None recorded. |
 
 #### Named Scenarios
 
-##### WICKED-UNIT-001 - Exact Active Roster replacement and optional reference coherence
+##### WICKED-BLOW-LIFECYCLE-001 - Exact Active-roster replacement with stable identity and coherent existing team references exact lifecycle
 
 - **Coverage:** Covered
 - **Test level:** Unit
-- **Test file:** `scripts/test-control-token-foundation.js`
-- **Test ID:** `TCF-031`
-- **Setup:** Duplicate exact roster records exist; one target has current-team, locked-slot, and Teambuilder references, while another legal Active Roster target has no Battle Team.
-- **Action:** Resolve Wicked Blow against each exact target.
-- **Expected gameplay result:** Only the selected stable roster record changes; existing exact-ID mirrors update; the no-team case stays without a Battle Team.
+- **Test file:** `scripts/test-token-lifecycle-slice.js`
+- **Test ID:** `TLS-002`
+- **Setup:** Create isolated exact records for the Token's approved runtime boundary and its stale or unsupported cases.
+- **Action:** Resolve the canonical exact-record operation, retry it, and inspect every linked record and fail-closed branch.
+- **Expected gameplay result:** The approved mutation occurs once, stale or unsupported inputs fail closed, and exact identities remain causally linked.
 - **Exact assertions:**
-  - The selected stable ID becomes Barbaracle.
-  - The duplicate record is unchanged.
-  - Existing exact-ID mirrors update.
-  - An empty battleTeams object remains empty.
-- **Reload tested:** No
-- **Undo tested:** No
-- **Sandbox discard tested:** No
-- **Sandbox commit tested:** No
-- **Teambuilder enforcement tested:** Yes
-- **Current gaps:** The unresolved mixed-tier branched-family ruling still fails closed.
-
-##### WICKED-INTEGRATION-001 - Active Roster legality, refresh, undo, and stale refund
-
-- **Coverage:** Covered
-- **Test level:** Integration
-- **Test file:** `scripts/test-token-controller-integration.js`
-- **Test ID:** `TCI-012`
-- **Setup:** Own and rival Active Roster targets, duplicate species, non-Active records, an optional current team, and an isolated backend are available.
-- **Action:** Preview, resolve with and without a team, reload, reject duplicate completion, undo, and make a separate confirmed target stale.
-- **Expected gameplay result:** Both owners' Active Roster Pokemon are legal; non-Active records are rejected; exact replacement persists and undoes; stale resolution refunds once.
-- **Exact assertions:**
-  - Preview changes no state or inventory.
-  - Own and rival no-team targets resolve.
-  - A Reserve record remains illegal even when stale-linked to a team.
-  - Reload and undo preserve exact identity.
-  - Stale Active Roster membership refunds.
-- **Reload tested:** Yes
-- **Undo tested:** Yes
-- **Sandbox discard tested:** No
-- **Sandbox commit tested:** No
-- **Teambuilder enforcement tested:** Yes
-- **Current gaps:** The unresolved mixed-tier branched-family ruling still fails closed.
-
-##### WICKED-RESULT-001 - Exact reroll announcement
-
-- **Coverage:** Covered
-- **Test level:** Unit
-- **Test file:** `scripts/test-token-result-summary.js`
-- **Test ID:** `TRS-009`
-- **Setup:** A stable-ID reroll operation records owner, old species, replacement, and tier calculation.
-- **Action:** Build the final causal announcement.
-- **Expected gameplay result:** The result names the exact owner, old species, replacement, and ordered tier movement.
-- **Exact assertions:**
-  - Title names the actor, owner, and original Pokemon.
-  - Cards show original, replacement, and tier roll.
-  - The exact target ID remains in the operation.
+  - Stable roster ID is preserved.
+  - Only Active targets are legal.
+  - Unresolved mixed-tier branches fail closed.
+  - No new team membership is created.
 - **Reload tested:** No
 - **Undo tested:** No
 - **Sandbox discard tested:** No
 - **Sandbox commit tested:** No
 - **Teambuilder enforcement tested:** No
-- **Current gaps:** No additional result gap is known for the covered automatic path.
+- **Current gaps:** None within the approved supported runtime boundary.
 
-##### WICKED-BROWSER-007 - Production selector waits for canonical evolution data
-
-- **Coverage:** Covered
-- **Test level:** Browser
-- **Test file:** `scripts/test-token-browser.js`
-- **Test ID:** `BROWSER-007`
-- **Setup:** The production page begins without the lazy Pokemon build-data asset loaded and has ordinary plus mixed-tier branched Active Roster targets.
-- **Action:** Open Wicked Blow immediately, await the production asset, evaluate targets, and resolve the ordinary target.
-- **Expected gameplay result:** A loading state becomes a legal exact-target selector automatically; mixed-tier ambiguity remains blocked; the canonical resolver completes normally.
-- **Exact assertions:**
-  - No target is disabled merely for pending data.
-  - The production asset URL loads.
-  - Garchomp becomes selectable without reopening.
-  - Eevee remains safely blocked.
-  - Resolution preserves the stable ID and creates one operation with no browser errors.
-- **Reload tested:** Yes
-- **Undo tested:** No
-- **Sandbox discard tested:** No
-- **Sandbox commit tested:** No
-- **Teambuilder enforcement tested:** Yes
-- **Current gaps:** The unresolved mixed-tier branched-family ruling still fails closed.
-
-##### WICKED-BROWSER-005 - No-team Active Roster replacement survives refresh
+##### WICKED-BLOW-BROWSER-026 - Exact Active-roster replacement with stable identity and coherent existing team references in production
 
 - **Coverage:** Covered
 - **Test level:** Browser
 - **Test file:** `scripts/test-token-browser.js`
-- **Test ID:** `BROWSER-005`
-- **Setup:** Red's second Garchomp is in the Active Roster and Teambuilder but is not on the current Battle Team.
-- **Action:** Use Wicked Blow and refresh the isolated browser scenario.
-- **Expected gameplay result:** The exact Active Roster record and existing Teambuilder mirror become Barbaracle without adding Battle Team membership.
+- **Test ID:** `BROWSER-026`
+- **Setup:** Load the production app against an isolated authoritative backend with exact Token and target records.
+- **Action:** Use the production surface, persist, refresh, finish the lifecycle, refresh again, then undo from History.
+- **Expected gameplay result:** The exact effect persists and completes once; causal undo restores exact Token and effect records without replacing unrelated later state.
 - **Exact assertions:**
-  - Stable ID remains unchanged.
-  - Roster and build show Barbaracle.
-  - Battle Team reports Not added before and after refresh.
-  - One reroll operation persists with no browser errors.
+  - Own and rival targets resolve.
+  - Current team, locked slot, and Teambuilder references update only when already linked.
+  - Refresh and duplicate completion are stable.
+  - Causal undo preserves later unrelated build fields.
 - **Reload tested:** Yes
-- **Undo tested:** No
+- **Undo tested:** Yes
 - **Sandbox discard tested:** No
 - **Sandbox commit tested:** No
 - **Teambuilder enforcement tested:** Yes
-- **Current gaps:** The production multiplayer presentation still benefits from manual group testing.
+- **Current gaps:** None within the approved supported runtime boundary.
 
-##### WICKED-SANDBOX-022 - Sandbox discard restores the exact Active Roster record
+##### WICKED-BLOW-SANDBOX-027 - Exact Active-roster replacement with stable identity and coherent existing team references sandbox isolation
 
 - **Coverage:** Covered
 - **Test level:** Integration
 - **Test file:** `scripts/test-token-sandbox.js`
-- **Test ID:** `TSB-022`
-- **Setup:** An Active Roster target with a Teambuilder mirror and no Battle Team is cloned into a sandbox.
-- **Action:** Resolve Wicked Blow in the working clone, then discard.
-- **Expected gameplay result:** Sandbox state changes only the exact clone; discard restores Garchomp, its set, and the empty Battle Team state.
+- **Test ID:** `TSB-027`
+- **Setup:** Apply the six-Token lifecycle slice only to a sandbox clone.
+- **Action:** Prepare the commit candidate twice and then discard against the unchanged authoritative baseline.
+- **Expected gameplay result:** Both candidates are byte-identical and discard restores the exact baseline.
 - **Exact assertions:**
-  - Working clone becomes Barbaracle.
-  - Authoritative baseline bytes remain unchanged.
-  - Discard restores Garchomp and Dragon Claw.
-  - No reroll operation remains.
+  - The candidate contains this Token's exact mutation.
+  - Candidate preparation is idempotent.
+  - The authoritative baseline remains byte-identical.
 - **Reload tested:** No
 - **Undo tested:** No
 - **Sandbox discard tested:** Yes
-- **Sandbox commit tested:** No
-- **Teambuilder enforcement tested:** Yes
-- **Current gaps:** Wicked Blow does not yet have its own persisted sandbox commit case; shared commit idempotency infrastructure is covered elsewhere.
+- **Sandbox commit tested:** Yes
+- **Teambuilder enforcement tested:** No
+- **Current gaps:** None within the shared sandbox isolation contract.
 
 ### Extra Ban
 
 - **Token ID:** `extra-ban-token`
-- **Runtime status:** `partial`
+- **Runtime status:** `verifiedComplete`
 - **Runtime usability:** `usable` - This Token may be declared through its current runtime flow.
 - **Resolver:** `automatic` / `extraBan`
 
@@ -1008,6 +1187,9 @@ These entries are explicit non-coverage records. Catalog presence, contract meta
 | Current-phase repeat-Ban protection created | Covered | TCF-006 | None recorded. |
 | Reload | Covered | BROWSER-002 | None recorded. |
 | Undo | Covered | BROWSER-002 | None recorded. |
+| Completion-slice effect contract | Covered | TCS-002, BROWSER-020, and TSB-026 | None recorded. |
+| Production Live Referee refresh and causal History undo | Covered | BROWSER-020 | None recorded. |
+| Sandbox discard and idempotent commit preparation | Covered | TSB-026 | None recorded. |
 
 #### Named Scenarios
 
@@ -1099,10 +1281,71 @@ These entries are explicit non-coverage records. Catalog presence, contract meta
 - **Teambuilder enforcement tested:** No
 - **Current gaps:** The repeat-Ban attempt itself remains covered by Unit/controller legality rather than a second Browser click.
 
+##### EXTRA-BAN-TOKEN-COMPLETION - Exact Active-roster Extra Ban anchor with selected-only Substitute interception
+
+- **Coverage:** Covered
+- **Test level:** Unit
+- **Test file:** `scripts/test-token-completion-slice.js`
+- **Test ID:** `TCS-002`
+- **Setup:** Create the exact structured statuses, roster instances, buffs, grants, or player records required by the approved effect contract.
+- **Action:** Resolve the effect and assert its exact target identity, protected scope, enforcement, and expiration semantics.
+- **Expected gameplay result:** Exact Active-roster Extra Ban anchor with selected-only Substitute interception
+- **Exact assertions:**
+  - Legacy-roster anchors fail.
+  - A Substitute on another matching instance remains active.
+  - A Substitute on the selected anchor negates the universal Ban.
+- **Reload tested:** No
+- **Undo tested:** No
+- **Sandbox discard tested:** No
+- **Sandbox commit tested:** No
+- **Teambuilder enforcement tested:** Yes
+- **Current gaps:** A result-level automated scenario is required.
+
+##### EXTRA-BAN-TOKEN-BROWSER-020 - Production Exact Active-roster Extra Ban anchor with selected-only Substitute interception
+
+- **Coverage:** Covered
+- **Test level:** Browser
+- **Test file:** `scripts/test-token-browser.js`
+- **Test ID:** `BROWSER-020`
+- **Setup:** Load the real production page against an isolated authoritative backend with exact inventory and target records.
+- **Action:** Render the production picker and response UI, confirm the declaration, refresh, inspect the rendered result, and use History undo.
+- **Expected gameplay result:** The exact effect persists once through refresh and causal undo restores only its records and inventory without reopening the terminal chain.
+- **Exact assertions:**
+  - Only Active anchors render.
+  - The selected stable anchor survives refresh.
+  - Teambuilder and submitted-roster paths reject the species.
+  - Causal undo removes only the Ban and preserves later edits.
+- **Reload tested:** Yes
+- **Undo tested:** Yes
+- **Sandbox discard tested:** No
+- **Sandbox commit tested:** No
+- **Teambuilder enforcement tested:** Yes
+- **Current gaps:** A result-level automated scenario is required.
+
+##### EXTRA-BAN-TOKEN-SANDBOX-026 - Completion-slice sandbox isolation
+
+- **Coverage:** Covered
+- **Test level:** Integration
+- **Test file:** `scripts/test-token-sandbox.js`
+- **Test ID:** `TSB-026`
+- **Setup:** Clone the exact completion-slice baseline into a revision-bound Token sandbox.
+- **Action:** Resolve the six effects, prepare the same commit candidate twice, then discard.
+- **Expected gameplay result:** Candidate preparation is idempotent and discard restores the byte-identical authoritative baseline.
+- **Exact assertions:**
+  - The baseline never mutates.
+  - Both prepared candidates are byte-identical.
+  - Discard removes all slice statuses, buffs, grants, and protection.
+- **Reload tested:** No
+- **Undo tested:** No
+- **Sandbox discard tested:** Yes
+- **Sandbox commit tested:** Yes
+- **Teambuilder enforcement tested:** Yes
+- **Current gaps:** A result-level automated scenario is required.
+
 ### Unban
 
 - **Token ID:** `unban-token`
-- **Runtime status:** `partial`
+- **Runtime status:** `verifiedComplete`
 - **Runtime usability:** `usable` - This Token may be declared through its current runtime flow.
 - **Resolver:** `automatic` / `statusEffect`
 
@@ -1118,6 +1361,9 @@ These entries are explicit non-coverage records. Catalog presence, contract meta
 | Mirrored status expires with structured protection | Covered | TCI-001 | None recorded. |
 | Reload | Covered | TCI-001 and BROWSER-001 | None recorded. |
 | Undo | Covered | TCI-001 | None recorded. |
+| Completion-slice effect contract | Covered | TCS-003, BROWSER-021, and TSB-026 | None recorded. |
+| Production Live Referee refresh and causal History undo | Covered | BROWSER-021 | None recorded. |
+| Sandbox discard and idempotent commit preparation | Covered | TSB-026 | None recorded. |
 
 #### Named Scenarios
 
@@ -1127,7 +1373,7 @@ These entries are explicit non-coverage records. Catalog presence, contract meta
 - **Test level:** Integration
 - **Test file:** `scripts/test-token-controller-integration.js`
 - **Test ID:** `TCI-001`
-- **Setup:** Resolve a sourced two-Gym Garchomp Restrict, then declare Unban through the controller.
+- **Setup:** Resolve a sourced six-Gym Garchomp Restrict, then declare Unban through the controller.
 - **Action:** Assert the result, reject protected redeclarations, persist/reload, undo, and advance to the six-Gym expiration.
 - **Expected gameplay result:** Unban creates one structured protection and one linked mirror that block both effect families and expire together.
 - **Exact assertions:**
@@ -1185,6 +1431,66 @@ These entries are explicit non-coverage records. Catalog presence, contract meta
 - **Sandbox commit tested:** No
 - **Teambuilder enforcement tested:** No
 - **Current gaps:** The isolated screen does not prove a real multiplayer account-to-profile authorization path.
+
+##### UNBAN-TOKEN-COMPLETION - Exact-status Unban removal with stale-target safety
+
+- **Coverage:** Covered
+- **Test level:** Unit
+- **Test file:** `scripts/test-token-completion-slice.js`
+- **Test ID:** `TCS-003`
+- **Setup:** Create the exact structured statuses, roster instances, buffs, grants, or player records required by the approved effect contract.
+- **Action:** Resolve the effect and assert its exact target identity, protected scope, enforcement, and expiration semantics.
+- **Expected gameplay result:** Exact-status Unban removal with stale-target safety
+- **Exact assertions:**
+  - Ambiguous same-species records require an exact status choice.
+  - Only the selected status is removed.
+  - The unrelated status and its expiration metadata remain unchanged.
+- **Reload tested:** No
+- **Undo tested:** No
+- **Sandbox discard tested:** No
+- **Sandbox commit tested:** No
+- **Teambuilder enforcement tested:** No
+- **Current gaps:** A result-level automated scenario is required.
+
+##### UNBAN-TOKEN-BROWSER-021 - Production Exact-status Unban removal with stale-target safety
+
+- **Coverage:** Covered
+- **Test level:** Browser
+- **Test file:** `scripts/test-token-browser.js`
+- **Test ID:** `BROWSER-021`
+- **Setup:** Load the real production page against an isolated authoritative backend with exact inventory and target records.
+- **Action:** Render the production picker and response UI, confirm the declaration, refresh, inspect the rendered result, and use History undo.
+- **Expected gameplay result:** The exact effect persists once through refresh and causal undo restores only its records and inventory without reopening the terminal chain.
+- **Exact assertions:**
+  - The picker renders distinct stable Ban and Restrict records.
+  - Only the selected Restrict is removed through refresh.
+  - History undo restores its original Gym 7 schedule and removes only Unban protection.
+- **Reload tested:** Yes
+- **Undo tested:** Yes
+- **Sandbox discard tested:** No
+- **Sandbox commit tested:** No
+- **Teambuilder enforcement tested:** No
+- **Current gaps:** A result-level automated scenario is required.
+
+##### UNBAN-TOKEN-SANDBOX-026 - Completion-slice sandbox isolation
+
+- **Coverage:** Covered
+- **Test level:** Integration
+- **Test file:** `scripts/test-token-sandbox.js`
+- **Test ID:** `TSB-026`
+- **Setup:** Clone the exact completion-slice baseline into a revision-bound Token sandbox.
+- **Action:** Resolve the six effects, prepare the same commit candidate twice, then discard.
+- **Expected gameplay result:** Candidate preparation is idempotent and discard restores the byte-identical authoritative baseline.
+- **Exact assertions:**
+  - The baseline never mutates.
+  - Both prepared candidates are byte-identical.
+  - Discard removes all slice statuses, buffs, grants, and protection.
+- **Reload tested:** No
+- **Undo tested:** No
+- **Sandbox discard tested:** Yes
+- **Sandbox commit tested:** Yes
+- **Teambuilder enforcement tested:** No
+- **Current gaps:** A result-level automated scenario is required.
 
 ### Incinerate
 
@@ -1480,7 +1786,7 @@ These entries are explicit non-coverage records. Catalog presence, contract meta
 ### Safeguard
 
 - **Token ID:** `safeguard`
-- **Runtime status:** `partial`
+- **Runtime status:** `verifiedComplete`
 - **Runtime usability:** `usable` - This Token may be declared through its current runtime flow.
 - **Resolver:** `automatic` / `safeguard`
 
@@ -1488,32 +1794,78 @@ These entries are explicit non-coverage records. Catalog presence, contract meta
 
 | Required outcome | Coverage | Evidence | Current gap |
 | --- | --- | --- | --- |
-| Declared gameplay result | Static Only | Contract and runtime wiring only | No executable result-level Token scenario exists. |
+| Exact self-player declaration and response lifecycle | Covered | TCS-006 and BROWSER-024 | None recorded. |
+| All eight canonical protected categories | Covered | TCS-006 and BROWSER-024 | None recorded. |
+| Explicit non-protected operation categories | Covered | TCS-006 and BROWSER-024 | None recorded. |
+| Refresh, expiration, causal History undo, and sandbox isolation | Covered | TCS-006, BROWSER-024, and TSB-026 | None recorded. |
 
 #### Named Scenarios
 
-##### SAFEGUARD-STATIC - Current runtime path inventory
+##### SAFEGUARD-COMPLETION - Executable exact-player Safeguard category matrix
 
-- **Coverage:** Static Only
-- **Test level:** Static Wiring
-- **Test file:** `None`
-- **Test ID:** `None`
-- **Setup:** Load the Token contract and inspect the registered runtime path.
-- **Action:** Confirm that the Token has a catalog definition and a resolver/wiring declaration.
-- **Expected gameplay result:** The report records the path without claiming that its gameplay result works.
+- **Coverage:** Covered
+- **Test level:** Unit
+- **Test file:** `scripts/test-token-completion-slice.js`
+- **Test ID:** `TCS-006`
+- **Setup:** Create Safeguard for Gold and enumerate the canonical protected and explicit non-protected operation categories.
+- **Action:** Query every category for Gold and another player, then advance to expiration.
+- **Expected gameplay result:** Only Gold and only the eight canonical categories are protected until the exact expiration boundary.
 - **Exact assertions:**
-  - No gameplay-state assertion exists for this Token.
+  - Money and Token steal/destroy/copy are protected.
+  - Follow Me and Embargo are protected.
+  - Item, TM, Pokemon, forced-payment, and Counterspell-restoration categories are not protected.
+  - Another player is not protected.
 - **Reload tested:** No
 - **Undo tested:** No
 - **Sandbox discard tested:** No
 - **Sandbox commit tested:** No
 - **Teambuilder enforcement tested:** No
-- **Current gaps:** No test proves any protected theft/destruction/copy outcome is blocked.
+- **Current gaps:** A result-level automated scenario is required.
+
+##### SAFEGUARD-BROWSER-024 - Production Safeguard response, refresh, matrix, and causal undo
+
+- **Coverage:** Covered
+- **Test level:** Browser
+- **Test file:** `scripts/test-token-browser.js`
+- **Test ID:** `BROWSER-024`
+- **Setup:** Load production with one exact Safeguard inventory record on an isolated backend.
+- **Action:** Render its self picker and response UI, resolve, evaluate the category matrix, refresh, mutate unrelated money, and undo from History.
+- **Expected gameplay result:** One exact-player status persists, protection is category-scoped, and causal undo restores the Token without changing later money.
+- **Exact assertions:**
+  - The declaration is response-enabled.
+  - All protected and non-protected categories match the contract.
+  - Refresh is stable.
+  - Undo preserves the later balance edit and keeps the prompt terminal.
+- **Reload tested:** Yes
+- **Undo tested:** Yes
+- **Sandbox discard tested:** No
+- **Sandbox commit tested:** No
+- **Teambuilder enforcement tested:** No
+- **Current gaps:** A result-level automated scenario is required.
+
+##### SAFEGUARD-SANDBOX-026 - Safeguard sandbox isolation
+
+- **Coverage:** Covered
+- **Test level:** Integration
+- **Test file:** `scripts/test-token-sandbox.js`
+- **Test ID:** `TSB-026`
+- **Setup:** Create Safeguard only inside the completion-slice sandbox clone.
+- **Action:** Prepare duplicate candidates and discard.
+- **Expected gameplay result:** The candidate contains one Safeguard and discard restores none.
+- **Exact assertions:**
+  - Candidate preparation is idempotent.
+  - The authoritative baseline remains byte-identical.
+- **Reload tested:** No
+- **Undo tested:** No
+- **Sandbox discard tested:** Yes
+- **Sandbox commit tested:** Yes
+- **Teambuilder enforcement tested:** No
+- **Current gaps:** A result-level automated scenario is required.
 
 ### Teleport
 
 - **Token ID:** `teleport`
-- **Runtime status:** `partial`
+- **Runtime status:** `verifiedComplete`
 - **Runtime usability:** `usable` - Teleport is production-usable for exact declared Token events handled by the Control controller. Unsupported or nested response effects are hidden and fail before consumption.
 - **Resolver:** `automatic` / `delayParent`
 
@@ -1521,54 +1873,73 @@ These entries are explicit non-coverage records. Catalog presence, contract meta
 
 | Required outcome | Coverage | Evidence | Current gap |
 | --- | --- | --- | --- |
-| Revalidate a delayed parent effect at its original phase on return and distinguish gameplay illegality from system failure | Partially Covered | STR-009 | STR-011 covers the lifecycle statically and BROWSER-011 covers confirmation, backend refresh, one deterministic matching-phase return, terminal resolution, and duplicate prevention. Production support intentionally excludes nested response effects and non-Control-controller parents. |
-| Production browser lifecycle | Covered | BROWSER-011 | STR-011 covers the lifecycle statically and BROWSER-011 covers confirmation, backend refresh, one deterministic matching-phase return, terminal resolution, and duplicate prevention. Production support intentionally excludes nested response effects and non-Control-controller parents. |
-| Refresh and administrative undo | Partially Covered | BROWSER-011 | The production browser scenario covers backend refresh; effect-specific administrative undo remains a separate evidence gap. |
+| Exact root-Control delay, matching-phase return, and merged causal terminal undo | Covered | TLS-003, BROWSER-027, STR-009, STR-011, and BROWSER-011 | None recorded. |
+| Production refresh, retry/idempotency, and causal History undo | Covered | BROWSER-027 | None recorded. |
+| Sandbox discard and idempotent commit candidate | Covered | TSB-027 | None recorded. |
 
 #### Named Scenarios
 
-##### TELEPORT-SETTLED-001 - Revalidate a delayed parent effect at its original phase on return and distinguish gameplay illegality from system failure
+##### TELEPORT-LIFECYCLE-001 - Exact root-Control delay, matching-phase return, and merged causal terminal undo exact lifecycle
 
-- **Coverage:** Partially Covered
+- **Coverage:** Covered
 - **Test level:** Unit
-- **Test file:** `scripts/test-settled-token-rulings.js`
-- **Test ID:** `STR-009`
-- **Setup:** Create the smallest isolated state required by the settled mechanic contract.
-- **Action:** Run the pure resolver or contract-safety boundary.
-- **Expected gameplay result:** Gameplay illegality resolves with no effect and no refund; corrupt/unsupported continuation cancels with refund; successful return uses the actual resolution anchor.
+- **Test file:** `scripts/test-token-lifecycle-slice.js`
+- **Test ID:** `TLS-003`
+- **Setup:** Create isolated exact records for the Token's approved runtime boundary and its stale or unsupported cases.
+- **Action:** Resolve the canonical exact-record operation, retry it, and inspect every linked record and fail-closed branch.
+- **Expected gameplay result:** The approved mutation occurs once, stale or unsupported inputs fail closed, and exact identities remain causally linked.
 - **Exact assertions:**
-  - Declaration phase anchor is preserved.
-  - Gameplay-illegal return consumes both effects.
-  - System failure requests refund.
-  - Actual resolution anchor is passed to the parent resolver.
+  - Legal return resolves once.
+  - Gameplay illegality is no-effect without retargeting.
+  - System failure uses the refund path.
+  - Terminal retry is inert.
 - **Reload tested:** No
 - **Undo tested:** No
 - **Sandbox discard tested:** No
 - **Sandbox commit tested:** No
 - **Teambuilder enforcement tested:** No
-- **Current gaps:** STR-011 covers the lifecycle statically and BROWSER-011 covers confirmation, backend refresh, one deterministic matching-phase return, terminal resolution, and duplicate prevention. Production support intentionally excludes nested response effects and non-Control-controller parents.
+- **Current gaps:** None within the approved supported runtime boundary.
 
-##### TELEPORT-BROWSER-001 - Revalidate a delayed parent effect at its original phase on return and distinguish gameplay illegality from system failure in the production browser runtime
+##### TELEPORT-BROWSER-027 - Exact root-Control delay, matching-phase return, and merged causal terminal undo in production
 
 - **Coverage:** Covered
 - **Test level:** Browser
 - **Test file:** `scripts/test-token-browser.js`
-- **Test ID:** `BROWSER-011`
-- **Setup:** Load the production app against an isolated temporary authoritative backend.
-- **Action:** Complete the production flow, persist it, refresh, and inspect its terminal behavior.
-- **Expected gameplay result:** Teleport survives refresh as one delayed record, opens exactly one return event at the next matching phase, resolves once, and never reopens after another refresh.
+- **Test ID:** `BROWSER-027`
+- **Setup:** Load the production app against an isolated authoritative backend with exact Token and target records.
+- **Action:** Use the production surface, persist, refresh, finish the lifecycle, refresh again, then undo from History.
+- **Expected gameplay result:** The exact effect persists and completes once; causal undo restores exact Token and effect records without replacing unrelated later state.
 - **Exact assertions:**
-  - Both confirmed Tokens are consumed once.
-  - The delayed record has one stable ID.
-  - The return event is deterministic.
-  - Duplicate scheduling opens zero events.
-  - Terminal events remain terminal after refresh.
-- **Reload tested:** No
-- **Undo tested:** No
+  - Both exact Tokens are consumed once.
+  - One delayed record and one return event survive refresh.
+  - Returned resolution merges with the original causal chain.
+  - Undo restores both Tokens without reopening the terminal event.
+- **Reload tested:** Yes
+- **Undo tested:** Yes
 - **Sandbox discard tested:** No
 - **Sandbox commit tested:** No
 - **Teambuilder enforcement tested:** No
-- **Current gaps:** STR-011 covers the lifecycle statically and BROWSER-011 covers confirmation, backend refresh, one deterministic matching-phase return, terminal resolution, and duplicate prevention. Production support intentionally excludes nested response effects and non-Control-controller parents.
+- **Current gaps:** None within the approved supported runtime boundary.
+
+##### TELEPORT-SANDBOX-027 - Exact root-Control delay, matching-phase return, and merged causal terminal undo sandbox isolation
+
+- **Coverage:** Covered
+- **Test level:** Integration
+- **Test file:** `scripts/test-token-sandbox.js`
+- **Test ID:** `TSB-027`
+- **Setup:** Apply the six-Token lifecycle slice only to a sandbox clone.
+- **Action:** Prepare the commit candidate twice and then discard against the unchanged authoritative baseline.
+- **Expected gameplay result:** Both candidates are byte-identical and discard restores the exact baseline.
+- **Exact assertions:**
+  - The candidate contains this Token's exact mutation.
+  - Candidate preparation is idempotent.
+  - The authoritative baseline remains byte-identical.
+- **Reload tested:** No
+- **Undo tested:** No
+- **Sandbox discard tested:** Yes
+- **Sandbox commit tested:** Yes
+- **Teambuilder enforcement tested:** No
+- **Current gaps:** None within the shared sandbox isolation contract.
 
 ### Substitute
 
@@ -1845,7 +2216,7 @@ These entries are explicit non-coverage records. Catalog presence, contract meta
 ### Follow Me
 
 - **Token ID:** `follow-me`
-- **Runtime status:** `partial`
+- **Runtime status:** `verifiedComplete`
 - **Runtime usability:** `usable` - Follow Me redirects one legal corresponding player or Pokemon target, then creates an idempotent Gym-long relationship that copies later real inventory Token consumption into inventory.
 - **Resolver:** `automatic` / `redirectParentToSelf`
 
@@ -1853,9 +2224,9 @@ These entries are explicit non-coverage records. Catalog presence, contract meta
 
 | Required outcome | Coverage | Evidence | Current gap |
 | --- | --- | --- | --- |
-| Redirect one corresponding target and create an idempotent Gym-long real inventory-copy relationship | Partially Covered | SEB-005 | Gym-end expiration and History undo for the relationship still need an effect-specific browser scenario; Drizzle's trigger conditions remain separate. |
-| Production browser lifecycle | Covered | BROWSER-013 | Gym-end expiration and History undo for the relationship still need an effect-specific browser scenario; Drizzle's trigger conditions remain separate. |
-| Refresh and duplicate completion | Covered | BROWSER-013 | Gym-end expiration and History undo for the relationship still need an effect-specific browser scenario; Drizzle's trigger conditions remain separate. |
+| Redirect one corresponding target and create an idempotent Gym-long real inventory-copy relationship | Covered | SEB-005 | None within the settled redirect and Gym-long real-consumption copy contract. |
+| Production browser lifecycle | Covered | BROWSER-013 | None within the settled redirect and Gym-long real-consumption copy contract. |
+| Refresh and duplicate completion | Covered | BROWSER-013 | None within the settled redirect and Gym-long real-consumption copy contract. |
 
 #### Named Scenarios
 
@@ -1878,7 +2249,7 @@ These entries are explicit non-coverage records. Catalog presence, contract meta
 - **Sandbox discard tested:** No
 - **Sandbox commit tested:** No
 - **Teambuilder enforcement tested:** No
-- **Current gaps:** Gym-end expiration and History undo for the relationship still need an effect-specific browser scenario; Drizzle's trigger conditions remain separate.
+- **Current gaps:** None within the settled redirect and Gym-long real-consumption copy contract.
 
 ##### FOLLOW-ME-BROWSER-001 - Redirect one corresponding target and create an idempotent Gym-long real inventory-copy relationship through the production Live Referee
 
@@ -1894,12 +2265,14 @@ These entries are explicit non-coverage records. Catalog presence, contract meta
   - The redirected exact Pokemon changes ownership through the parent Steal.
   - The copied Token is inventory, not an immediate activation.
   - Refresh and duplicate processing preserve exactly one copy.
+  - The relationship expires at the next Gym while earned inventory remains.
+  - History undo restores the exact pre-declaration state.
 - **Reload tested:** Yes
-- **Undo tested:** No
+- **Undo tested:** Yes
 - **Sandbox discard tested:** No
 - **Sandbox commit tested:** No
 - **Teambuilder enforcement tested:** No
-- **Current gaps:** Gym-end expiration and History undo for the relationship still need an effect-specific browser scenario; Drizzle's trigger conditions remain separate.
+- **Current gaps:** None within the settled redirect and Gym-long real-consumption copy contract.
 
 ### Embargo
 
@@ -2240,7 +2613,7 @@ These entries are explicit non-coverage records. Catalog presence, contract meta
 ### Revenge
 
 - **Token ID:** `revenge`
-- **Runtime status:** `partial`
+- **Runtime status:** `verifiedComplete`
 - **Runtime usability:** `usable` - Revenge is offered after payout from exact current-Gym Curse anchors and the immutable brought-team snapshot. It consumes only after the affected player confirms two exact Pokemon and an optional eligible held Item.
 - **Resolver:** `automatic` / `revengeRelease`
 
@@ -2248,8 +2621,8 @@ These entries are explicit non-coverage records. Catalog presence, contract meta
 
 | Required outcome | Coverage | Evidence | Current gap |
 | --- | --- | --- | --- |
-| Release exactly two offender brought-snapshot Pokemon and optionally destroy at most one exactly referenced eligible held item | Partially Covered | STR-008 | STR-012 covers production wiring and BROWSER-012 covers the required-choice screen, backend refresh, exact two-Pokemon resolution, consumption, terminal event closure, and History undo. A complete real payout-to-offer phase-through remains manual evidence. |
-| Production browser lifecycle | Covered | BROWSER-012 | STR-012 covers production wiring and BROWSER-012 covers the required-choice screen, backend refresh, exact two-Pokemon resolution, consumption, terminal event closure, and History undo. A complete real payout-to-offer phase-through remains manual evidence. |
+| Release exactly two offender brought-snapshot Pokemon and optionally destroy at most one exactly referenced eligible held item | Covered | STR-008 | None within the settled post-payout Revenge contract; BROWSER-012 begins with real Gym finalization and payout before the offer. |
+| Production browser lifecycle | Covered | BROWSER-012 | None within the settled post-payout Revenge contract; BROWSER-012 begins with real Gym finalization and payout before the offer. |
 | Refresh and administrative undo | Covered | BROWSER-012 | The production browser scenario covers backend refresh and History undo. |
 
 #### Named Scenarios
@@ -2273,7 +2646,7 @@ These entries are explicit non-coverage records. Catalog presence, contract meta
 - **Sandbox discard tested:** No
 - **Sandbox commit tested:** No
 - **Teambuilder enforcement tested:** No
-- **Current gaps:** STR-012 covers production wiring and BROWSER-012 covers the required-choice screen, backend refresh, exact two-Pokemon resolution, consumption, terminal event closure, and History undo. A complete real payout-to-offer phase-through remains manual evidence.
+- **Current gaps:** None within the settled post-payout Revenge contract; BROWSER-012 begins with real Gym finalization and payout before the offer.
 
 ##### REVENGE-BROWSER-001 - Release exactly two offender brought-snapshot Pokemon and optionally destroy at most one exactly referenced eligible held item in the production browser runtime
 
@@ -2290,17 +2663,17 @@ These entries are explicit non-coverage records. Catalog presence, contract meta
   - The event closes once.
   - Refresh preserves the terminal result.
   - History undo restores both Pokemon, the Token, and the awaiting procedure.
-- **Reload tested:** No
-- **Undo tested:** No
+- **Reload tested:** Yes
+- **Undo tested:** Yes
 - **Sandbox discard tested:** No
 - **Sandbox commit tested:** No
 - **Teambuilder enforcement tested:** No
-- **Current gaps:** STR-012 covers production wiring and BROWSER-012 covers the required-choice screen, backend refresh, exact two-Pokemon resolution, consumption, terminal event closure, and History undo. A complete real payout-to-offer phase-through remains manual evidence.
+- **Current gaps:** None within the settled post-payout Revenge contract; BROWSER-012 begins with real Gym finalization and payout before the offer.
 
 ### Reroll
 
 - **Token ID:** `reroll-token`
-- **Runtime status:** `partial`
+- **Runtime status:** `verifiedComplete`
 - **Runtime usability:** `usable` - This Token may be declared through its current runtime flow.
 - **Resolver:** `automatic` / `reroll`
 
@@ -2308,27 +2681,73 @@ These entries are explicit non-coverage records. Catalog presence, contract meta
 
 | Required outcome | Coverage | Evidence | Current gap |
 | --- | --- | --- | --- |
-| Declared gameplay result | Static Only | Contract and runtime wiring only | No executable result-level Token scenario exists. |
+| Exact unresolved Encounter or wheel result supersession with one canonical replacement | Covered | TLS-004, BROWSER-028 | None recorded. |
+| Production refresh, retry/idempotency, and causal History undo | Covered | BROWSER-028 | None recorded. |
+| Sandbox discard and idempotent commit candidate | Covered | TSB-027 | None recorded. |
 
 #### Named Scenarios
 
-##### REROLL-TOKEN-STATIC - Current runtime path inventory
+##### REROLL-TOKEN-LIFECYCLE-001 - Exact unresolved Encounter or wheel result supersession with one canonical replacement exact lifecycle
 
-- **Coverage:** Static Only
-- **Test level:** Static Wiring
-- **Test file:** `None`
-- **Test ID:** `None`
-- **Setup:** Load the Token contract and inspect the registered runtime path.
-- **Action:** Confirm that the Token has a catalog definition and a resolver/wiring declaration.
-- **Expected gameplay result:** The report records the path without claiming that its gameplay result works.
+- **Coverage:** Covered
+- **Test level:** Unit
+- **Test file:** `scripts/test-token-lifecycle-slice.js`
+- **Test ID:** `TLS-004`
+- **Setup:** Create isolated exact records for the Token's approved runtime boundary and its stale or unsupported cases.
+- **Action:** Resolve the canonical exact-record operation, retry it, and inspect every linked record and fail-closed branch.
+- **Expected gameplay result:** The approved mutation occurs once, stale or unsupported inputs fail closed, and exact identities remain causally linked.
 - **Exact assertions:**
-  - No gameplay-state assertion exists for this Token.
+  - Encounter and wheel surfaces accept exact pending results.
+  - The old revision becomes superseded.
+  - Stable operation retry is inert.
+  - Stale acquired results fail before consumption.
 - **Reload tested:** No
 - **Undo tested:** No
 - **Sandbox discard tested:** No
 - **Sandbox commit tested:** No
 - **Teambuilder enforcement tested:** No
-- **Current gaps:** No test drives an encounter result through reroll, persistence, and undo.
+- **Current gaps:** None within the approved supported runtime boundary.
+
+##### REROLL-TOKEN-BROWSER-028 - Exact unresolved Encounter or wheel result supersession with one canonical replacement in production
+
+- **Coverage:** Covered
+- **Test level:** Browser
+- **Test file:** `scripts/test-token-browser.js`
+- **Test ID:** `BROWSER-028`
+- **Setup:** Load the production app against an isolated authoritative backend with exact Token and target records.
+- **Action:** Use the production surface, persist, refresh, finish the lifecycle, refresh again, then undo from History.
+- **Expected gameplay result:** The exact effect persists and completes once; causal undo restores exact Token and effect records without replacing unrelated later state.
+- **Exact assertions:**
+  - The production selector uses the exact active result.
+  - One of multiple Reroll copies is consumed.
+  - Refresh preserves the replacement revision.
+  - Causal undo restores the original result and exact Token only.
+- **Reload tested:** Yes
+- **Undo tested:** Yes
+- **Sandbox discard tested:** No
+- **Sandbox commit tested:** No
+- **Teambuilder enforcement tested:** No
+- **Current gaps:** None within the approved supported runtime boundary.
+
+##### REROLL-TOKEN-SANDBOX-027 - Exact unresolved Encounter or wheel result supersession with one canonical replacement sandbox isolation
+
+- **Coverage:** Covered
+- **Test level:** Integration
+- **Test file:** `scripts/test-token-sandbox.js`
+- **Test ID:** `TSB-027`
+- **Setup:** Apply the six-Token lifecycle slice only to a sandbox clone.
+- **Action:** Prepare the commit candidate twice and then discard against the unchanged authoritative baseline.
+- **Expected gameplay result:** Both candidates are byte-identical and discard restores the exact baseline.
+- **Exact assertions:**
+  - The candidate contains this Token's exact mutation.
+  - Candidate preparation is idempotent.
+  - The authoritative baseline remains byte-identical.
+- **Reload tested:** No
+- **Undo tested:** No
+- **Sandbox discard tested:** Yes
+- **Sandbox commit tested:** Yes
+- **Teambuilder enforcement tested:** No
+- **Current gaps:** None within the shared sandbox isolation contract.
 
 ### Extra Encounter Token
 
@@ -2414,7 +2833,7 @@ These entries are explicit non-coverage records. Catalog presence, contract meta
 ### Honey
 
 - **Token ID:** `honey-token`
-- **Runtime status:** `partial`
+- **Runtime status:** `verifiedComplete`
 - **Runtime usability:** `usable` - Honey copies one immutable completed Encounter result at the End-of-Action checkpoint into a new acquisition-ready Encounter record without rerolling or copying ownership and transient history.
 - **Resolver:** `automatic` / `encounterCopy`
 
@@ -2422,38 +2841,78 @@ These entries are explicit non-coverage records. Catalog presence, contract meta
 
 | Required outcome | Coverage | Evidence | Current gap |
 | --- | --- | --- | --- |
-| Copy one immutable completed Encounter result into a fresh acquisition-ready result without rerolling | Partially Covered | SEB-004 | The production exact-result selector, acquisition handoff, browser refresh, and History undo still need effect-specific browser evidence. |
-| Production browser lifecycle | Not Covered | None | No effect-specific production browser scenario exists yet. |
-| Refresh and duplicate completion | Not Covered | None | Pure resolver identity and undo are covered where noted; production refresh remains unverified. |
+| Fresh nonrecursive acquisition-ready copy of one exact finalized Encounter result | Covered | TLS-005, BROWSER-029, SEB-004 | None recorded. |
+| Production refresh, retry/idempotency, and causal History undo | Covered | BROWSER-029 | None recorded. |
+| Sandbox discard and idempotent commit candidate | Covered | TSB-027 | None recorded. |
 
 #### Named Scenarios
 
-##### HONEY-TOKEN-BATCH-001 - Copy one immutable completed Encounter result into a fresh acquisition-ready result without rerolling
+##### HONEY-TOKEN-LIFECYCLE-001 - Fresh nonrecursive acquisition-ready copy of one exact finalized Encounter result exact lifecycle
 
-- **Coverage:** Partially Covered
+- **Coverage:** Covered
 - **Test level:** Unit
-- **Test file:** `scripts/test-settled-effect-batch.js`
-- **Test ID:** `SEB-004`
-- **Setup:** Create the smallest isolated state needed for the settled exact-record mechanic.
-- **Action:** Run the canonical resolver and inspect exact identities, mutations, and fail-closed boundaries.
-- **Expected gameplay result:** Species, form, finalized tier/level, and intrinsic rolled properties are copied under fresh identities; owner, roster, reroll, modifier, Item, and operation state are absent.
+- **Test file:** `scripts/test-token-lifecycle-slice.js`
+- **Test ID:** `TLS-005`
+- **Setup:** Create isolated exact records for the Token's approved runtime boundary and its stale or unsupported cases.
+- **Action:** Resolve the canonical exact-record operation, retry it, and inspect every linked record and fail-closed branch.
+- **Expected gameplay result:** The approved mutation occurs once, stale or unsupported inputs fail closed, and exact identities remain causally linked.
 - **Exact assertions:**
-  - Encounter identity is new.
-  - Recipient ownership is new.
-  - Intrinsic rolled properties are preserved.
-  - Transient and prior-owner fields are not copied.
-  - Duplicate resolution is inert.
+  - Species, form, tier, level, and intrinsic properties are preserved.
+  - Ownership and terminal state are not copied.
+  - The copied identity is fresh.
+  - Recursive and stale sources fail closed.
 - **Reload tested:** No
 - **Undo tested:** No
 - **Sandbox discard tested:** No
 - **Sandbox commit tested:** No
 - **Teambuilder enforcement tested:** No
-- **Current gaps:** The production exact-result selector, acquisition handoff, browser refresh, and History undo still need effect-specific browser evidence.
+- **Current gaps:** None within the approved supported runtime boundary.
+
+##### HONEY-TOKEN-BROWSER-029 - Fresh nonrecursive acquisition-ready copy of one exact finalized Encounter result in production
+
+- **Coverage:** Covered
+- **Test level:** Browser
+- **Test file:** `scripts/test-token-browser.js`
+- **Test ID:** `BROWSER-029`
+- **Setup:** Load the production app against an isolated authoritative backend with exact Token and target records.
+- **Action:** Use the production surface, persist, refresh, finish the lifecycle, refresh again, then undo from History.
+- **Expected gameplay result:** The exact effect persists and completes once; causal undo restores exact Token and effect records without replacing unrelated later state.
+- **Exact assertions:**
+  - Two exact finalized choices render.
+  - The selected source remains unchanged through refresh.
+  - The copy completes normal acquisition.
+  - Causal undo removes only the copy and acquired roster record while restoring exact Honey.
+- **Reload tested:** Yes
+- **Undo tested:** Yes
+- **Sandbox discard tested:** No
+- **Sandbox commit tested:** No
+- **Teambuilder enforcement tested:** No
+- **Current gaps:** None within the approved supported runtime boundary.
+
+##### HONEY-TOKEN-SANDBOX-027 - Fresh nonrecursive acquisition-ready copy of one exact finalized Encounter result sandbox isolation
+
+- **Coverage:** Covered
+- **Test level:** Integration
+- **Test file:** `scripts/test-token-sandbox.js`
+- **Test ID:** `TSB-027`
+- **Setup:** Apply the six-Token lifecycle slice only to a sandbox clone.
+- **Action:** Prepare the commit candidate twice and then discard against the unchanged authoritative baseline.
+- **Expected gameplay result:** Both candidates are byte-identical and discard restores the exact baseline.
+- **Exact assertions:**
+  - The candidate contains this Token's exact mutation.
+  - Candidate preparation is idempotent.
+  - The authoritative baseline remains byte-identical.
+- **Reload tested:** No
+- **Undo tested:** No
+- **Sandbox discard tested:** Yes
+- **Sandbox commit tested:** Yes
+- **Teambuilder enforcement tested:** No
+- **Current gaps:** None within the shared sandbox isolation contract.
 
 ### Move Deleter
 
 - **Token ID:** `move-deleter`
-- **Runtime status:** `partial`
+- **Runtime status:** `verifiedComplete`
 - **Runtime usability:** `usable` - Move Deleter records one canonical global move restriction for the next Gym and the Teambuilder and validator enforce it.
 - **Resolver:** `automatic` / `moveBan`
 
@@ -2461,10 +2920,10 @@ These entries are explicit non-coverage records. Catalog presence, contract meta
 
 | Required outcome | Coverage | Evidence | Current gap |
 | --- | --- | --- | --- |
-| Globally disable one exact canonical move for the next Gym | Partially Covered | STR-005 | TCI-013 covers controller declaration, backend reload, and exact undo; STR-010 covers Teambuilder wiring. Full import/export/browser rejection still needs destructive evidence. |
+| Globally disable one exact canonical move for the next Gym | Covered | STR-005 | None within the settled canonical next-Gym move-restriction contract. |
 | Controller declaration, persistence, and undo | Covered | TCI-013 | None recorded. |
-| Production browser lifecycle | Not Covered | None | A destructive production-browser scenario has not been approved for this slice. |
-| Refresh and administrative undo | Not Covered | None | The pure resolver snapshot is covered where applicable; the production UI lifecycle still needs focused evidence. |
+| Production browser lifecycle | Covered | BROWSER-017 | None within the settled canonical next-Gym move-restriction contract. |
+| Refresh and administrative undo | Covered | BROWSER-017 | The production browser scenario covers backend refresh and History undo. |
 
 #### Named Scenarios
 
@@ -2486,7 +2945,7 @@ These entries are explicit non-coverage records. Catalog presence, contract meta
 - **Sandbox discard tested:** No
 - **Sandbox commit tested:** No
 - **Teambuilder enforcement tested:** No
-- **Current gaps:** TCI-013 covers controller declaration, backend reload, and exact undo; STR-010 covers Teambuilder wiring. Full import/export/browser rejection still needs destructive evidence.
+- **Current gaps:** None within the settled canonical next-Gym move-restriction contract.
 
 ##### MOVE-DELETER-INTEGRATION-001 - Globally disable one exact canonical move for the next Gym through the scenario controller
 
@@ -2507,7 +2966,29 @@ These entries are explicit non-coverage records. Catalog presence, contract meta
 - **Sandbox discard tested:** No
 - **Sandbox commit tested:** No
 - **Teambuilder enforcement tested:** No
-- **Current gaps:** TCI-013 covers controller declaration, backend reload, and exact undo; STR-010 covers Teambuilder wiring. Full import/export/browser rejection still needs destructive evidence.
+- **Current gaps:** None within the settled canonical next-Gym move-restriction contract.
+
+##### MOVE-DELETER-BROWSER-001 - Globally disable one exact canonical move for the next Gym in the production browser runtime
+
+- **Coverage:** Covered
+- **Test level:** Browser
+- **Test file:** `scripts/test-token-browser.js`
+- **Test ID:** `BROWSER-017`
+- **Setup:** Load the production app against an isolated temporary authoritative backend.
+- **Action:** Complete the production flow, persist it, refresh, and inspect its terminal behavior.
+- **Expected gameplay result:** The next-Gym restriction blocks selection and validation, rejects Showdown import/export, survives refresh, expires at the exact boundary, and History undo restores the Token with no restriction.
+- **Exact assertions:**
+  - Canonical Recover is active only in the next Gym.
+  - Validation reports Move Deleter.
+  - Import returns false with an explicit rejection.
+  - Export produces no illegal set.
+  - Expiration and History undo remove the exact status.
+- **Reload tested:** Yes
+- **Undo tested:** Yes
+- **Sandbox discard tested:** No
+- **Sandbox commit tested:** No
+- **Teambuilder enforcement tested:** Yes
+- **Current gaps:** None within the settled canonical next-Gym move-restriction contract.
 
 ### Toxic Curse
 
@@ -2641,12 +3122,12 @@ These entries are explicit non-coverage records. Catalog presence, contract meta
 - **Test level:** Browser
 - **Test file:** `scripts/test-token-browser.js`
 - **Test ID:** `BROWSER-007`
-- **Setup:** The production Live Referee inventory contains real Curse records alongside category, Field-placeholder, blocked, development-only, and illegal-timing records.
+- **Setup:** The production Live Referee inventory contains real Curse records alongside category, canceled legacy, blocked, development-only, and illegal-timing records.
 - **Action:** Open the Token picker during the explicit Sabotage Curse window.
 - **Expected gameplay result:** Only canonical owned usable Curses appear, with quantities counted from exact inventory records.
 - **Exact assertions:**
   - The Curse appears under a non-selectable category heading.
-  - Protection Token and legacy Electric/Grassy Field placeholders are absent.
+  - Protection Token and canceled legacy placeholders are absent.
   - Blocked, development-only, and illegal-timing records are absent.
   - An empty legal inventory renders the clean empty state.
 - **Reload tested:** Yes
@@ -2829,12 +3310,12 @@ These entries are explicit non-coverage records. Catalog presence, contract meta
 - **Test level:** Browser
 - **Test file:** `scripts/test-token-browser.js`
 - **Test ID:** `BROWSER-007`
-- **Setup:** The production Live Referee inventory contains real Curse records alongside category, Field-placeholder, blocked, development-only, and illegal-timing records.
+- **Setup:** The production Live Referee inventory contains real Curse records alongside category, canceled legacy, blocked, development-only, and illegal-timing records.
 - **Action:** Open the Token picker during the explicit Sabotage Curse window.
 - **Expected gameplay result:** Only canonical owned usable Curses appear, with quantities counted from exact inventory records.
 - **Exact assertions:**
   - The Curse appears under a non-selectable category heading.
-  - Protection Token and legacy Electric/Grassy Field placeholders are absent.
+  - Protection Token and canceled legacy placeholders are absent.
   - Blocked, development-only, and illegal-timing records are absent.
   - An empty legal inventory renders the clean empty state.
 - **Reload tested:** Yes
@@ -3017,12 +3498,12 @@ These entries are explicit non-coverage records. Catalog presence, contract meta
 - **Test level:** Browser
 - **Test file:** `scripts/test-token-browser.js`
 - **Test ID:** `BROWSER-007`
-- **Setup:** The production Live Referee inventory contains real Curse records alongside category, Field-placeholder, blocked, development-only, and illegal-timing records.
+- **Setup:** The production Live Referee inventory contains real Curse records alongside category, canceled legacy, blocked, development-only, and illegal-timing records.
 - **Action:** Open the Token picker during the explicit Sabotage Curse window.
 - **Expected gameplay result:** Only canonical owned usable Curses appear, with quantities counted from exact inventory records.
 - **Exact assertions:**
   - The Curse appears under a non-selectable category heading.
-  - Protection Token and legacy Electric/Grassy Field placeholders are absent.
+  - Protection Token and canceled legacy placeholders are absent.
   - Blocked, development-only, and illegal-timing records are absent.
   - An empty legal inventory renders the clean empty state.
 - **Reload tested:** Yes
@@ -3205,12 +3686,12 @@ These entries are explicit non-coverage records. Catalog presence, contract meta
 - **Test level:** Browser
 - **Test file:** `scripts/test-token-browser.js`
 - **Test ID:** `BROWSER-007`
-- **Setup:** The production Live Referee inventory contains real Curse records alongside category, Field-placeholder, blocked, development-only, and illegal-timing records.
+- **Setup:** The production Live Referee inventory contains real Curse records alongside category, canceled legacy, blocked, development-only, and illegal-timing records.
 - **Action:** Open the Token picker during the explicit Sabotage Curse window.
 - **Expected gameplay result:** Only canonical owned usable Curses appear, with quantities counted from exact inventory records.
 - **Exact assertions:**
   - The Curse appears under a non-selectable category heading.
-  - Protection Token and legacy Electric/Grassy Field placeholders are absent.
+  - Protection Token and canceled legacy placeholders are absent.
   - Blocked, development-only, and illegal-timing records are absent.
   - An empty legal inventory renders the clean empty state.
 - **Reload tested:** Yes
@@ -3264,7 +3745,7 @@ These entries are explicit non-coverage records. Catalog presence, contract meta
 ### Knock Off Curse
 
 - **Token ID:** `knock-off-curse`
-- **Runtime status:** `partial`
+- **Runtime status:** `verifiedComplete`
 - **Runtime usability:** `usable` - Knock Off uses one exact Active-roster anchor and destroys its exact held Item or exact TM inventory grant, opening mandatory set revision when final TM access is lost.
 - **Resolver:** `automatic` / `knockOff`
 
@@ -3272,9 +3753,9 @@ These entries are explicit non-coverage records. Catalog presence, contract meta
 
 | Required outcome | Coverage | Evidence | Current gap |
 | --- | --- | --- | --- |
-| Destroy one exact held Item or TM inventory grant from one exact Active Roster Pokemon | Partially Covered | SEB-003 | The mandatory Team Revision blocker is wired through production state, but full Sabotage browser confirmation, refresh, and undo evidence remains outstanding. |
-| Production browser lifecycle | Not Covered | None | No effect-specific production browser scenario exists yet. |
-| Refresh and duplicate completion | Not Covered | None | Pure resolver identity and undo are covered where noted; production refresh remains unverified. |
+| Destroy one exact held Item or TM inventory grant from one exact Active Roster Pokemon | Covered | SEB-003 | None within the settled exact Item/TM and mandatory Team Revision contract. |
+| Production exact-resource destruction and mandatory Sabotage revision lifecycle | Covered | BROWSER-018 | None within the settled exact Item/TM and mandatory Team Revision contract. |
+| Refresh and duplicate completion | Covered | BROWSER-018 | None within the settled exact Item/TM and mandatory Team Revision contract. |
 
 #### Named Scenarios
 
@@ -3297,7 +3778,29 @@ These entries are explicit non-coverage records. Catalog presence, contract meta
 - **Sandbox discard tested:** No
 - **Sandbox commit tested:** No
 - **Teambuilder enforcement tested:** No
-- **Current gaps:** The mandatory Team Revision blocker is wired through production state, but full Sabotage browser confirmation, refresh, and undo evidence remains outstanding.
+- **Current gaps:** None within the settled exact Item/TM and mandatory Team Revision contract.
+
+##### KNOCK-OFF-CURSE-BROWSER-001 - Destroy one exact held Item or TM inventory grant from one exact Active Roster Pokemon through the production Live Referee
+
+- **Coverage:** Covered
+- **Test level:** Browser
+- **Test file:** `scripts/test-token-browser.js`
+- **Test ID:** `BROWSER-018`
+- **Setup:** Load the production app against an isolated temporary authoritative backend.
+- **Action:** Select one exact Active Roster Pokemon and its exact current-set TM record, resolve final-copy loss, refresh the blocking revision, then undo from History.
+- **Expected gameplay result:** The exact TM disappears, the move remains for explicit repair, one exact revision window survives refresh, and History undo restores the TM, Token, build, and revision state.
+- **Exact assertions:**
+  - The selector displays the exact TM-derived move.
+  - The final TM record is destroyed by stable ID.
+  - The locked move is not silently deleted.
+  - One affected-Pokemon revision persists.
+  - History undo restores exact pre-use state.
+- **Reload tested:** Yes
+- **Undo tested:** Yes
+- **Sandbox discard tested:** No
+- **Sandbox commit tested:** No
+- **Teambuilder enforcement tested:** Yes
+- **Current gaps:** None within the settled exact Item/TM and mandatory Team Revision contract.
 
 ### Haze Curse
 
@@ -3311,7 +3814,7 @@ These entries are explicit non-coverage records. Catalog presence, contract meta
 | Required outcome | Coverage | Evidence | Current gap |
 | --- | --- | --- | --- |
 | Select two different species anchors and suppress structured buffs species-wide with exact-instance protection | Partially Covered | SEB-001 | Two-Gym browser expiration, generated-set enforcement, refresh, and History undo need effect-specific production evidence. |
-| Production browser lifecycle | Not Covered | None | No effect-specific production browser scenario exists yet. |
+| Production two-anchor selector presentation and duplicate-name disabling | Covered | BROWSER-014 | Two-Gym browser expiration, generated-set enforcement, refresh, and History undo need effect-specific production evidence. |
 | Refresh and duplicate completion | Not Covered | None | Pure resolver identity and undo are covered where noted; production refresh remains unverified. |
 
 #### Named Scenarios
@@ -3330,6 +3833,27 @@ These entries are explicit non-coverage records. Catalog presence, contract meta
   - Duplicate species rows are disabled and chosen icons/names are shown.
   - Affected and protected exact IDs are distinct.
   - Buff data is not deleted.
+- **Reload tested:** No
+- **Undo tested:** No
+- **Sandbox discard tested:** No
+- **Sandbox commit tested:** No
+- **Teambuilder enforcement tested:** No
+- **Current gaps:** Two-Gym browser expiration, generated-set enforcement, refresh, and History undo need effect-specific production evidence.
+
+##### HAZE-CURSE-BROWSER-001 - Select two different species anchors and suppress structured buffs species-wide with exact-instance protection through the production Live Referee
+
+- **Coverage:** Covered
+- **Test level:** Browser
+- **Test file:** `scripts/test-token-browser.js`
+- **Test ID:** `BROWSER-014`
+- **Setup:** Load the production app against an isolated temporary authoritative backend.
+- **Action:** Render the production Haze selector after choosing one exact Garchomp anchor.
+- **Expected gameplay result:** The selected strip shows Garchomp; all other Garchomp rows are disabled with an explanation; a different species remains selectable.
+- **Exact assertions:**
+  - The chosen anchor remains checked and enabled.
+  - Duplicate species instances across players are disabled.
+  - The chosen icon/name strip is visible.
+  - A different species is still enabled.
 - **Reload tested:** No
 - **Undo tested:** No
 - **Sandbox discard tested:** No
@@ -3469,12 +3993,12 @@ These entries are explicit non-coverage records. Catalog presence, contract meta
 - **Test level:** Browser
 - **Test file:** `scripts/test-token-browser.js`
 - **Test ID:** `BROWSER-007`
-- **Setup:** The production Live Referee inventory contains real Curse records alongside category, Field-placeholder, blocked, development-only, and illegal-timing records.
+- **Setup:** The production Live Referee inventory contains real Curse records alongside category, canceled legacy, blocked, development-only, and illegal-timing records.
 - **Action:** Open the Token picker during the explicit Sabotage Curse window.
 - **Expected gameplay result:** Only canonical owned usable Curses appear, with quantities counted from exact inventory records.
 - **Exact assertions:**
   - The Curse appears under a non-selectable category heading.
-  - Protection Token and legacy Electric/Grassy Field placeholders are absent.
+  - Protection Token and canceled legacy placeholders are absent.
   - Blocked, development-only, and illegal-timing records are absent.
   - An empty legal inventory renders the clean empty state.
 - **Reload tested:** Yes
@@ -3566,7 +4090,7 @@ These entries are explicit non-coverage records. Catalog presence, contract meta
 ### Purge Curse
 
 - **Token ID:** `purge-curse`
-- **Runtime status:** `partial`
+- **Runtime status:** `verifiedComplete`
 - **Runtime usability:** `usable` - Purge records an absolute target-player marker, then atomically releases that player's immutable brought-team snapshot after Gym payout.
 - **Resolver:** `automatic` / `purgeAfterBattle`
 
@@ -3574,301 +4098,78 @@ These entries are explicit non-coverage records. Catalog presence, contract meta
 
 | Required outcome | Coverage | Evidence | Current gap |
 | --- | --- | --- | --- |
-| Absolutely release every exact Pokemon in the target player's immutable brought snapshot after payout | Partially Covered | STR-007 | Production post-payout wiring and non-respondable declaration are statically asserted by STR-010; browser refresh, rollback/refund, and host undo are not yet exercised end to end. |
-| Production browser lifecycle | Not Covered | None | A destructive production-browser scenario has not been approved for this slice. |
-| Refresh and administrative undo | Not Covered | None | The pure resolver snapshot is covered where applicable; the production UI lifecycle still needs focused evidence. |
+| Non-respondable immutable brought-snapshot release at the post-payout checkpoint | Covered | TLS-006, BROWSER-030, STR-007 and STR-010 | None recorded. |
+| Production refresh, retry/idempotency, and causal History undo | Covered | BROWSER-030 | None recorded. |
+| Sandbox discard and idempotent commit candidate | Covered | TSB-027 | None recorded. |
 
 #### Named Scenarios
 
-##### PURGE-CURSE-SETTLED-001 - Absolutely release every exact Pokemon in the target player's immutable brought snapshot after payout
+##### PURGE-CURSE-LIFECYCLE-001 - Non-respondable immutable brought-snapshot release at the post-payout checkpoint exact lifecycle
 
-- **Coverage:** Partially Covered
+- **Coverage:** Covered
 - **Test level:** Unit
-- **Test file:** `scripts/test-settled-token-rulings.js`
-- **Test ID:** `STR-007`
-- **Setup:** Create the smallest isolated state required by the settled mechanic contract.
-- **Action:** Run the pure resolver or contract-safety boundary.
-- **Expected gameplay result:** Every snapshotted exact record is released once; gameplay protection is ignored; duplicate completion is inert and snapshot undo restores state.
+- **Test file:** `scripts/test-token-lifecycle-slice.js`
+- **Test ID:** `TLS-006`
+- **Setup:** Create isolated exact records for the Token's approved runtime boundary and its stale or unsupported cases.
+- **Action:** Resolve the canonical exact-record operation, retry it, and inspect every linked record and fail-closed branch.
+- **Expected gameplay result:** The approved mutation occurs once, stale or unsupported inputs fail closed, and exact identities remain causally linked.
 - **Exact assertions:**
-  - Resolution is atomic.
-  - All immutable snapshot IDs are released.
-  - Duplicate operation ID does not replay.
-  - Undo restores the exact pre-resolution snapshot.
+  - Exact snapshot roster IDs release atomically.
+  - Same-species nonmembers remain.
+  - Missing members fail atomically.
+  - Duplicate payout completion is inert.
 - **Reload tested:** No
 - **Undo tested:** No
 - **Sandbox discard tested:** No
 - **Sandbox commit tested:** No
 - **Teambuilder enforcement tested:** No
-- **Current gaps:** Production post-payout wiring and non-respondable declaration are statically asserted by STR-010; browser refresh, rollback/refund, and host undo are not yet exercised end to end.
+- **Current gaps:** None within the approved supported runtime boundary.
 
-### Payday
+##### PURGE-CURSE-BROWSER-030 - Non-respondable immutable brought-snapshot release at the post-payout checkpoint in production
 
-- **Token ID:** `payday-field`
-- **Runtime status:** `partial`
-- **Runtime usability:** `usable` - This Token may be declared through its current runtime flow.
-- **Resolver:** `automatic` / `fieldState`
-
-#### Required Outcome Coverage
-
-| Required outcome | Coverage | Evidence | Current gap |
-| --- | --- | --- | --- |
-| Declared gameplay result | Static Only | Contract and runtime wiring only | No executable result-level Token scenario exists. |
-
-#### Named Scenarios
-
-##### PAYDAY-FIELD-STATIC - Current runtime path inventory
-
-- **Coverage:** Static Only
-- **Test level:** Static Wiring
-- **Test file:** `None`
-- **Test ID:** `None`
-- **Setup:** Load the Token contract and inspect the registered runtime path.
-- **Action:** Confirm that the Token has a catalog definition and a resolver/wiring declaration.
-- **Expected gameplay result:** The report records the path without claiming that its gameplay result works.
+- **Coverage:** Covered
+- **Test level:** Browser
+- **Test file:** `scripts/test-token-browser.js`
+- **Test ID:** `BROWSER-030`
+- **Setup:** Load the production app against an isolated authoritative backend with exact Token and target records.
+- **Action:** Use the production surface, persist, refresh, finish the lifecycle, refresh again, then undo from History.
+- **Expected gameplay result:** The exact effect persists and completes once; causal undo restores exact Token and effect records without replacing unrelated later state.
 - **Exact assertions:**
-  - No gameplay-state assertion exists for this Token.
-- **Reload tested:** No
-- **Undo tested:** No
+  - No response or Trade window opens.
+  - Refresh preserves the immutable marker and snapshot.
+  - Only exact snapshot members release after payout.
+  - Causal undo restores released records and exact Purge while preserving later unrelated edits.
+- **Reload tested:** Yes
+- **Undo tested:** Yes
 - **Sandbox discard tested:** No
 - **Sandbox commit tested:** No
 - **Teambuilder enforcement tested:** No
-- **Current gaps:** No field replacement, money effect, persistence, or expiration result is asserted.
+- **Current gaps:** None within the approved supported runtime boundary.
 
-### Drizzle
+##### PURGE-CURSE-SANDBOX-027 - Non-respondable immutable brought-snapshot release at the post-payout checkpoint sandbox isolation
 
-- **Token ID:** `drizzle-field`
-- **Runtime status:** `partial`
-- **Runtime usability:** `usable` - This Token may be declared through its current runtime flow.
-- **Resolver:** `automatic` / `fieldState`
-
-#### Required Outcome Coverage
-
-| Required outcome | Coverage | Evidence | Current gap |
-| --- | --- | --- | --- |
-| Declared gameplay result | Static Only | Contract and runtime wiring only | No executable result-level Token scenario exists. |
-
-#### Named Scenarios
-
-##### DRIZZLE-FIELD-STATIC - Current runtime path inventory
-
-- **Coverage:** Static Only
-- **Test level:** Static Wiring
-- **Test file:** `None`
-- **Test ID:** `None`
-- **Setup:** Load the Token contract and inspect the registered runtime path.
-- **Action:** Confirm that the Token has a catalog definition and a resolver/wiring declaration.
-- **Expected gameplay result:** The report records the path without claiming that its gameplay result works.
+- **Coverage:** Covered
+- **Test level:** Integration
+- **Test file:** `scripts/test-token-sandbox.js`
+- **Test ID:** `TSB-027`
+- **Setup:** Apply the six-Token lifecycle slice only to a sandbox clone.
+- **Action:** Prepare the commit candidate twice and then discard against the unchanged authoritative baseline.
+- **Expected gameplay result:** Both candidates are byte-identical and discard restores the exact baseline.
 - **Exact assertions:**
-  - No gameplay-state assertion exists for this Token.
+  - The candidate contains this Token's exact mutation.
+  - Candidate preparation is idempotent.
+  - The authoritative baseline remains byte-identical.
 - **Reload tested:** No
 - **Undo tested:** No
-- **Sandbox discard tested:** No
-- **Sandbox commit tested:** No
+- **Sandbox discard tested:** Yes
+- **Sandbox commit tested:** Yes
 - **Teambuilder enforcement tested:** No
-- **Current gaps:** No field replacement or ongoing weather result is asserted.
-
-### Drought
-
-- **Token ID:** `drought-field`
-- **Runtime status:** `partial`
-- **Runtime usability:** `usable` - This Token may be declared through its current runtime flow.
-- **Resolver:** `automatic` / `fieldState`
-
-#### Required Outcome Coverage
-
-| Required outcome | Coverage | Evidence | Current gap |
-| --- | --- | --- | --- |
-| Declared gameplay result | Static Only | Contract and runtime wiring only | No executable result-level Token scenario exists. |
-
-#### Named Scenarios
-
-##### DROUGHT-FIELD-STATIC - Current runtime path inventory
-
-- **Coverage:** Static Only
-- **Test level:** Static Wiring
-- **Test file:** `None`
-- **Test ID:** `None`
-- **Setup:** Load the Token contract and inspect the registered runtime path.
-- **Action:** Confirm that the Token has a catalog definition and a resolver/wiring declaration.
-- **Expected gameplay result:** The report records the path without claiming that its gameplay result works.
-- **Exact assertions:**
-  - No gameplay-state assertion exists for this Token.
-- **Reload tested:** No
-- **Undo tested:** No
-- **Sandbox discard tested:** No
-- **Sandbox commit tested:** No
-- **Teambuilder enforcement tested:** No
-- **Current gaps:** No field replacement or ongoing weather result is asserted.
-
-### Taunt
-
-- **Token ID:** `taunt-field`
-- **Runtime status:** `partial`
-- **Runtime usability:** `usable` - This Token may be declared through its current runtime flow.
-- **Resolver:** `automatic` / `fieldState`
-
-#### Required Outcome Coverage
-
-| Required outcome | Coverage | Evidence | Current gap |
-| --- | --- | --- | --- |
-| Declared gameplay result | Static Only | Contract and runtime wiring only | No executable result-level Token scenario exists. |
-
-#### Named Scenarios
-
-##### TAUNT-FIELD-STATIC - Current runtime path inventory
-
-- **Coverage:** Static Only
-- **Test level:** Static Wiring
-- **Test file:** `None`
-- **Test ID:** `None`
-- **Setup:** Load the Token contract and inspect the registered runtime path.
-- **Action:** Confirm that the Token has a catalog definition and a resolver/wiring declaration.
-- **Expected gameplay result:** The report records the path without claiming that its gameplay result works.
-- **Exact assertions:**
-  - No gameplay-state assertion exists for this Token.
-- **Reload tested:** No
-- **Undo tested:** No
-- **Sandbox discard tested:** No
-- **Sandbox commit tested:** No
-- **Teambuilder enforcement tested:** No
-- **Current gaps:** No field replacement or declared lockout result is asserted.
-
-### Snow Warning
-
-- **Token ID:** `snow-warning-field`
-- **Runtime status:** `partial`
-- **Runtime usability:** `usable` - This Token may be declared through its current runtime flow.
-- **Resolver:** `automatic` / `fieldState`
-
-#### Required Outcome Coverage
-
-| Required outcome | Coverage | Evidence | Current gap |
-| --- | --- | --- | --- |
-| Declared gameplay result | Static Only | Contract and runtime wiring only | No executable result-level Token scenario exists. |
-
-#### Named Scenarios
-
-##### SNOW-WARNING-FIELD-STATIC - Current runtime path inventory
-
-- **Coverage:** Static Only
-- **Test level:** Static Wiring
-- **Test file:** `None`
-- **Test ID:** `None`
-- **Setup:** Load the Token contract and inspect the registered runtime path.
-- **Action:** Confirm that the Token has a catalog definition and a resolver/wiring declaration.
-- **Expected gameplay result:** The report records the path without claiming that its gameplay result works.
-- **Exact assertions:**
-  - No gameplay-state assertion exists for this Token.
-- **Reload tested:** No
-- **Undo tested:** No
-- **Sandbox discard tested:** No
-- **Sandbox commit tested:** No
-- **Teambuilder enforcement tested:** No
-- **Current gaps:** No field replacement or ongoing weather result is asserted.
-
-### Sand Stream
-
-- **Token ID:** `sand-stream-field`
-- **Runtime status:** `partial`
-- **Runtime usability:** `usable` - This Token may be declared through its current runtime flow.
-- **Resolver:** `automatic` / `fieldState`
-
-#### Required Outcome Coverage
-
-| Required outcome | Coverage | Evidence | Current gap |
-| --- | --- | --- | --- |
-| Declared gameplay result | Static Only | Contract and runtime wiring only | No executable result-level Token scenario exists. |
-
-#### Named Scenarios
-
-##### SAND-STREAM-FIELD-STATIC - Current runtime path inventory
-
-- **Coverage:** Static Only
-- **Test level:** Static Wiring
-- **Test file:** `None`
-- **Test ID:** `None`
-- **Setup:** Load the Token contract and inspect the registered runtime path.
-- **Action:** Confirm that the Token has a catalog definition and a resolver/wiring declaration.
-- **Expected gameplay result:** The report records the path without claiming that its gameplay result works.
-- **Exact assertions:**
-  - No gameplay-state assertion exists for this Token.
-- **Reload tested:** No
-- **Undo tested:** No
-- **Sandbox discard tested:** No
-- **Sandbox commit tested:** No
-- **Teambuilder enforcement tested:** No
-- **Current gaps:** No field replacement or ongoing weather result is asserted.
-
-### Infestation
-
-- **Token ID:** `infestation-field`
-- **Runtime status:** `partial`
-- **Runtime usability:** `usable` - This Token may be declared through its current runtime flow.
-- **Resolver:** `automatic` / `fieldState`
-
-#### Required Outcome Coverage
-
-| Required outcome | Coverage | Evidence | Current gap |
-| --- | --- | --- | --- |
-| Declared gameplay result | Static Only | Contract and runtime wiring only | No executable result-level Token scenario exists. |
-
-#### Named Scenarios
-
-##### INFESTATION-FIELD-STATIC - Current runtime path inventory
-
-- **Coverage:** Static Only
-- **Test level:** Static Wiring
-- **Test file:** `None`
-- **Test ID:** `None`
-- **Setup:** Load the Token contract and inspect the registered runtime path.
-- **Action:** Confirm that the Token has a catalog definition and a resolver/wiring declaration.
-- **Expected gameplay result:** The report records the path without claiming that its gameplay result works.
-- **Exact assertions:**
-  - No gameplay-state assertion exists for this Token.
-- **Reload tested:** No
-- **Undo tested:** No
-- **Sandbox discard tested:** No
-- **Sandbox commit tested:** No
-- **Teambuilder enforcement tested:** No
-- **Current gaps:** No field replacement or ongoing effect result is asserted.
-
-### Surging Strikes
-
-- **Token ID:** `surging-strikes-field`
-- **Runtime status:** `partial`
-- **Runtime usability:** `usable` - This Token may be declared through its current runtime flow.
-- **Resolver:** `automatic` / `fieldState`
-
-#### Required Outcome Coverage
-
-| Required outcome | Coverage | Evidence | Current gap |
-| --- | --- | --- | --- |
-| Declared gameplay result | Static Only | Contract and runtime wiring only | No executable result-level Token scenario exists. |
-
-#### Named Scenarios
-
-##### SURGING-STRIKES-FIELD-STATIC - Current runtime path inventory
-
-- **Coverage:** Static Only
-- **Test level:** Static Wiring
-- **Test file:** `None`
-- **Test ID:** `None`
-- **Setup:** Load the Token contract and inspect the registered runtime path.
-- **Action:** Confirm that the Token has a catalog definition and a resolver/wiring declaration.
-- **Expected gameplay result:** The report records the path without claiming that its gameplay result works.
-- **Exact assertions:**
-  - No gameplay-state assertion exists for this Token.
-- **Reload tested:** No
-- **Undo tested:** No
-- **Sandbox discard tested:** No
-- **Sandbox commit tested:** No
-- **Teambuilder enforcement tested:** No
-- **Current gaps:** No field replacement or ongoing effect result is asserted.
+- **Current gaps:** None within the shared sandbox isolation contract.
 
 ### Ditto
 
 - **Token ID:** `ditto-token`
-- **Runtime status:** `partial`
+- **Runtime status:** `verifiedComplete`
 - **Runtime usability:** `usable` - Ditto transforms its exact owned inventory record into one canonical inventory copy chosen from the searchable activatable Token catalog; it does not activate the copy immediately.
 - **Resolver:** `automatic` / `copyTokenInventory`
 
@@ -3876,9 +4177,9 @@ These entries are explicit non-coverage records. Catalog presence, contract meta
 
 | Required outcome | Coverage | Evidence | Current gap |
 | --- | --- | --- | --- |
-| Transform one exact Ditto inventory record into one canonical chosen Token inventory record without activating it | Partially Covered | SEB-006 | The production picker is wired, but browser refresh, exact source-record transformation presentation, and History undo need effect-specific evidence. |
-| Production browser lifecycle | Not Covered | None | No effect-specific production browser scenario exists yet. |
-| Refresh and duplicate completion | Not Covered | None | Pure resolver identity and undo are covered where noted; production refresh remains unverified. |
+| Transform one exact Ditto inventory record into one canonical chosen Token inventory record without activating it | Covered | SEB-006 | None within the settled inventory-transformation contract. |
+| Production canonical picker, transformation, refresh, and History undo | Covered | BROWSER-015 | None within the settled inventory-transformation contract. |
+| Refresh and duplicate completion | Covered | BROWSER-015 | None within the settled inventory-transformation contract. |
 
 #### Named Scenarios
 
@@ -3901,32 +4202,37 @@ These entries are explicit non-coverage records. Catalog presence, contract meta
 - **Sandbox discard tested:** No
 - **Sandbox commit tested:** No
 - **Teambuilder enforcement tested:** No
-- **Current gaps:** The production picker is wired, but browser refresh, exact source-record transformation presentation, and History undo need effect-specific evidence.
+- **Current gaps:** None within the settled inventory-transformation contract.
+
+##### DITTO-TOKEN-BROWSER-001 - Transform one exact Ditto inventory record into one canonical chosen Token inventory record without activating it through the production Live Referee
+
+- **Coverage:** Covered
+- **Test level:** Browser
+- **Test file:** `scripts/test-token-browser.js`
+- **Test ID:** `BROWSER-015`
+- **Setup:** Load the production app against an isolated temporary authoritative backend.
+- **Action:** Use the production picker to transform one exact Ditto into Immunity, persist and refresh, then undo the transformation from History.
+- **Expected gameplay result:** Ditto is absent from its own picker; one canonical Immunity with exact provenance survives refresh without activation; History undo restores only the source Ditto.
+- **Exact assertions:**
+  - The picker includes Immunity and excludes Ditto.
+  - The exact Ditto record is consumed.
+  - One canonical non-activated copy is created.
+  - Refresh does not duplicate it.
+  - History undo restores the exact Ditto.
+- **Reload tested:** Yes
+- **Undo tested:** Yes
+- **Sandbox discard tested:** No
+- **Sandbox commit tested:** No
+- **Teambuilder enforcement tested:** No
+- **Current gaps:** None within the settled inventory-transformation contract.
 
 ## Missing Automated Coverage Before The Next Token Batch
 
-- **Cold Wave:** Production browser lifecycle; Refresh and administrative undo.
 - **Rage Candy Bar:** Owned target only; Undo.
-- **Lingering Aroma:** Production browser lifecycle; Refresh and administrative undo.
-- **Safeguard:** Declared gameplay result.
 - **Embargo:** Declared gameplay result.
 - **Smokescreen:** Production browser lifecycle; Refresh and administrative undo.
-- **Reroll:** Declared gameplay result.
-- **Honey:** Production browser lifecycle; Refresh and duplicate completion.
-- **Move Deleter:** Production browser lifecycle; Refresh and administrative undo.
-- **Knock Off Curse:** Production browser lifecycle; Refresh and duplicate completion.
-- **Haze Curse:** Production browser lifecycle; Refresh and duplicate completion.
+- **Haze Curse:** Refresh and duplicate completion.
 - **Devolve:** Production browser lifecycle; Refresh and duplicate completion.
-- **Purge Curse:** Production browser lifecycle; Refresh and administrative undo.
-- **Payday:** Declared gameplay result.
-- **Drizzle:** Declared gameplay result.
-- **Drought:** Declared gameplay result.
-- **Taunt:** Declared gameplay result.
-- **Snow Warning:** Declared gameplay result.
-- **Sand Stream:** Declared gameplay result.
-- **Infestation:** Declared gameplay result.
-- **Surging Strikes:** Declared gameplay result.
-- **Ditto:** Production browser lifecycle; Refresh and duplicate completion.
 
 ## Minimal Manual Browser Smoke
 

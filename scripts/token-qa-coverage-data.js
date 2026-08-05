@@ -1,6 +1,6 @@
 "use strict";
 
-const COVERAGE_REVISION = "2026-07-29-settled-copy-and-curse-runtime-v2";
+const COVERAGE_REVISION = "2026-08-04-lifecycle-completion-slice-v3";
 
 const FLAGS_NONE = Object.freeze({
   reload: false,
@@ -69,14 +69,16 @@ function settledResolverCoverage({
   integrationAction = "Resolve, reload, verify the authoritative effect record, and undo the exact activation.",
   integrationFlags = {},
   integrationExpected = "",
-  integrationAssertions = []
+  integrationAssertions = [],
+  behaviorCoverage = "Partially Covered",
+  browserFlags = {}
 }) {
   const browserCoverage = browserTestId ? "Covered" : "Not Covered";
   const persistenceCoverage = browserUndoCovered ? "Covered" : browserTestId ? "Partially Covered" : "Not Covered";
   return {
     tokenId,
     requirements: [
-      requirement(behavior, "Partially Covered", testId, gap),
+      requirement(behavior, behaviorCoverage, testId, gap),
       ...(integrationTestId ? [requirement(integrationRequirement, "Covered", integrationTestId)] : []),
       requirement("Production browser lifecycle", browserCoverage, browserTestId || "None", browserTestId ? gap : "A destructive production-browser scenario has not been approved for this slice."),
       requirement("Refresh and administrative undo", persistenceCoverage, browserTestId || "None", browserUndoCovered
@@ -124,6 +126,7 @@ function settledResolverCoverage({
         action: "Complete the production flow, persist it, refresh, and inspect its terminal behavior.",
         expected: browserExpected,
         assertions: browserAssertions,
+        flags: { reload: true, undo: browserUndoCovered, ...browserFlags },
         gaps: gap
       })] : [])
     ]
@@ -142,12 +145,15 @@ function settledBatchCoverage({
   browserAction = "Resolve the interaction, persist it, refresh, and inspect exact inventory and chain state.",
   browserExpected = "",
   browserAssertions = [],
-  browserPersistenceCovered = Boolean(browserTestId)
+  browserPersistenceCovered = Boolean(browserTestId),
+  browserUndoCovered = false,
+  behaviorCoverage = "Partially Covered",
+  browserFlags = {}
 }) {
   return {
     tokenId,
     requirements: [
-      requirement(behavior, "Partially Covered", testId, gap),
+      requirement(behavior, behaviorCoverage, testId, gap),
       requirement(browserRequirement, browserTestId ? "Covered" : "Not Covered", browserTestId || "None", browserTestId ? gap : "No effect-specific production browser scenario exists yet."),
       requirement("Refresh and duplicate completion", browserPersistenceCovered ? "Covered" : "Not Covered", browserPersistenceCovered ? browserTestId : "None", browserPersistenceCovered ? gap : "Pure resolver identity and undo are covered where noted; production refresh remains unverified.")
     ],
@@ -176,7 +182,7 @@ function settledBatchCoverage({
         action: browserAction,
         expected: browserExpected,
         assertions: browserAssertions,
-        flags: { reload: browserPersistenceCovered },
+        flags: { reload: browserPersistenceCovered, undo: browserUndoCovered, ...browserFlags },
         gaps: gap
       })] : [])
     ]
@@ -269,10 +275,10 @@ function standardCurseCoverage({ tokenId, effectName, effectTestId, effectExpect
         level: "Browser",
         testFile: "scripts/test-token-browser.js",
         testId: "BROWSER-007",
-        setup: "The production Live Referee inventory contains real Curse records alongside category, Field-placeholder, blocked, development-only, and illegal-timing records.",
+    setup: "The production Live Referee inventory contains real Curse records alongside category, canceled legacy, blocked, development-only, and illegal-timing records.",
         action: "Open the Token picker during the explicit Sabotage Curse window.",
         expected: "Only canonical owned usable Curses appear, with quantities counted from exact inventory records.",
-        assertions: ["The Curse appears under a non-selectable category heading.", "Protection Token and legacy Electric/Grassy Field placeholders are absent.", "Blocked, development-only, and illegal-timing records are absent.", "An empty legal inventory renders the clean empty state."],
+    assertions: ["The Curse appears under a non-selectable category heading.", "Protection Token and canceled legacy placeholders are absent.", "Blocked, development-only, and illegal-timing records are absent.", "An empty legal inventory renders the clean empty state."],
         flags: { reload: true }
       }),
       scenario({
@@ -475,7 +481,7 @@ const tokens = [
         level: "Integration",
         testFile: "scripts/test-token-controller-integration.js",
         testId: "TCI-001",
-        setup: "Resolve a sourced two-Gym Garchomp Restrict, then declare Unban through the controller.",
+        setup: "Resolve a sourced six-Gym Garchomp Restrict, then declare Unban through the controller.",
         action: "Assert the result, reject protected redeclarations, persist/reload, undo, and advance to the six-Gym expiration.",
         expected: "Unban creates one structured protection and one linked mirror that block both effect families and expire together.",
         assertions: [
@@ -1134,7 +1140,7 @@ const tokens = [
       assertions: [
         "Resolver returns resolved.",
         "The selected effectBuff status becomes removed.",
-        "Selected visible buffs become exactly [TM Move Pending].",
+        "Only labels backed by removed provenance are removed; unproven native labels and TM Move Pending remain.",
         "The selected exact move grant becomes removed and inactive.",
         "The unrelated move grant remains active."
       ],
@@ -1308,17 +1314,8 @@ const tokens = [
 ];
 
 [
-  ["safeguard", "No test proves any protected theft/destruction/copy outcome is blocked."],
   ["embargo", "No test creates, persists, enforces, or expires the player status."],
-  ["reroll-token", "No test drives an encounter result through reroll, persistence, and undo."],
-  ["payday-field", "No field replacement, money effect, persistence, or expiration result is asserted."],
-  ["drizzle-field", "No field replacement or ongoing weather result is asserted."],
-  ["drought-field", "No field replacement or ongoing weather result is asserted."],
-  ["taunt-field", "No field replacement or declared lockout result is asserted."],
-  ["snow-warning-field", "No field replacement or ongoing weather result is asserted."],
-  ["sand-stream-field", "No field replacement or ongoing weather result is asserted."],
-  ["infestation-field", "No field replacement or ongoing effect result is asserted."],
-  ["surging-strikes-field", "No field replacement or ongoing effect result is asserted."]
+  ["reroll-token", "No test drives an encounter result through reroll, persistence, and undo."]
 ].forEach(([tokenId, gap]) => tokens.push(staticOnlyToken(tokenId, gap)));
 
 tokens.push({
@@ -1725,8 +1722,11 @@ tokens.push(settledBatchCoverage({
   assertions: ["Parent resolution activates the relationship.", "Canonical Token identity and source provenance are preserved.", "Duplicate completion grants no duplicate.", "Virtual copies do not trigger it."],
   browserTestId: "BROWSER-013",
   browserExpected: "The production response redirects one exact Active Roster target; parent resolution activates the relationship; one later real Restrict consumption grants one persistent copy across refresh.",
-  browserAssertions: ["The relationship is pending before parent resolution and active after it.", "The redirected exact Pokemon changes ownership through the parent Steal.", "The copied Token is inventory, not an immediate activation.", "Refresh and duplicate processing preserve exactly one copy."],
-  gap: "Gym-end expiration and History undo for the relationship still need an effect-specific browser scenario; Drizzle's trigger conditions remain separate."
+  browserAssertions: ["The relationship is pending before parent resolution and active after it.", "The redirected exact Pokemon changes ownership through the parent Steal.", "The copied Token is inventory, not an immediate activation.", "Refresh and duplicate processing preserve exactly one copy.", "The relationship expires at the next Gym while earned inventory remains.", "History undo restores the exact pre-declaration state."],
+  browserPersistenceCovered: true,
+  browserUndoCovered: true,
+  behaviorCoverage: "Covered",
+  gap: "None within the settled redirect and Gym-long real-consumption copy contract."
 }));
 
 tokens.push({
@@ -1842,7 +1842,12 @@ tokens.push({
     integrationExpected: "Successful confirmation transfers exactly $500 once; insufficient funds consume nothing; withdrawal transfers nothing.",
     integrationAssertions: ["Duplicate confirmation preserves one payment.", "Insufficient funds preserve both balances and the Token.", "Withdrawal preserves both balances and creates no consumption."],
     integrationFlags: { reload: true },
-    gap: "The pure resolver and declaration-cost hooks are covered; a destructive production browser scenario for withdrawal, later negation, refresh, and History undo remains outstanding."
+    browserTestId: "BROWSER-016",
+    browserExpected: "The exact benefiting record is replaced for its linked lifetime; a confirmed outside targeting declaration pays once even when later negated; refresh retains both results; ordered History undo restores both declarations exactly.",
+    browserAssertions: ["The exact ongoing-effect ID is selected.", "The original behavior is replaced without deleting its record.", "One $500 transfer survives later negation.", "Linked expiration survives refresh.", "Newest-first History undo restores balances, Tokens, and the original effect."],
+    browserUndoCovered: true,
+    behaviorCoverage: "Covered",
+    gap: "None within the settled Lingering Aroma contract; simultaneous multi-client declaration races remain covered by the shared authoritative declaration infrastructure rather than this effect-specific browser scenario."
   }),
   settledBatchCoverage({
     tokenId: "haze-curse",
@@ -1864,7 +1869,16 @@ tokens.push({
     testId: "SEB-003",
     expected: "Master Ball is excluded; duplicate TM ownership preserves access; loss of the final exact TM copy identifies locked slots requiring manual revision without deleting their move.",
     assertions: ["Stable Item/TM IDs drive destruction.", "Master Ball fails before mutation.", "Duplicate TM access remains legal.", "Final TM loss records exact impacted slots and leaves the move for required revision."],
-    gap: "The mandatory Team Revision blocker is wired through production state, but full Sabotage browser confirmation, refresh, and undo evidence remains outstanding."
+    browserTestId: "BROWSER-018",
+    browserRequirement: "Production exact-resource destruction and mandatory Sabotage revision lifecycle",
+    browserAction: "Select one exact Active Roster Pokemon and its exact current-set TM record, resolve final-copy loss, refresh the blocking revision, then undo from History.",
+    browserExpected: "The exact TM disappears, the move remains for explicit repair, one exact revision window survives refresh, and History undo restores the TM, Token, build, and revision state.",
+    browserAssertions: ["The selector displays the exact TM-derived move.", "The final TM record is destroyed by stable ID.", "The locked move is not silently deleted.", "One affected-Pokemon revision persists.", "History undo restores exact pre-use state."],
+    browserPersistenceCovered: true,
+    browserUndoCovered: true,
+    behaviorCoverage: "Covered",
+    browserFlags: { teambuilder: true },
+    gap: "None within the settled exact Item/TM and mandatory Team Revision contract."
   }),
   settledBatchCoverage({
     tokenId: "honey-token",
@@ -1891,7 +1905,13 @@ tokens.push({
     integrationTestId: "TCI-013",
     integrationExpected: "The canonical move restriction is absent in the declaration Gym, active in the next Gym after backend reload, and removed by exact activation undo with the Token restored.",
     integrationAssertions: ["Canonical casing is stable.", "The restriction persists through reload.", "Undo removes the status.", "Undo restores the exact Token."],
-    gap: "TCI-013 covers controller declaration, backend reload, and exact undo; STR-010 covers Teambuilder wiring. Full import/export/browser rejection still needs destructive evidence."
+    browserTestId: "BROWSER-017",
+    browserExpected: "The next-Gym restriction blocks selection and validation, rejects Showdown import/export, survives refresh, expires at the exact boundary, and History undo restores the Token with no restriction.",
+    browserAssertions: ["Canonical Recover is active only in the next Gym.", "Validation reports Move Deleter.", "Import returns false with an explicit rejection.", "Export produces no illegal set.", "Expiration and History undo remove the exact status."],
+    browserUndoCovered: true,
+    behaviorCoverage: "Covered",
+    browserFlags: { teambuilder: true },
+    gap: "None within the settled canonical next-Gym move-restriction contract."
   }),
   settledResolverCoverage({
     tokenId: "purge-curse",
@@ -1922,7 +1942,8 @@ tokens.push({
     browserExpected: "The required-choice screen survives refresh, consumes Revenge only on valid confirmation, releases the exact two snapshot records, closes terminally, and History undo restores the exact pre-choice state.",
     browserAssertions: ["The offer consumes nothing before confirmation.", "Two exact roster IDs are released.", "The event closes once.", "Refresh preserves the terminal result.", "History undo restores both Pokemon, the Token, and the awaiting procedure."],
     browserUndoCovered: true,
-    gap: "STR-012 covers production wiring and BROWSER-012 covers the required-choice screen, backend refresh, exact two-Pokemon resolution, consumption, terminal event closure, and History undo. A complete real payout-to-offer phase-through remains manual evidence."
+    behaviorCoverage: "Covered",
+    gap: "None within the settled post-payout Revenge contract; BROWSER-012 begins with real Gym finalization and payout before the offer."
   }),
   settledBatchCoverage({
     tokenId: "after-you",
@@ -1941,24 +1962,262 @@ tokens.push({
     testId: "SEB-006",
     expected: "The replacement has canonical identity and Ditto provenance, creates no activation, does not duplicate on replay, and snapshot undo removes it.",
     assertions: ["The exact source operation is idempotent.", "The selected canonical definition is preserved.", "No copied activation is created.", "Undo restores the pre-copy inventory snapshot."],
-    gap: "The production picker is wired, but browser refresh, exact source-record transformation presentation, and History undo need effect-specific evidence."
+    browserTestId: "BROWSER-015",
+    browserRequirement: "Production canonical picker, transformation, refresh, and History undo",
+    browserAction: "Use the production picker to transform one exact Ditto into Immunity, persist and refresh, then undo the transformation from History.",
+    browserExpected: "Ditto is absent from its own picker; one canonical Immunity with exact provenance survives refresh without activation; History undo restores only the source Ditto.",
+    browserAssertions: ["The picker includes Immunity and excludes Ditto.", "The exact Ditto record is consumed.", "One canonical non-activated copy is created.", "Refresh does not duplicate it.", "History undo restores the exact Ditto."],
+    browserPersistenceCovered: true,
+    browserUndoCovered: true,
+    behaviorCoverage: "Covered",
+    gap: "None within the settled inventory-transformation contract."
   })
 ].forEach((entry) => tokens.push(entry));
 
+function appendCompletionSliceEvidence(tokenId, { testId, browserId, behavior, assertions, browserAssertions, teambuilder = false }) {
+  const entry = tokens.find((token) => token.tokenId === tokenId);
+  if (!entry) throw new Error(`Missing completion-slice coverage entry for ${tokenId}.`);
+  entry.requirements.push(
+    requirement("Completion-slice effect contract", "Covered", `${testId}, ${browserId}, and TSB-026`),
+    requirement("Production Live Referee refresh and causal History undo", "Covered", browserId),
+    requirement("Sandbox discard and idempotent commit preparation", "Covered", "TSB-026")
+  );
+  entry.scenarios.push(
+    scenario({
+      id: `${tokenId.toUpperCase()}-COMPLETION`,
+      name: behavior,
+      coverage: "Covered",
+      level: "Unit",
+      testFile: "scripts/test-token-completion-slice.js",
+      testId,
+      setup: "Create the exact structured statuses, roster instances, buffs, grants, or player records required by the approved effect contract.",
+      action: "Resolve the effect and assert its exact target identity, protected scope, enforcement, and expiration semantics.",
+      expected: behavior,
+      assertions,
+      flags: { teambuilder }
+    }),
+    scenario({
+      id: `${tokenId.toUpperCase()}-${browserId}`,
+      name: `Production ${behavior}`,
+      coverage: "Covered",
+      level: "Browser",
+      testFile: "scripts/test-token-browser.js",
+      testId: browserId,
+      setup: "Load the real production page against an isolated authoritative backend with exact inventory and target records.",
+      action: "Render the production picker and response UI, confirm the declaration, refresh, inspect the rendered result, and use History undo.",
+      expected: "The exact effect persists once through refresh and causal undo restores only its records and inventory without reopening the terminal chain.",
+      assertions: browserAssertions,
+      flags: { reload: true, undo: true, teambuilder }
+    }),
+    scenario({
+      id: `${tokenId.toUpperCase()}-SANDBOX-026`,
+      name: "Completion-slice sandbox isolation",
+      coverage: "Covered",
+      level: "Integration",
+      testFile: "scripts/test-token-sandbox.js",
+      testId: "TSB-026",
+      setup: "Clone the exact completion-slice baseline into a revision-bound Token sandbox.",
+      action: "Resolve the six effects, prepare the same commit candidate twice, then discard.",
+      expected: "Candidate preparation is idempotent and discard restores the byte-identical authoritative baseline.",
+      assertions: ["The baseline never mutates.", "Both prepared candidates are byte-identical.", "Discard removes all slice statuses, buffs, grants, and protection."],
+      flags: { sandboxDiscard: true, sandboxCommit: true, teambuilder }
+    })
+  );
+}
+
+appendCompletionSliceEvidence("restrict-token", {
+  testId: "TCS-001",
+  browserId: "BROWSER-019",
+  behavior: "Six-Gym canonical species Restrict with exact Rage immunity",
+  assertions: ["Canonical punctuation and capitalization normalize to stable keys.", "Only the exact Rage-enhanced instance remains legal.", "Expiration occurs once at Gym 7."],
+  browserAssertions: ["The species picker and response UI render.", "Teambuilder and submitted-roster paths reject the unprotected instance.", "Refresh preserves the stable status ID.", "Causal History undo restores the exact Token and preserves a later roster edit."],
+  teambuilder: true
+});
+appendCompletionSliceEvidence("extra-ban-token", {
+  testId: "TCS-002",
+  browserId: "BROWSER-020",
+  behavior: "Exact Active-roster Extra Ban anchor with selected-only Substitute interception",
+  assertions: ["Legacy-roster anchors fail.", "A Substitute on another matching instance remains active.", "A Substitute on the selected anchor negates the universal Ban."],
+  browserAssertions: ["Only Active anchors render.", "The selected stable anchor survives refresh.", "Teambuilder and submitted-roster paths reject the species.", "Causal undo removes only the Ban and preserves later edits."],
+  teambuilder: true
+});
+appendCompletionSliceEvidence("unban-token", {
+  testId: "TCS-003",
+  browserId: "BROWSER-021",
+  behavior: "Exact-status Unban removal with stale-target safety",
+  assertions: ["Ambiguous same-species records require an exact status choice.", "Only the selected status is removed.", "The unrelated status and its expiration metadata remain unchanged."],
+  browserAssertions: ["The picker renders distinct stable Ban and Restrict records.", "Only the selected Restrict is removed through refresh.", "History undo restores its original Gym 7 schedule and removes only Unban protection."]
+});
+appendCompletionSliceEvidence("clear-smog", {
+  testId: "TCS-004",
+  browserId: "BROWSER-022",
+  behavior: "Provenance-only permanent Clear Smog removal",
+  assertions: ["Rage, AAA Ability, and exact move grants are removed by provenance.", "Expired records are not revived.", "Native Ability, moves, and unrelated labels remain."],
+  browserAssertions: ["The exact Active-roster picker and response UI render.", "The rendered result names the permanent removals.", "Refresh preserves removal.", "Causal undo restores only removed records while preserving a later move edit."],
+  teambuilder: true
+});
+appendCompletionSliceEvidence("rage-candy-bar", {
+  testId: "TCS-005",
+  browserId: "BROWSER-023",
+  behavior: "One shared Rage enhancement with exact-instance immunity and extension",
+  assertions: ["Reuse retains one status and two buffs.", "Duration extends from two to four Gyms.", "Another same-species instance receives an independent status."],
+  browserAssertions: ["Production Teambuilder reads +3 levels and +252 EV cap from structured records.", "Refresh preserves one four-Gym status.", "Newest-first causal undo reverses extension before first use and preserves later edits."],
+  teambuilder: true
+});
+
+tokens.push({
+  tokenId: "safeguard",
+  requirements: [
+    requirement("Exact self-player declaration and response lifecycle", "Covered", "TCS-006 and BROWSER-024"),
+    requirement("All eight canonical protected categories", "Covered", "TCS-006 and BROWSER-024"),
+    requirement("Explicit non-protected operation categories", "Covered", "TCS-006 and BROWSER-024"),
+    requirement("Refresh, expiration, causal History undo, and sandbox isolation", "Covered", "TCS-006, BROWSER-024, and TSB-026")
+  ],
+  scenarios: [
+    scenario({
+      id: "SAFEGUARD-COMPLETION",
+      name: "Executable exact-player Safeguard category matrix",
+      coverage: "Covered",
+      level: "Unit",
+      testFile: "scripts/test-token-completion-slice.js",
+      testId: "TCS-006",
+      setup: "Create Safeguard for Gold and enumerate the canonical protected and explicit non-protected operation categories.",
+      action: "Query every category for Gold and another player, then advance to expiration.",
+      expected: "Only Gold and only the eight canonical categories are protected until the exact expiration boundary.",
+      assertions: ["Money and Token steal/destroy/copy are protected.", "Follow Me and Embargo are protected.", "Item, TM, Pokemon, forced-payment, and Counterspell-restoration categories are not protected.", "Another player is not protected."],
+      flags: { reload: false }
+    }),
+    scenario({
+      id: "SAFEGUARD-BROWSER-024",
+      name: "Production Safeguard response, refresh, matrix, and causal undo",
+      coverage: "Covered",
+      level: "Browser",
+      testFile: "scripts/test-token-browser.js",
+      testId: "BROWSER-024",
+      setup: "Load production with one exact Safeguard inventory record on an isolated backend.",
+      action: "Render its self picker and response UI, resolve, evaluate the category matrix, refresh, mutate unrelated money, and undo from History.",
+      expected: "One exact-player status persists, protection is category-scoped, and causal undo restores the Token without changing later money.",
+      assertions: ["The declaration is response-enabled.", "All protected and non-protected categories match the contract.", "Refresh is stable.", "Undo preserves the later balance edit and keeps the prompt terminal."],
+      flags: { reload: true, undo: true }
+    }),
+    scenario({
+      id: "SAFEGUARD-SANDBOX-026",
+      name: "Safeguard sandbox isolation",
+      coverage: "Covered",
+      level: "Integration",
+      testFile: "scripts/test-token-sandbox.js",
+      testId: "TSB-026",
+      setup: "Create Safeguard only inside the completion-slice sandbox clone.",
+      action: "Prepare duplicate candidates and discard.",
+      expected: "The candidate contains one Safeguard and discard restores none.",
+      assertions: ["Candidate preparation is idempotent.", "The authoritative baseline remains byte-identical."],
+      flags: { sandboxDiscard: true, sandboxCommit: true }
+    })
+  ]
+});
+
+function replaceLifecycleSliceEvidence(tokenId, {
+  unitId, browserId, behavior, unitAssertions, browserAssertions, priorEvidence = "", teambuilder = false
+}) {
+  const index = tokens.findIndex((entry) => entry.tokenId === tokenId);
+  if (index < 0) throw new Error(`Missing Token coverage entry for ${tokenId}`);
+  tokens[index] = {
+    tokenId,
+    requirements: [
+      requirement(behavior, "Covered", [unitId, browserId, priorEvidence].filter(Boolean).join(", ")),
+      requirement("Production refresh, retry/idempotency, and causal History undo", "Covered", browserId),
+      requirement("Sandbox discard and idempotent commit candidate", "Covered", "TSB-027")
+    ],
+    scenarios: [
+      scenario({
+        id: `${tokenId.toUpperCase()}-LIFECYCLE-001`,
+        name: `${behavior} exact lifecycle`,
+        coverage: "Covered",
+        level: "Unit",
+        testFile: "scripts/test-token-lifecycle-slice.js",
+        testId: unitId,
+        setup: "Create isolated exact records for the Token's approved runtime boundary and its stale or unsupported cases.",
+        action: "Resolve the canonical exact-record operation, retry it, and inspect every linked record and fail-closed branch.",
+        expected: "The approved mutation occurs once, stale or unsupported inputs fail closed, and exact identities remain causally linked.",
+        assertions: unitAssertions,
+        gaps: "None within the approved supported runtime boundary."
+      }),
+      scenario({
+        id: `${tokenId.toUpperCase()}-BROWSER-${browserId.split("-").at(-1)}`,
+        name: `${behavior} in production`,
+        coverage: "Covered",
+        level: "Browser",
+        testFile: "scripts/test-token-browser.js",
+        testId: browserId,
+        setup: "Load the production app against an isolated authoritative backend with exact Token and target records.",
+        action: "Use the production surface, persist, refresh, finish the lifecycle, refresh again, then undo from History.",
+        expected: "The exact effect persists and completes once; causal undo restores exact Token and effect records without replacing unrelated later state.",
+        assertions: browserAssertions,
+        flags: { reload: true, undo: true, teambuilder },
+        gaps: "None within the approved supported runtime boundary."
+      }),
+      scenario({
+        id: `${tokenId.toUpperCase()}-SANDBOX-027`,
+        name: `${behavior} sandbox isolation`,
+        coverage: "Covered",
+        level: "Integration",
+        testFile: "scripts/test-token-sandbox.js",
+        testId: "TSB-027",
+        setup: "Apply the six-Token lifecycle slice only to a sandbox clone.",
+        action: "Prepare the commit candidate twice and then discard against the unchanged authoritative baseline.",
+        expected: "Both candidates are byte-identical and discard restores the exact baseline.",
+        assertions: ["The candidate contains this Token's exact mutation.", "Candidate preparation is idempotent.", "The authoritative baseline remains byte-identical."],
+        flags: { sandboxDiscard: true, sandboxCommit: true },
+        gaps: "None within the shared sandbox isolation contract."
+      })
+    ]
+  };
+}
+
+replaceLifecycleSliceEvidence("cold-wave", {
+  unitId: "TLS-001", browserId: "BROWSER-025", priorEvidence: "STR-003 and TCI-014",
+  behavior: "Explicit ongoing-only suppression without source mutation or revival",
+  unitAssertions: ["Explicit isOngoingEffect records are suppressed.", "Duration-only records remain active.", "Follow Me consumption is suppression-aware.", "Naturally expired sources are not revived."],
+  browserAssertions: ["Suppressed and unaffected records render distinctly.", "Refresh preserves suppression.", "Gym-end expiration restores only surviving source behavior.", "Causal undo removes only Cold Wave."]
+});
+replaceLifecycleSliceEvidence("wicked-blow", {
+  unitId: "TLS-002", browserId: "BROWSER-026", priorEvidence: "TCI-012 and TSB-022", teambuilder: true,
+  behavior: "Exact Active-roster replacement with stable identity and coherent existing team references",
+  unitAssertions: ["Stable roster ID is preserved.", "Only Active targets are legal.", "Unresolved mixed-tier branches fail closed.", "No new team membership is created."],
+  browserAssertions: ["Own and rival targets resolve.", "Current team, locked slot, and Teambuilder references update only when already linked.", "Refresh and duplicate completion are stable.", "Causal undo preserves later unrelated build fields."]
+});
+replaceLifecycleSliceEvidence("teleport", {
+  unitId: "TLS-003", browserId: "BROWSER-027", priorEvidence: "STR-009, STR-011, and BROWSER-011",
+  behavior: "Exact root-Control delay, matching-phase return, and merged causal terminal undo",
+  unitAssertions: ["Legal return resolves once.", "Gameplay illegality is no-effect without retargeting.", "System failure uses the refund path.", "Terminal retry is inert."],
+  browserAssertions: ["Both exact Tokens are consumed once.", "One delayed record and one return event survive refresh.", "Returned resolution merges with the original causal chain.", "Undo restores both Tokens without reopening the terminal event."]
+});
+replaceLifecycleSliceEvidence("reroll-token", {
+  unitId: "TLS-004", browserId: "BROWSER-028",
+  behavior: "Exact unresolved Encounter or wheel result supersession with one canonical replacement",
+  unitAssertions: ["Encounter and wheel surfaces accept exact pending results.", "The old revision becomes superseded.", "Stable operation retry is inert.", "Stale acquired results fail before consumption."],
+  browserAssertions: ["The production selector uses the exact active result.", "One of multiple Reroll copies is consumed.", "Refresh preserves the replacement revision.", "Causal undo restores the original result and exact Token only."]
+});
+replaceLifecycleSliceEvidence("honey-token", {
+  unitId: "TLS-005", browserId: "BROWSER-029", priorEvidence: "SEB-004",
+  behavior: "Fresh nonrecursive acquisition-ready copy of one exact finalized Encounter result",
+  unitAssertions: ["Species, form, tier, level, and intrinsic properties are preserved.", "Ownership and terminal state are not copied.", "The copied identity is fresh.", "Recursive and stale sources fail closed."],
+  browserAssertions: ["Two exact finalized choices render.", "The selected source remains unchanged through refresh.", "The copy completes normal acquisition.", "Causal undo removes only the copy and acquired roster record while restoring exact Honey."]
+});
+replaceLifecycleSliceEvidence("purge-curse", {
+  unitId: "TLS-006", browserId: "BROWSER-030", priorEvidence: "STR-007 and STR-010",
+  behavior: "Non-respondable immutable brought-snapshot release at the post-payout checkpoint",
+  unitAssertions: ["Exact snapshot roster IDs release atomically.", "Same-species nonmembers remain.", "Missing members fail atomically.", "Duplicate payout completion is inert."],
+  browserAssertions: ["No response or Trade window opens.", "Refresh preserves the immutable marker and snapshot.", "Only exact snapshot members release after payout.", "Causal undo restores released records and exact Purge while preserving later unrelated edits."]
+});
+
 const revisionWatchlist = Object.freeze([
-  {
-    tokenId: "lingering-aroma",
-    behavior: "Replace one exact benefiting Ongoing Effect for its linked remaining lifetime and charge confirmed outside targeting declarations $500 once.",
-    coverage: "Partially Covered",
-    evidence: "STR-004",
-    currentGap: "Selection, linked replacement, declaration cost, duplicate-target protection, and expiration are covered in isolation; production browser withdrawal/negation/undo remains unverified."
-  },
   {
     tokenId: "cold-wave",
     behavior: "Suppress all Ongoing Activated Effects table-wide until Gym end without removing or reviving records.",
-    coverage: "Partially Covered",
-    evidence: "STR-003",
-    currentGap: "Explicit classification and non-mutating suppression are covered; browser presentation and enforcement by every future ongoing-effect consumer remain unverified."
+    coverage: "Covered",
+    evidence: "TLS-001, TCI-014, BROWSER-025, and TSB-027",
+    currentGap: "None within the explicit isOngoingEffect classification boundary; future ongoing-effect consumers must continue using the suppression-aware lookup."
   },
   {
     tokenId: "counterspell",
@@ -1980,13 +2239,6 @@ const revisionWatchlist = Object.freeze([
     coverage: "Partially Covered",
     evidence: "STR-001, STR-002, and TCF-020",
     currentGap: "Pure wheel/replacement semantics and production guided wiring are covered; destructive browser refresh, History undo, and five-player execution remain unverified."
-  },
-  {
-    tokenId: "follow-me",
-    behavior: "Redirect one legal corresponding target, then grant one real inventory copy of each later real Token consumed by the recorded player for the rest of the Gym.",
-    coverage: "Partially Covered",
-    evidence: "SEB-005, TCF-021, and BROWSER-013",
-    currentGap: "Redirect, parent-gated relationship activation, canonical inventory copy, persistence, and duplicate prevention are covered; Gym-end expiration and History undo remain unverified."
   },
   {
     tokenId: "foresight-curse",

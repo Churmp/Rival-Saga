@@ -22,8 +22,22 @@
     DEVOLVE_CURSE: "curse-devolve",
     FORESIGHT_MARKER: "private-foresight-marker",
     FOLLOW_ME_COPY: "follow-me-copy-relationship",
-    PURGE_MARKER: "curse-purge"
+    PURGE_MARKER: "curse-purge",
+    SAFEGUARD: "safeguard"
   });
+
+  const SAFEGUARD_OPERATION_CATEGORIES = Object.freeze({
+    MONEY_STEAL: "moneySteal",
+    MONEY_DESTROY: "moneyDestroy",
+    MONEY_COPY: "moneyCopy",
+    TOKEN_STEAL: "tokenSteal",
+    TOKEN_DESTROY: "tokenDestroy",
+    TOKEN_COPY: "tokenCopy",
+    FOLLOW_ME: "followMe",
+    EMBARGO: "embargo"
+  });
+
+  const SAFEGUARD_PROTECTED_CATEGORIES = Object.freeze(Object.values(SAFEGUARD_OPERATION_CATEGORIES));
 
   const STANDARD_CURSE_TYPES = Object.freeze({
     "toxic-curse": Object.freeze({ statusType: "curse-toxic-orb", statusName: "Curse: Toxic Orb", payload: Object.freeze({ forcedItem: "Toxic Orb" }) }),
@@ -78,11 +92,25 @@
   });
 
   function defaultSpeciesKey(value = "") {
-    return String(value || "")
+    const source = String(value || "").trim().toLowerCase()
+      .replace(/♀/g, "-f")
+      .replace(/♂/g, "-m")
+      .replace(/[’']/g, "");
+    const key = source
       .trim()
-      .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-+|-+$/g, "");
+    const collapsed = key.replace(/-/g, "");
+    return ({
+      mrmime: "mr-mime",
+      mimejr: "mime-jr",
+      farfetchd: "farfetchd",
+      sirfetchd: "sirfetchd",
+      typenull: "type-null",
+      porygonz: "porygon-z",
+      hooh: "ho-oh",
+      flabebe: "flabebe"
+    })[collapsed] || key;
   }
 
   function clone(value) {
@@ -830,6 +858,16 @@
     ));
   }
 
+  function ongoingRecordSuppressedByColdWave(state, record, context = {}) {
+    if (!record?.isOngoingEffect) return false;
+    return (state.lingeringStatuses || []).some((candidate) => (
+      candidate.type === CONTROL_STATUS_TYPES.COLD_WAVE_SUPPRESSION
+      && statusIsActive(candidate, context)
+      && sameGymPosition(candidate, context)
+      && sameGymPosition(record, context)
+    ));
+  }
+
   function activeStatuses(state, context = {}, predicate = () => true) {
     return (state.lingeringStatuses || []).filter((status) => (
       statusIsActive(status, context)
@@ -1086,11 +1124,17 @@
       && status.type === CONTROL_STATUS_TYPES.COLD_WAVE_SUPPRESSION
     ));
     if (duplicate) return { result: "resolved", reason: "Cold Wave was already applied by this activation.", statusIds: [duplicate.id], status: duplicate, duplicateResolution: true };
-    const ongoingEffectIds = (state.lingeringStatuses || []).filter((status) => (
+    const ongoingStatusIds = (state.lingeringStatuses || []).filter((status) => (
       status.status === "active"
       && status.isOngoingEffect === true
       && status.type !== CONTROL_STATUS_TYPES.COLD_WAVE_SUPPRESSION
     )).map((status) => status.id);
+    const ongoingRelationshipIds = (state.copiedTokenRelationships || []).filter((record) => (
+      record.status === "active"
+      && record.isOngoingEffect === true
+      && sameGymPosition(record, options)
+    )).map((record) => record.id);
+    const ongoingEffectIds = uniqueIds([...ongoingStatusIds, ...ongoingRelationshipIds]);
     const status = createStatus(state, {
       ...input,
       type: CONTROL_STATUS_TYPES.COLD_WAVE_SUPPRESSION,
@@ -1707,6 +1751,7 @@
     const record = {
       id: makeId("copy-relationship"),
       relationshipType,
+      isOngoingEffect: relationshipType === "followMe",
       status: input.activateAfterEffectId ? "pendingParentResolution" : "active",
       sourceEffectId: input.sourceEffectId,
       activateAfterEffectId: input.activateAfterEffectId || "",
@@ -1728,10 +1773,6 @@
 
   function createFollowMeCopyRelationship(state, input = {}, options = {}) {
     return createTokenCopyRelationship(state, { ...input, relationshipType: "followMe" }, options);
-  }
-
-  function createDrizzleTokenCopyRelationship(state, input = {}, options = {}) {
-    return createTokenCopyRelationship(state, { ...input, relationshipType: "drizzle" }, options);
   }
 
   function settleTokenCopyRelationshipsForEffect(state, effectId = "", terminalOutcome = "resolved", options = {}) {
@@ -1783,6 +1824,7 @@
     if (typeof options.isTokenCopyProtected === "function" && options.isTokenCopyProtected(consumption.playerId, consumption)) return [];
     return (state.copiedTokenRelationships || []).filter((record) => (
       record.status === "active"
+      && !ongoingRecordSuppressedByColdWave(state, record, options)
       && record.sourcePlayerId === consumption.playerId
       && String(record.series || "") === String(options.series || state.series || "")
       && Number(record.gym || 0) === Number(options.gym || state.gym || 0)
@@ -2283,7 +2325,9 @@
       }
       const remainingCopies = choiceKind === "tm" ? (owner.inventory || []).filter((record) => inventoryResourceCategory(record) === "TM" && defaultSpeciesKey(inventoryResourceName(record)) === defaultSpeciesKey(input.moveName)).length : 0;
       const impactedLockedSlots = choiceKind === "tm" && remainingCopies === 0 ? (input.lockedTeamSlots || []).filter((slot) => (
-        (slot.moveProvenance || []).some((entry) => defaultSpeciesKey(entry.moveName) === defaultSpeciesKey(input.moveName) && entry.source === "tm")
+        (slot.moveProvenance || slot.setSnapshot?.moveProvenance || []).some((entry) => (
+          defaultSpeciesKey(entry.moveName) === defaultSpeciesKey(input.moveName) && entry.source === "tm"
+        ))
       )).map((slot) => ({ pokemonRecordId: slot.pokemonRecordId, lockedSlotId: slot.lockedSlotId || "", moveName: input.moveName })) : [];
       const makeId = options.makeId || ((prefix) => `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
       const resultData = { targetPokemonId: pokemon.id, destroyedInventoryRecordId: resource.id, destroyedResourceName: inventoryResourceName(resource), choiceKind, moveName: input.moveName || "", remainingTmCopies: remainingCopies, impactedLockedSlots };
@@ -2300,6 +2344,9 @@
     const source = (state.randomPokemonSessions || []).find((record) => record.id === input.sourceRandomPokemonSessionId && record.sourceType === "encounter" && record.status === "confirmed");
     const owner = (state.players || []).find((player) => player.id === input.ownerPlayerId);
     if (!source || !owner) return { result: "systemFailure", refundRequired: true, reason: "Choose one completed eligible Encounter result from this Action Phase." };
+    if (source.copiedFromRandomPokemonSessionId || source.sourceLabel === "Honey copied Encounter") {
+      return { result: "systemFailure", refundRequired: true, reason: "Honey cannot recursively copy a Honey-created Encounter result." };
+    }
     if (String(source.series || state.series) !== String(options.series || state.series) || Number(source.gym || state.gym) !== Number(options.gym || state.gym)) {
       return { result: "systemFailure", refundRequired: true, reason: "That Encounter result is not from the current Action Phase." };
     }
@@ -2342,6 +2389,66 @@
       restore(state, saved);
       return { result: "systemFailure", refundRequired: true, reason: error?.message || "Honey could not copy the Encounter atomically." };
     }
+  }
+
+  function resolveRerollResultRecord(state, input = {}, options = {}) {
+    const session = (state.randomPokemonSessions || []).find((entry) => entry.id === input.targetResultId);
+    const actor = (state.players || []).find((entry) => entry.id === input.actorPlayerId);
+    if (!session || session.status !== "pending" || session.rerollable === false || session.interactionLocked || session.rosterPokemonId) {
+      return { result: "noEffect", reason: "The selected result is no longer an unresolved rerollable result." };
+    }
+    if (!actor || !input.tokenInventoryRecordId) return { result: "systemFailure", refundRequired: true, reason: "Reroll needs its exact acting player and Token record." };
+    state.effectOperations ||= [];
+    const duplicate = state.effectOperations.find((entry) => entry.operationType === "rerollEncounterResult" && entry.sourceEffectId === input.sourceEffectId);
+    if (duplicate) return { result: "resolved", operation: duplicate, duplicateResolution: true };
+    const tokenIndex = (actor.inventory || []).findIndex((entry) => entry.id === input.tokenInventoryRecordId);
+    if (tokenIndex < 0) return { result: "noEffect", reason: "The selected exact Reroll Token is no longer available." };
+    const replacement = input.replacementResult || {};
+    const nextName = replacement.displayName || replacement.pokemonName || replacement.key || "";
+    if (!nextName) return { result: "systemFailure", refundRequired: true, reason: "The canonical result generator did not provide a replacement." };
+    const makeId = options.makeId || ((prefix) => `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
+    const token = actor.inventory.splice(tokenIndex, 1)[0];
+    const previousResult = {
+      resultPokemonName: session.resultPokemonName,
+      resultDisplayName: session.resultDisplayName,
+      resultSprite: session.resultSprite || "",
+      chosenSpriteKey: session.chosenSpriteKey || "",
+      resultMetadata: clone(session.resultMetadata || {}),
+      resultRevisionId: session.resultRevisionId || `${session.id}:original`,
+      status: "superseded"
+    };
+    const rerollId = makeId("reroll");
+    session.resultHistory ||= [];
+    session.resultHistory.push(previousResult);
+    session.rerollHistory ||= [];
+    session.rerollHistory.push({
+      id: rerollId, actorPlayerId: actor.id, targetPlayerId: session.resultOwnerPlayerId || session.ownerPlayerId || session.playerId,
+      targetResultId: session.id, token: clone(token), tokenId: token.id, tokenName: token.name,
+      previousResult, newResultPokemonName: replacement.key || replacement.pokemonName || replacement.displayName,
+      newResultDisplayName: nextName, usedAt: options.now || new Date().toISOString()
+    });
+    session.rerollCount = Number(session.rerollCount || 0) + 1;
+    session.resultPokemonName = replacement.key || replacement.pokemonName || replacement.displayName;
+    session.resultDisplayName = nextName;
+    session.resultMetadata = clone(replacement);
+    session.resultSprite = "";
+    session.chosenSpriteKey = "";
+    session.resultRevisionId = `${session.id}:replacement:${rerollId}`;
+    session.supersedesResultRevisionId = previousResult.resultRevisionId;
+    state.tokenConsumptions ||= [];
+    const consumption = {
+      id: makeId("token-consumption"), tokenId: token.id, tokenName: token.name || "Reroll",
+      playerId: actor.id, linkedEventId: input.sourceEffectId || "", source: "encounter-result-reroll",
+      status: "consumed", consumedAt: options.now || new Date().toISOString(), token: clone(token)
+    };
+    state.tokenConsumptions.push(consumption);
+    const operation = {
+      id: makeId("effect-operation"), operationType: "rerollEncounterResult", sourceEffectId: input.sourceEffectId || "",
+      sourceTokenId: token.id, targetResultId: session.id, previousResultRevisionId: previousResult.resultRevisionId,
+      replacementResultRevisionId: session.resultRevisionId, status: "completed", createdAt: consumption.consumedAt
+    };
+    state.effectOperations.push(operation);
+    return { result: "resolved", reason: `${previousResult.resultDisplayName} was superseded by ${nextName}.`, session, previousResult, token, consumption, operation };
   }
 
   function availablePokemonRecords(state) {
@@ -2562,12 +2669,12 @@
       affectedEntityType: "pokemon",
       speciesId: (options.keyForSpecies || defaultSpeciesKey)(speciesName),
       affectedRosterInstanceIds,
-      duration: "2 Gyms",
-      durationGyms: 2,
+      duration: "6 Gyms",
+      durationGyms: 6,
       payload: { preventsBattleTeamSubmission: true, ...(input.payload || {}) },
-      note: "Cannot be brought for 2 gyms"
+      note: "Cannot be brought for 6 gyms"
     }, options);
-    return { result: "resolved", reason: `${speciesName} is Restricted for 2 Gyms.`, statusIds: [status.id], status };
+    return { result: "resolved", reason: `${speciesName} is Restricted for 6 Gyms.`, statusIds: [status.id], status };
   }
 
   function createInstanceRestriction(state, input = {}, options = {}) {
@@ -2592,7 +2699,17 @@
     const speciesName = String(input.speciesName || "").trim();
     if (!speciesName) return { result: "noEffect", reason: "No Pokemon species was selected.", statusIds: [], removedStatusIds: [] };
     const now = options.now || new Date().toISOString();
-    const removed = activeSpeciesStatuses(state, speciesName, [CONTROL_STATUS_TYPES.BAN, CONTROL_STATUS_TYPES.RESTRICT], options);
+    const candidates = activeSpeciesStatuses(state, speciesName, [CONTROL_STATUS_TYPES.BAN, CONTROL_STATUS_TYPES.RESTRICT], options);
+    const selectedStatusId = String(input.selectedStatusId || "").trim();
+    if (selectedStatusId && !candidates.some((status) => status.id === selectedStatusId)) {
+      return { result: "noEffect", reason: "The selected Ban or Restrict is no longer active.", statusIds: [], removedStatusIds: [], staleTarget: true };
+    }
+    if (!selectedStatusId && candidates.length > 1) {
+      return { result: "noEffect", reason: "Choose the exact Ban or Restrict record to remove.", statusIds: [], removedStatusIds: [], exactChoiceRequired: true };
+    }
+    const removed = selectedStatusId
+      ? candidates.filter((status) => status.id === selectedStatusId)
+      : candidates.slice(0, 1);
     if (!removed.length && !input.hasLegacyRestriction) {
       return { result: "noEffect", reason: `${speciesName} has no active Ban or Restrict to remove.`, statusIds: [], removedStatusIds: [] };
     }
@@ -2637,6 +2754,7 @@
     ]);
     const pokemon = availablePokemonRecords(state).find((record) => selectedIds.includes(record.id));
     if (!pokemon) return { result: "noEffect", reason: "Choose a specific roster Pokemon as Extra Ban's declaration target.", statusIds: [] };
+    if (pokemon.rosterType !== "Active") return { result: "noEffect", reason: "Extra Ban must target an exact Pokemon on an Active roster.", statusIds: [] };
     const speciesName = String(pokemon.name || pokemon.currentSpecies || "").trim();
     const speciesId = (options.keyForSpecies || defaultSpeciesKey)(speciesName);
     if (!speciesName) return { result: "noEffect", reason: "The selected roster Pokemon has no species identity.", statusIds: [] };
@@ -2938,9 +3056,9 @@
         sourceStatus.payload.tierBuffClearedAt = now;
       }
     });
-    const preservedPendingLabels = (pokemon.buffs || []).filter((label) => /\b(?:move|ability) pending$/i.test(String(label || "").trim()));
-    const removedBuffLabels = (pokemon.buffs || []).filter((label) => !preservedPendingLabels.includes(label));
-    pokemon.buffs = [...new Set(preservedPendingLabels)];
+    const removedBuffLabelSet = new Set(removedEffectBuffs.map((buff) => String(buff.label || "").trim()).filter(Boolean));
+    const removedBuffLabels = (pokemon.buffs || []).filter((label) => removedBuffLabelSet.has(String(label || "").trim()));
+    pokemon.buffs = (pokemon.buffs || []).filter((label) => !removedBuffLabelSet.has(String(label || "").trim()));
     const removedMoveGrantIds = clearExactMoveAccessGrants(state, pokemon, input, options);
     const removedCount = removedEffectBuffs.length + removedBuffLabels.length + removedMoveGrantIds.length;
     return {
@@ -3242,6 +3360,58 @@
     };
   }
 
+  function safeguardProtectsOperation(category = "") {
+    return SAFEGUARD_PROTECTED_CATEGORIES.includes(String(category || "").trim());
+  }
+
+  function activeSafeguardForPlayer(state, playerId, options = {}) {
+    return activeStatuses(state, options, (status) => (
+      status.type === CONTROL_STATUS_TYPES.SAFEGUARD
+      && status.targetPlayerId === playerId
+    ))[0] || null;
+  }
+
+  function playerHasActiveSafeguard(state, playerId, category = "", options = {}) {
+    if (!safeguardProtectsOperation(category)) return false;
+    const status = activeSafeguardForPlayer(state, playerId, options);
+    const scope = status?.payload?.protectionScope || [];
+    return Boolean(status && scope.includes(category));
+  }
+
+  function resolveSafeguard(state, input = {}, options = {}) {
+    const player = (state.players || []).find((entry) => entry.id === input.targetPlayerId);
+    if (!player) return { result: "noEffect", reason: "Choose one current player for Safeguard.", statusIds: [] };
+    const existing = activeSafeguardForPlayer(state, player.id, options);
+    if (existing) return { result: "noEffect", reason: `${player.name || "That player"} already has Safeguard.`, statusIds: [] };
+    const status = createStatus(state, {
+      ...input,
+      type: CONTROL_STATUS_TYPES.SAFEGUARD,
+      name: "Safeguard",
+      category: "Protection",
+      targetPlayerId: player.id,
+      targetPlayerName: player.name || "",
+      selectedTargetType: "player",
+      applicationScope: APPLICATION_SCOPES.SINGLE_PLAYER,
+      affectedEntityType: "player",
+      duration: "Until Gym end",
+      durationGyms: 1,
+      payload: {
+        protectionScope: [...SAFEGUARD_PROTECTED_CATEGORIES],
+        exactActorAndTargetScoping: true,
+        ...(input.payload || {})
+      },
+      note: "Protects only money and Token steal, destroy, and copy operations, plus Follow Me and Embargo."
+    }, options);
+    return {
+      result: "resolved",
+      reason: `${player.name || "The player"} is protected by Safeguard until Gym end.`,
+      statusIds: [status.id],
+      status,
+      player,
+      protectionScope: [...SAFEGUARD_PROTECTED_CATEGORIES]
+    };
+  }
+
   function cleanupExpiredRageEnhancements(state) {
     const inactiveStatusIds = new Set((state.lingeringStatuses || [])
       .filter((status) => status.type === CONTROL_STATUS_TYPES.RAGE_ENHANCEMENT && status.status !== "active")
@@ -3330,6 +3500,8 @@
 
   return Object.freeze({
     CONTROL_STATUS_TYPES,
+    SAFEGUARD_OPERATION_CATEGORIES,
+    SAFEGUARD_PROTECTED_CATEGORIES,
     STANDARD_CURSE_TYPES,
     APPLICATION_SCOPES,
     CUSTOMIZATION_KINDS,
@@ -3349,6 +3521,7 @@
     phaseAnchoredExpirationReached,
     statusIsActive,
     statusSuppressedByColdWave,
+    ongoingRecordSuppressedByColdWave,
     statusAffectsPokemon,
     activeStatuses,
     activeSpeciesStatuses,
@@ -3397,7 +3570,6 @@
     createCanonicalTokenInventoryCopy,
     createTokenCopyRelationship,
     createFollowMeCopyRelationship,
-    createDrizzleTokenCopyRelationship,
     settleTokenCopyRelationshipsForEffect,
     expireTokenCopyRelationships,
     copyConsumedTokenForRelationships,
@@ -3411,6 +3583,7 @@
     resolveForesightCurse,
     resolveKnockOffCurse,
     resolveHoneyEncounterCopy,
+    resolveRerollResultRecord,
     resolveRestrict,
     createInstanceRestriction,
     resolveUnban,
@@ -3429,6 +3602,10 @@
     resolveSubstitutePlacement,
     interceptEffectWithSubstitute,
     resolveRageCandyBar,
+    safeguardProtectsOperation,
+    activeSafeguardForPlayer,
+    playerHasActiveSafeguard,
+    resolveSafeguard,
     cleanupExpiredRageEnhancements,
     expireAtStartOfGym,
     expireAtPhaseBoundary,
