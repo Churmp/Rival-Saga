@@ -8,7 +8,6 @@ const outputPath = path.join(rootDir, "item-reference-data.js");
 const cacheDir = path.join(__dirname, ".pokeapi-cache", "item");
 const apiRoot = "https://pokeapi.co/api/v2/item";
 const requestConcurrency = 8;
-const utilityItemNames = new Set(["Old Rod", "Great Rod", "Super Rod", "Choose Trainer Class"]);
 const ignoredConcreteNames = new Set(["One Tera Type"]);
 const pokeapiKeyAliases = Object.freeze({
   leek: "stick"
@@ -155,7 +154,6 @@ async function main() {
   const { staticShopChoiceDefinitions } = require(path.join(rootDir, "shop-choice-data.js"));
   const names = new Set();
   itemShopData.forEach((item) => {
-    if (utilityItemNames.has(item.name)) return;
     const definition = staticShopChoiceDefinitions[item.name];
     if (definition?.options?.length) {
       if (ignoredConcreteNames.has(item.name)) return;

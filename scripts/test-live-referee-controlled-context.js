@@ -6,8 +6,8 @@ const path = require("node:path");
 const appSource = fs.readFileSync(path.join(__dirname, "..", "app.js"), "utf8");
 const cssSource = fs.readFileSync(path.join(__dirname, "..", "styles.css"), "utf8");
 
-function context({ freeTesting, viewerLinkedPlayerId = "steevee", priorityPlayerId = "", actionPlayerId = "", taskPlayerId = "" }) {
-  const currentDecisionPlayerId = priorityPlayerId || actionPlayerId || taskPlayerId || "";
+function context({ freeTesting, viewerLinkedPlayerId = "steevee", provisionalPlayerId = "", priorityPlayerId = "", actionPlayerId = "", taskPlayerId = "" }) {
+  const currentDecisionPlayerId = provisionalPlayerId || priorityPlayerId || actionPlayerId || taskPlayerId || "";
   const controlledPlayerId = freeTesting && currentDecisionPlayerId ? currentDecisionPlayerId : viewerLinkedPlayerId;
   return {
     viewerLinkedPlayerId,
@@ -62,6 +62,22 @@ test("unfinished Action operation stays authoritative outside nested responses",
 test("reload reconstructs context without click state", () => {
   const saved = JSON.stringify({ freeTesting: true, viewerLinkedPlayerId: "steevee", actionPlayerId: "p4" });
   assert.equal(context(JSON.parse(saved)).controlledPlayerId, "p4");
+});
+
+test("unfinished provisional declaration returns Free Testing control to its declarer", () => {
+  const saved = JSON.stringify({
+    freeTesting: true,
+    viewerLinkedPlayerId: "test-player-4",
+    provisionalPlayerId: "steevee",
+    actionPlayerId: "test-player-2"
+  });
+  const result = context(JSON.parse(saved));
+  assert.equal(result.currentDecisionPlayerId, "steevee");
+  assert.equal(result.controlledPlayerId, "steevee");
+  assert.equal(result.allowed, true);
+  assert.match(appSource, /const provisional = currentProvisionalDeclaration\(targetState\);/);
+  assert.match(appSource, /if \(provisionalDeclarerId\) return provisionalDeclarerId;/);
+  assert.match(appSource, /const ordinaryControlOpen = Boolean\(ordinaryControlTiming\.open\s*&& !prompt\?\.pendingEvent\s*&& !currentProvisionalDeclaration\(targetState\)\);/s);
 });
 
 test("normal multiplayer viewer waits for another trainer's decision", () => {

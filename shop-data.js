@@ -3,6 +3,10 @@
 const rivalSagaShopMoveClassification = typeof module !== "undefined" && module.exports
   ? require("./move-classification-data.js")
   : globalThis.rivalSagaMoveClassification || {};
+const rivalSagaShopChoiceData = typeof module !== "undefined" && module.exports
+  ? require("./shop-choice-data.js")
+  : globalThis.rivalSagaShopChoiceData || {};
+const rivalSagaStaticShopChoiceDefinitions = rivalSagaShopChoiceData.staticShopChoiceDefinitions || {};
 const rivalSagaUnpurchasableMoveKeys = new Set([
   ...(rivalSagaShopMoveClassification.singlesExcludedMoves || []),
   ...(rivalSagaShopMoveClassification.removedMoves || []),
@@ -10,16 +14,7 @@ const rivalSagaUnpurchasableMoveKeys = new Set([
   ...(rivalSagaShopMoveClassification.zeroCompatibilityTmShopMoves || [])
 ].map((name) => String(name || "").toLowerCase().replace(/[^a-z0-9]+/g, "")));
 
-const itemShopData = [
-    {
-        "id":  "item-old-rod",
-        "name":  "Old Rod",
-        "tier":  "Level 1",
-        "level":  1,
-        "price":  1500,
-        "category":  "General",
-        "description":  ""
-    },
+const rawItemShopData = [
     {
         "id":  "item-berries-not-in-pokeball",
         "name":  "Berries",
@@ -34,7 +29,7 @@ const itemShopData = [
         "name":  "Berry Juice",
         "tier":  "Level 1",
         "level":  1,
-        "price":  400,
+        "price":  200,
         "category":  "Berries",
         "description":  ""
     },
@@ -180,7 +175,7 @@ const itemShopData = [
         "level":  1,
         "price":  500,
         "category":  "Very Niche",
-        "description":  ""
+        "description":  "Has no normal held-item effect. Its primary competitive use is as a very high-power Fling target."
     },
     {
         "id":  "item-shed-shell",
@@ -363,24 +358,6 @@ const itemShopData = [
         "description":  ""
     },
     {
-        "id":  "item-great-rod",
-        "name":  "Great Rod",
-        "tier":  "Level 2",
-        "level":  2,
-        "price":  3000,
-        "category":  "General",
-        "description":  ""
-    },
-    {
-        "id":  "item-super-rod",
-        "name":  "Super Rod",
-        "tier":  "Level 2",
-        "level":  2,
-        "price":  5000,
-        "category":  "General",
-        "description":  ""
-    },
-    {
         "id":  "item-type-resist-berry",
         "name":  "Type Resist Berries",
         "tier":  "Level 2",
@@ -538,7 +515,7 @@ const itemShopData = [
         "name":  "Throat Spray",
         "tier":  "Level 2",
         "level":  2,
-        "price":  3000,
+        "price":  2500,
         "category":  "Very Useful",
         "description":  ""
     },
@@ -547,7 +524,7 @@ const itemShopData = [
         "name":  "Buy One Type Plate",
         "tier":  "Level 2",
         "level":  2,
-        "price":  4000,
+        "price":  3000,
         "category":  "Very Useful",
         "description":  ""
     },
@@ -556,7 +533,7 @@ const itemShopData = [
         "name":  "Buy One Type Boosting Item",
         "tier":  "Level 2",
         "level":  2,
-        "price":  4000,
+        "price":  3000,
         "category":  "Very Useful",
         "description":  ""
     },
@@ -565,7 +542,7 @@ const itemShopData = [
         "name":  "Expert Belt",
         "tier":  "Level 2",
         "level":  2,
-        "price":  4000,
+        "price":  3000,
         "category":  "Very Useful",
         "description":  ""
     },
@@ -574,7 +551,7 @@ const itemShopData = [
         "name":  "Eviolite",
         "tier":  "Level 2",
         "level":  2,
-        "price":  4000,
+        "price":  3500,
         "category":  "Very Useful",
         "description":  ""
     },
@@ -592,7 +569,7 @@ const itemShopData = [
         "name":  "Light Clay",
         "tier":  "Level 3",
         "level":  3,
-        "price":  1500,
+        "price":  3000,
         "category":  "Good",
         "description":  ""
     },
@@ -628,7 +605,7 @@ const itemShopData = [
         "name":  "Type Gems",
         "tier":  "Level 3",
         "level":  3,
-        "price":  4000,
+        "price":  3000,
         "category":  "Really Good",
         "description":  ""
     },
@@ -637,7 +614,7 @@ const itemShopData = [
         "name":  "Eject Pack",
         "tier":  "Level 3",
         "level":  3,
-        "price":  4000,
+        "price":  3000,
         "category":  "Really Good",
         "description":  ""
     },
@@ -646,7 +623,7 @@ const itemShopData = [
         "name":  "Eject Button",
         "tier":  "Level 3",
         "level":  3,
-        "price":  4000,
+        "price":  3000,
         "category":  "Really Good",
         "description":  ""
     },
@@ -736,7 +713,7 @@ const itemShopData = [
         "name":  "Booster Energy",
         "tier":  "Level 4",
         "level":  4,
-        "price":  4000,
+        "price":  3000,
         "category":  "Strong",
         "description":  ""
     },
@@ -745,7 +722,7 @@ const itemShopData = [
         "name":  "Rocky Helmet",
         "tier":  "Level 4",
         "level":  4,
-        "price":  5000,
+        "price":  4500,
         "category":  "Strong",
         "description":  ""
     },
@@ -754,7 +731,7 @@ const itemShopData = [
         "name":  "Focus Sash",
         "tier":  "Level 4",
         "level":  4,
-        "price":  5000,
+        "price":  4500,
         "category":  "Strong",
         "description":  ""
     },
@@ -763,7 +740,7 @@ const itemShopData = [
         "name":  "Assault Vest",
         "tier":  "Level 4",
         "level":  4,
-        "price":  6000,
+        "price":  5500,
         "category":  "Strong",
         "description":  ""
     },
@@ -772,7 +749,7 @@ const itemShopData = [
         "name":  "Life Orb",
         "tier":  "Level 4",
         "level":  4,
-        "price":  6000,
+        "price":  5500,
         "category":  "Strong",
         "description":  ""
     },
@@ -781,7 +758,7 @@ const itemShopData = [
         "name":  "Heavy-Duty Boots",
         "tier":  "Level 4",
         "level":  4,
-        "price":  6000,
+        "price":  5500,
         "category":  "Strong",
         "description":  ""
     },
@@ -790,7 +767,7 @@ const itemShopData = [
         "name":  "Leftovers",
         "tier":  "Level 4",
         "level":  4,
-        "price":  8000,
+        "price":  7000,
         "category":  "Really Strong",
         "description":  ""
     },
@@ -799,7 +776,7 @@ const itemShopData = [
         "name":  "Choice Band",
         "tier":  "Level 4",
         "level":  4,
-        "price":  8000,
+        "price":  7000,
         "category":  "Really Strong",
         "description":  ""
     },
@@ -808,7 +785,7 @@ const itemShopData = [
         "name":  "Choice Scarf",
         "tier":  "Level 4",
         "level":  4,
-        "price":  8000,
+        "price":  7000,
         "category":  "Really Strong",
         "description":  ""
     },
@@ -817,17 +794,8 @@ const itemShopData = [
         "name":  "Choice Specs",
         "tier":  "Level 4",
         "level":  4,
-        "price":  8000,
+        "price":  7000,
         "category":  "Really Strong",
-        "description":  ""
-    },
-    {
-        "id":  "item-choose-trainer-class",
-        "name":  "Choose Trainer Class",
-        "tier":  "Level 5",
-        "level":  5,
-        "price":  25000,
-        "category":  "General",
         "description":  ""
     },
     {
@@ -835,7 +803,7 @@ const itemShopData = [
         "name":  "One Tera Type",
         "tier":  "Level 5",
         "level":  5,
-        "price":  15000,
+        "price":  7500,
         "category":  "General",
         "description":  ""
     },
@@ -844,7 +812,7 @@ const itemShopData = [
         "name":  "One Z Move Type",
         "tier":  "Level 5",
         "level":  5,
-        "price":  15000,
+        "price":  7500,
         "category":  "General",
         "description":  ""
     },
@@ -853,7 +821,7 @@ const itemShopData = [
         "name":  "Normalium Z",
         "tier":  "Level 5",
         "level":  5,
-        "price":  20000,
+        "price":  7500,
         "category":  "General",
         "description":  ""
     },
@@ -862,7 +830,7 @@ const itemShopData = [
         "name":  "Kommonium Z",
         "tier":  "Level 5",
         "level":  5,
-        "price":  20000,
+        "price":  10000,
         "category":  "General",
         "description":  ""
     },
@@ -871,7 +839,7 @@ const itemShopData = [
         "name":  "One Mega Stone Not Listed",
         "tier":  "Level 5",
         "level":  5,
-        "price":  15000,
+        "price":  7500,
         "category":  "General",
         "description":  ""
     },
@@ -880,7 +848,7 @@ const itemShopData = [
         "name":  "Kangaskhanite",
         "tier":  "Level 5",
         "level":  5,
-        "price":  20000,
+        "price":  7500,
         "category":  "General",
         "description":  ""
     },
@@ -889,7 +857,7 @@ const itemShopData = [
         "name":  "Metagrossite",
         "tier":  "Level 5",
         "level":  5,
-        "price":  20000,
+        "price":  7500,
         "category":  "General",
         "description":  ""
     },
@@ -898,7 +866,7 @@ const itemShopData = [
         "name":  "Lucarionite",
         "tier":  "Level 5",
         "level":  5,
-        "price":  20000,
+        "price":  7500,
         "category":  "General",
         "description":  ""
     },
@@ -907,7 +875,7 @@ const itemShopData = [
         "name":  "Gengarite",
         "tier":  "Level 5",
         "level":  5,
-        "price":  20000,
+        "price":  7500,
         "category":  "General",
         "description":  ""
     },
@@ -916,7 +884,7 @@ const itemShopData = [
         "name":  "Salamencite",
         "tier":  "Level 5",
         "level":  5,
-        "price":  20000,
+        "price":  7500,
         "category":  "General",
         "description":  ""
     },
@@ -925,10 +893,240 @@ const itemShopData = [
         "name":  "Blastoisinite",
         "tier":  "Level 5",
         "level":  5,
-        "price":  20000,
+        "price":  7500,
         "category":  "General",
         "description":  ""
     }
+];
+
+const itemShopMetadataById = Object.freeze({
+  "item-berries-not-in-pokeball": { shopGroup: "berry", roles: ["utility", "recovery"], tags: ["status"] },
+  "item-berry-juice": { shopGroup: "berry", roles: ["recovery"] },
+  "item-protective-pads": { shopGroup: "held", roles: ["offense", "utility"] },
+  "item-sticky-barb": { shopGroup: "held", roles: ["utility"], tags: ["switching"] },
+  "item-room-service": { shopGroup: "held", roles: ["speed"], tags: ["terrain"] },
+  "item-iron-ball": { shopGroup: "held", roles: ["utility", "speed"], tags: ["build-enabling"] },
+  "item-float-stone": { shopGroup: "held", roles: ["utility"] },
+  "item-ring-target": { shopGroup: "held", roles: ["utility"], tags: ["build-enabling"] },
+  "item-full-incense": { shopGroup: "held", roles: ["speed"], tags: ["build-enabling"] },
+  "item-lagging-tail": { shopGroup: "held", roles: ["speed"], tags: ["build-enabling"] },
+  "item-binding-band": { shopGroup: "held", roles: ["offense"] },
+  "item-grip-claw": { shopGroup: "held", roles: ["utility"] },
+  "item-big-root": { shopGroup: "held", roles: ["recovery"] },
+  "item-utility-umbrella": { shopGroup: "held", roles: ["utility"], tags: ["weather"] },
+  "item-snowball": { shopGroup: "held", roles: ["offense"], tags: ["weather"] },
+  "item-cell-battery": { shopGroup: "held", roles: ["offense"] },
+  "item-luminous-moss": { shopGroup: "held", roles: ["defense"] },
+  "item-big-nugget": { shopGroup: "held", roles: ["utility"] },
+  "item-shed-shell": { shopGroup: "held", roles: ["utility"], tags: ["switching"] },
+  "item-shell-bell": { shopGroup: "held", roles: ["offense", "recovery"] },
+  "item-safety-goggles": { shopGroup: "held", roles: ["defense", "utility"], tags: ["weather"] },
+  "item-adrenaline-orb": { shopGroup: "held", roles: ["speed"], tags: ["setup"] },
+  "item-quick-claw": { shopGroup: "held", roles: ["speed"] },
+  "item-bright-powder": { shopGroup: "held", roles: ["defense"] },
+  "item-lax-incense": { shopGroup: "held", roles: ["defense"] },
+  "item-focus-band": { shopGroup: "held", roles: ["defense"] },
+  "item-king-s-rock": { shopGroup: "held", roles: ["offense"], tags: ["multi-hit"] },
+  "item-mirror-herb": { shopGroup: "held", roles: ["utility"], tags: ["setup"] },
+  "item-mental-herb": { shopGroup: "held", roles: ["utility"], tags: ["status"] },
+  "item-blunder-policy": { shopGroup: "held", roles: ["speed"], tags: ["setup"] },
+  "item-ability-shield": { shopGroup: "held", roles: ["defense", "utility"], tags: ["build-enabling"] },
+  "item-punching-glove": { shopGroup: "held", roles: ["offense"] },
+  "item-clear-amulet": { shopGroup: "held", roles: ["defense", "utility"] },
+  "item-metronome": { shopGroup: "held", roles: ["offense"] },
+  "item-thick-club": { shopGroup: "pokemon-specific", roles: ["offense"], tags: ["build-enabling"] },
+  "item-leek": { shopGroup: "pokemon-specific", roles: ["offense"], tags: ["build-enabling"] },
+  "item-deep-sea-tooth-scale": { shopGroup: "pokemon-specific", roles: ["offense", "defense"], tags: ["build-enabling"] },
+  "item-light-ball": { shopGroup: "pokemon-specific", roles: ["offense"], tags: ["build-enabling"] },
+  "item-type-resist-berry": { shopGroup: "berry", roles: ["defense"], tags: ["type-boost"] },
+  "item-sitrus-or-lum-berry": { shopGroup: "berry", roles: ["recovery", "utility"], tags: ["status"] },
+  "item-33-heal-berry": { shopGroup: "berry", roles: ["recovery"] },
+  "item-terrain-extender": { shopGroup: "held", roles: ["utility"], tags: ["terrain"] },
+  "item-air-balloon": { shopGroup: "held", roles: ["defense", "utility"] },
+  "item-muscle-band": { shopGroup: "held", roles: ["offense"] },
+  "item-wise-glasses": { shopGroup: "held", roles: ["offense"] },
+  "item-wide-lens": { shopGroup: "held", roles: ["offense", "utility"] },
+  "item-zoom-lens": { shopGroup: "held", roles: ["offense", "utility"] },
+  "item-scope-lens": { shopGroup: "held", roles: ["offense"] },
+  "item-black-sludge": { shopGroup: "held", roles: ["defense", "recovery"], tags: ["build-enabling"] },
+  "item-misty-seed": { shopGroup: "held", roles: ["defense"], tags: ["terrain", "setup"] },
+  "item-grassy-seed": { shopGroup: "held", roles: ["defense"], tags: ["terrain", "setup"] },
+  "item-psychic-seed": { shopGroup: "held", roles: ["defense"], tags: ["terrain", "setup"] },
+  "item-electric-seed": { shopGroup: "held", roles: ["defense"], tags: ["terrain", "setup"] },
+  "item-covert-cloak": { shopGroup: "held", roles: ["defense", "utility"] },
+  "item-red-card": { shopGroup: "held", roles: ["defense", "utility"], tags: ["switching"] },
+  "item-throat-spray": { shopGroup: "held", roles: ["offense"], tags: ["setup"] },
+  "item-buy-one-type-plate": { shopGroup: "held", roles: ["offense"], tags: ["type-boost"] },
+  "item-buy-one-type-boosting-item": { shopGroup: "held", roles: ["offense"], tags: ["type-boost"] },
+  "item-expert-belt": { shopGroup: "held", roles: ["offense"] },
+  "item-eviolite": { shopGroup: "held", roles: ["defense"], tags: ["build-enabling"] },
+  "item-toxic-orb-or-flame-orb": { shopGroup: "held", roles: ["offense", "utility"], tags: ["status", "build-enabling"] },
+  "item-light-clay": { shopGroup: "held", roles: ["defense", "utility"], tags: ["screens"] },
+  "item-weather-rock": { shopGroup: "held", roles: ["utility"], tags: ["weather"] },
+  "item-white-herb": { shopGroup: "held", roles: ["utility"], tags: ["setup"] },
+  "item-power-herb": { shopGroup: "held", roles: ["offense", "utility"], tags: ["setup"] },
+  "item-type-gems": { shopGroup: "held", roles: ["offense"], tags: ["type-boost"] },
+  "item-eject-pack": { shopGroup: "held", roles: ["utility"], tags: ["switching"] },
+  "item-eject-button": { shopGroup: "held", roles: ["utility"], tags: ["switching"] },
+  "item-loaded-dice": { shopGroup: "held", roles: ["offense"], tags: ["multi-hit", "build-enabling"] },
+  "item-soul-dew": { shopGroup: "pokemon-specific", roles: ["offense", "defense"], tags: ["build-enabling"] },
+  "item-genesect-drive": { shopGroup: "pokemon-specific", roles: ["offense", "utility"], tags: ["type-boost", "build-enabling"] },
+  "item-adamant-orb": { shopGroup: "pokemon-specific", roles: ["offense"], tags: ["type-boost", "build-enabling"] },
+  "item-lustrous-orb": { shopGroup: "pokemon-specific", roles: ["offense"], tags: ["type-boost", "build-enabling"] },
+  "item-griseous-orb": { shopGroup: "pokemon-specific", roles: ["offense"], tags: ["type-boost", "build-enabling"] },
+  "item-rusted-shield": { shopGroup: "pokemon-specific", roles: ["defense"], tags: ["build-enabling"] },
+  "item-rusted-sword": { shopGroup: "pokemon-specific", roles: ["offense"], tags: ["build-enabling"] },
+  "item-weakness-policy": { shopGroup: "held", roles: ["offense"], tags: ["setup"] },
+  "item-booster-energy": { shopGroup: "pokemon-specific", roles: ["offense", "speed"], tags: ["setup", "paradox", "build-enabling"] },
+  "item-rocky-helmet": { shopGroup: "held", roles: ["defense"] },
+  "item-focus-sash": { shopGroup: "held", roles: ["defense", "utility"] },
+  "item-assault-vest": { shopGroup: "held", roles: ["defense"], tags: ["build-enabling"] },
+  "item-life-orb": { shopGroup: "held", roles: ["offense"] },
+  "item-heavy-duty-boots": { shopGroup: "held", roles: ["defense", "utility"] },
+  "item-leftovers": { shopGroup: "held", roles: ["defense", "recovery"] },
+  "item-choice-band": { shopGroup: "held", roles: ["offense"], tags: ["choice"] },
+  "item-choice-scarf": { shopGroup: "held", roles: ["offense", "speed"], tags: ["choice"] },
+  "item-choice-specs": { shopGroup: "held", roles: ["offense"], tags: ["choice"] },
+  "item-one-tera-type": { shopGroup: "battle-mechanics", roles: ["utility"], tags: ["tera"], mechanicFamily: "tera" },
+  "item-one-z-move-type": { shopGroup: "battle-mechanics", roles: ["offense"], tags: ["z-move"], mechanicFamily: "z-move" },
+  "item-normalium-z": { shopGroup: "battle-mechanics", roles: ["offense"], tags: ["z-move"], mechanicFamily: "z-move" },
+  "item-kommonium-z": { shopGroup: "battle-mechanics", roles: ["offense"], tags: ["z-move"], mechanicFamily: "z-move" },
+  "item-one-mega-stone-not-listed": { shopGroup: "battle-mechanics", roles: ["offense", "defense"], tags: ["mega"], mechanicFamily: "mega" },
+  "item-kangaskhanite": { shopGroup: "battle-mechanics", roles: ["offense"], tags: ["mega"], mechanicFamily: "mega" },
+  "item-metagrossite": { shopGroup: "battle-mechanics", roles: ["offense", "defense"], tags: ["mega"], mechanicFamily: "mega" },
+  "item-lucarionite": { shopGroup: "battle-mechanics", roles: ["offense"], tags: ["mega"], mechanicFamily: "mega" },
+  "item-gengarite": { shopGroup: "battle-mechanics", roles: ["offense", "speed"], tags: ["mega"], mechanicFamily: "mega" },
+  "item-salamencite": { shopGroup: "battle-mechanics", roles: ["offense", "speed"], tags: ["mega"], mechanicFamily: "mega" },
+  "item-blastoisinite": { shopGroup: "battle-mechanics", roles: ["offense", "defense"], tags: ["mega"], mechanicFamily: "mega" }
+});
+
+const hiddenItemShopProductNames = Object.freeze(new Set([
+  "Berries",
+  "Type Resist Berries",
+  "Competitive Berries",
+  "33% Heal Berry",
+  "Buy One Type Plate",
+  "Buy One Type Boosting Item",
+  "Type Gems",
+  "Toxic Orb or Flame Orb",
+  "Weather Rock",
+  "Deep Sea Tooth / Scale",
+  "Genesect Drive",
+  "One Tera Type",
+  "One Z Move Type",
+  "Normalium Z",
+  "One Mega Stone Not Listed"
+]));
+
+const itemShopParentByName = new Map(rawItemShopData.map((item) => [item.name, item]));
+
+function shopDataSlug(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function itemShopMetadataFor(item) {
+  const metadata = itemShopMetadataById[item.id] || {};
+  return {
+    shopGroup: metadata.shopGroup || "held",
+    roles: metadata.roles || [],
+    tags: metadata.tags || [],
+    mechanicFamily: metadata.mechanicFamily || ""
+  };
+}
+
+function itemShopChoiceNames(parentName) {
+  return (rivalSagaStaticShopChoiceDefinitions[parentName]?.options || []).map((option) =>
+    typeof option === "string" ? option : option?.name
+  ).filter(Boolean);
+}
+
+function createDerivedItemShopEntry(parentName, choiceName, overrides = {}) {
+  const parent = itemShopParentByName.get(parentName);
+  if (!parent) return null;
+  const id = overrides.id || `${parent.id}--${shopDataSlug(choiceName)}`;
+  const metadata = {
+    ...itemShopMetadataFor(parent),
+    ...(overrides.metadata || {})
+  };
+  return {
+    ...parent,
+    id,
+    name: choiceName,
+    price: overrides.price ?? parent.price,
+    description: overrides.description || parent.description,
+    parentShopItemName: parentName,
+    spriteKey: overrides.spriteKey || choiceName,
+    imageKey: overrides.imageKey || choiceName,
+    shopGroup: metadata.shopGroup || "held",
+    roles: metadata.roles || [],
+    tags: metadata.tags || [],
+    mechanicFamily: metadata.mechanicFamily || ""
+  };
+}
+
+function createDerivedItemShopEntries(parentName, overrides = {}) {
+  return itemShopChoiceNames(parentName)
+    .map((choiceName) => createDerivedItemShopEntry(parentName, choiceName, overrides))
+    .filter(Boolean);
+}
+
+const derivedItemShopData = [
+  ...createDerivedItemShopEntries("Berries", {
+    metadata: { shopGroup: "berry", roles: ["recovery", "utility"], tags: ["status"] }
+  }),
+  ...createDerivedItemShopEntries("Type Resist Berries", {
+    metadata: { shopGroup: "berry", roles: ["defense"], tags: ["type-boost"] }
+  }),
+  ...createDerivedItemShopEntries("Competitive Berries", {
+    metadata: { shopGroup: "berry", roles: ["recovery", "utility"], tags: ["status", "setup"] }
+  }),
+  ...createDerivedItemShopEntries("33% Heal Berry", {
+    metadata: { shopGroup: "berry", roles: ["recovery"], tags: [] }
+  }),
+  ...createDerivedItemShopEntries("Buy One Type Plate", {
+    metadata: { shopGroup: "held", roles: ["offense"], tags: ["type-boost"] }
+  }),
+  ...createDerivedItemShopEntries("Buy One Type Boosting Item", {
+    metadata: { shopGroup: "held", roles: ["offense"], tags: ["type-boost"] }
+  }),
+  ...createDerivedItemShopEntries("Type Gems", {
+    metadata: { shopGroup: "held", roles: ["offense"], tags: ["type-boost"] }
+  }),
+  ...createDerivedItemShopEntries("Toxic Orb or Flame Orb", {
+    price: 3000,
+    metadata: { shopGroup: "held", roles: ["offense", "utility"], tags: ["status", "build-enabling"] }
+  }),
+  ...createDerivedItemShopEntries("Weather Rock", {
+    metadata: { shopGroup: "held", roles: ["utility"], tags: ["weather"] }
+  }),
+  ...createDerivedItemShopEntries("Deep Sea Tooth / Scale", {
+    metadata: { shopGroup: "pokemon-specific", roles: ["offense", "defense"], tags: ["build-enabling"] }
+  }),
+  ...createDerivedItemShopEntries("Genesect Drive", {
+    metadata: { shopGroup: "pokemon-specific", roles: ["offense", "utility"], tags: ["type-boost", "build-enabling"] }
+  }),
+  ...createDerivedItemShopEntries("One Tera Type", {
+    metadata: { shopGroup: "battle-mechanics", roles: ["utility"], tags: ["tera"], mechanicFamily: "tera" }
+  }),
+  ...createDerivedItemShopEntries("One Z Move Type", {
+    metadata: { shopGroup: "battle-mechanics", roles: ["offense"], tags: ["z-move"], mechanicFamily: "z-move" }
+  }),
+  ...createDerivedItemShopEntries("One Mega Stone Not Listed", {
+    metadata: { shopGroup: "battle-mechanics", roles: ["offense", "defense"], tags: ["mega"], mechanicFamily: "mega" }
+  })
+];
+
+const itemShopData = [
+  ...rawItemShopData
+    .filter((item) => !hiddenItemShopProductNames.has(item.name))
+    .map((item) => ({
+      ...item,
+      ...itemShopMetadataFor(item)
+    })),
+  ...derivedItemShopData
 ];
 
 const rawTmShopData = [
@@ -6619,11 +6817,11 @@ const tmShopData = rawTmShopData.filter((entry) => !rivalSagaUnpurchasableMoveKe
 ));
 
 if (typeof window !== "undefined") {
-  window.rivalSagaShopData = { itemShopData, tmShopData, rawTmShopData };
+  window.rivalSagaShopData = { itemShopData, tmShopData, rawTmShopData, itemShopMetadataById };
 }
 
 if (typeof module !== "undefined") {
-  module.exports = { itemShopData, tmShopData, rawTmShopData };
+  module.exports = { itemShopData, tmShopData, rawTmShopData, itemShopMetadataById };
 }
 
 

@@ -1,0 +1,86 @@
+# Encounter and Hidden Grotto Migration Audit
+
+Status: Historical V2 planning audit from before V2 promotion. Use current architecture/status docs for runtime truth.
+
+## Version Architecture Found
+
+- V1 was the repository-root website and backend when this audit was written. It is now archived/maintenance-only for explicitly persisted legacy saves.
+- V2 is now mounted as the current/default ruleset for newly created games and lobbies. The notes below preserve the migration reasoning that kept Route work separate from V1 Encounter Wheel behavior.
+- `versions/current-action-phase/README.md` documents V1 compatibility constraints without forking the source.
+- The working tree currently has shared root modules and a dirty git state. Any root edit to encounter, token, action, persistence, or UI code can affect V1 immediately.
+
+## Migration Risk Summary
+
+The legacy Encounter Wheel and Hidden Grotto systems are not isolated data files. They are intertwined with:
+
+- Action Phase visit spending and action-operation completion.
+- Save-state fields and normalization.
+- Root UI overlays/modals.
+- Token timing and Live Referee declarations.
+- Undo, history, activity responses, player notifications, and backend persistence.
+- Pokemon acquisition records, sprites, tiers, Battle Team legality, and Teambuilder grants.
+- Docs, generated token matrices, browser tests, contract tests, and import scripts.
+
+V2 should therefore introduce Route-era encounter state in the V2 sandbox first, then promote behind an explicit version contract. Do not delete or rewrite V1 Encounter Wheel, Hidden Grotto, rods, or legacy token flows as incidental cleanup.
+
+## Dependency Map
+
+| Dependency | V1 Current Behavior | V1 Dependents | V2 Disposition | Required V2 Work |
+| --- | --- | --- | --- | --- |
+| Version boundary | V1 root behavior was active when this audit was written; V2 is now the default mounted ruleset and V1 is archived for compatibility. | `versions/README.md`, root app modules, current saves. | SHARED / UNAFFECTED as architecture, but a migration risk. | Keep Route behavior versioned under V2 and preserve explicit V1 save compatibility. |
+| Encounter location | `actionLocationServices` exposes Encounter as "Open Encounter Wheel"; one action rolls the current gym wheel twice. | Action destination picker, provisional destination reservation, Live Referee operation lifecycle. | V2 CONVERT. | Replace location service with Route exploration service; define action cost, route selection/visibility, actor permissions, and completion conditions. |
+| Encounter wheel definitions | `encounterWheelDefinitions` are hard-coded in `app.js` by series/gym; entries have weight/category/default flags. Hoenn includes `Hyperspace Hole`. | Encounter roll pool, import cross-check script, docs, UI labels. | V2 REMOVE / CONVERT. | Move Route encounter data to V2 route modules; keep V1 definitions intact; add data parity tests for route residents instead of fixed wheels. |
+| Encounter session state | `state.encounterSessions` stores player, series/gym, wheel id, max rolls, fishing/surf toggles, removed/temporary entries, weights, rolls, status, visual rotation, extra grants. | Save normalization, overlay, action operations, undo, Extra Encounter, Reroll, Honey, token snapshots. | V2 CONVERT. | Define `routeEncounterSessions` or versioned encounter session schema with route id, revealed residents, resident pool suppressions, selected/revealed Pokemon, and private/public visibility. |
+| Random Pokemon result state | `state.randomPokemonSessions` stores pending or confirmed Pokemon result records from Encounter, Game Corner, Honey, and other sources. Encounter rolls can create child random sessions. | Result drawer, timing windows, Reroll, Honey, Game Corner tickets, causal undo. | V2 CONVERT. | Decide whether Route results reuse `randomPokemonSessions` or get a route-specific result record; preserve exact unresolved-result identity and acquisition handoff. |
+| Encounter rolling UI | `index.html` includes `encounterOverlay`; `renderEncounterOverlay` draws a wheel, session tabs, active entries, result cards, weight editor, include Fishing/Surf toggle, Add/Reroll/Done controls. | Browser runtime, CSS, event delegation, tests, screenshots. | V2 REMOVE / CONVERT. | Build Route UI around revealed residents and route actions, not a spinning wheel; keep V1 overlay available until V1 retirement. |
+| Wheel editing fields | V1 sessions allow `removedEntryIds`, `temporaryEntries`, `weightOverrides`, and `weightEditing`. | Repel guided intent, manual table adjustments, overlay rendering, undo details. | V2 CONVERT. | Replace wheel-entry edits with Route-era modifiers, e.g. Battle Tier suppression and temporary Primary-Type injection. |
+| Fishing / Surf / rods | Old Rod, Great Rod, and Super Rod are utility shop products; Encounter sessions have grouped `includeFishing` / `includeSurf` toggles. UI notes say this should later come from items/effects. | Utility shop, item import script, Encounter pool filtering, sprites aliases. | V2 REMOVE. | Remove rod/Tackle Box access from V2 route design; if water route residents exist, model them as route residents or route tags, not owned rod toggles. |
+| Hyperspace sub-wheel | Encounter entry `Hyperspace Hole` resolves into `hyperspaceWheelDefinitions`; rerolls can either stay inside the sub-wheel or respin the original encounter. | Hoenn wheel data, roll result metadata, Reroll UI, action log. | V2 REDESIGN / LATER REVIEW. | Decide whether Hyperspace becomes a Route event, rare resident, route modifier, or removed legacy mechanic. Do not carry the sub-wheel by default. |
+| Encounter acquisition | Encounter roll "Add" creates an Active Pokemon record with source `Encounter Wheel`, source/acquisition tier, sprite, branch lock metadata, and Pokemon log. | Roster, Teambuilder, Pokemon log, MVP/League views, undo. | V2 CONVERT. | Route acquisition must still call the canonical Pokemon acquisition path but with source `Route Encounter` and route metadata. |
+| Encounter close/completion | Closing requires all unadded rolls to be added, then completes every linked action visit with `encounter-session-closed`. | Action operation lifecycle, Live Referee blockers, tests. | V2 CONVERT. | Define Route encounter terminal states and required choices; add completion hooks for action-operation release and backend reload. |
+| Encounter undo | `undoEncounterActionVisit` removes only the rolls tied to the undone visit, child random sessions, interactions, transactions, roster records, and possibly the whole encounter session. | History undo, token undo snapshots, action visit repair. | V2 CONVERT. | Build route-aware undo that can reverse a route action without damaging V1 session records or unrelated Route reveals. |
+| Hidden Grotto location | Hidden Grotto costs 1 Action and money, rolls 3 types, player chooses 1, then rolls 3 Pokemon of that type and chooses 1. | Action picker, location UI, money ledger, Pokemon acquisition, action operation completion. | V2 REMOVE. | Do not include Hidden Grotto as a Route system dependency unless a later balance review recreates it as a Route event. |
+| Hidden Grotto pool | Pool is built from Pokemon index entries up to two Battle Tier steps above the natural gym tier; bans, encounter eligibility, low-tier NFE filtering, type filtering, and roll-group dedupe apply. | Pokemon build data, balance tiers, ban status, type list, UI pool counts. | V2 REMOVE / LATER REVIEW. | Route resident generation should not inherit this pool rule accidentally; decide separately whether any Grotto-style type choice survives as route discovery. |
+| Hidden Grotto session state | `state.hiddenGrottoSessions` stores rolled types, rolled Pokemon, chosen type/Pokemon, target tier, cost, ledger id, roster id, status. | Save normalization, active session lookup, render flow, undo. | V2 REMOVE. | Existing saves keep this field for V1. V2 migration should either ignore it or archive legacy sessions read-only. |
+| Hidden Grotto perks | `Grotto Regular` discounts Hidden Grotto; `Encounter Pro` grants a free Hidden Grotto encounter. | Perk definitions, perk displays, possible manual rulings. | V2 REMOVE / LATER REVIEW. | Flag for Perk balance review; do not auto-convert to Route perks without approved rules. |
+| Encounter-related perks | `Beast In A Dream` applies Beast Ball or Dream Ball after an Encounter roll; the `Reroll` perk grants three free reroll-token uses per gym by text. | Perk definitions, manual/table rulings, token surfaces. | V2 CONVERT / LATER REVIEW. | Convert only if Route-era Beast/Dream/Reroll semantics are approved; otherwise mark unavailable in V2 balance pass. |
+| Encounter token catalog | Encounter tokens include Reroll, Extra Encounter, Repel, Quick Ball, Dream Ball, Honey, Master Ball, Beast Ball. | Shop, Live Referee, token art, token matrix/handoff/coverage, controller routing. | V2 MIXED. | Audit each token contract against Route rules and regenerate token docs after V2 definitions change. |
+| Reroll Token | V1 rerolls exact unresolved Encounter rolls, Encounter result sessions, and supported wheel results; consumes exact token unless free due to banned/owned-family result; records superseded revisions and causal undo. | Encounter overlay, random-result drawer, Live Referee selector, token-control effects, tests. | V2 CONVERT. | Reroll must become same-Route reroll against an exact unresolved Route result; define whether revealed/known residents constrain replacement. |
+| Extra Encounter Token | V1 Action-only token targets one player and creates or extends an authoritative Encounter session by exactly one roll with stable grant identity. | `encounter-token-runtime.js`, immediate token use, notifications, browser/unit/sandbox tests. | V2 CONVERT. | Create or extend one Route encounter opportunity for a chosen player; preserve stable grant identity, exact target, persistence, undo, and duplicate prevention. |
+| Repel | V1 contract says remove one Pokemon per 5 entries on an Encounter Wheel; currently guided/text-only rather than automatic gameplay mutation. | Token contract, matrix, handoff, guided Live Referee audit, potential wheel editing fields. | V2 CONVERT. | Implement Route Repel as suppress 5 Route residents of a chosen Battle Tier; define private/public visibility and exact resident identity. |
+| Master Ball Token | V1 contract says choose your encounter before the wheel; currently guided/text-only. | Token contract, token shop/art/matrix, Live Referee guided result. | V2 CONVERT. | Let player select one Pokemon revealed to that player on the Route; define reveal eligibility, locking, and whether rivals can respond. |
+| Honey | V1 End-of-Action verified flow copies one exact finalized Encounter result into a fresh nonrecursive acquisition-ready result without rerolling or copying ownership/transient history. | End-of-Action procedure, `resolveHoneyEncounterCopy`, result drawer, causal undo, tests/docs. | V2 CONVERT. | Decide whether Honey copies finalized Route encounters only; include route id, revealed/private metadata, and fresh acquisition identity. |
+| Quick Ball | V1 token text releases an encounter and steals another player's encounter; guided/text-only. | Token contract, manual response definitions, token docs. | V2 REDESIGN / LATER REVIEW. | Reevaluate against Route private knowledge and ownership rules before implementing. |
+| Dream Ball / Beast Ball | V1 guided tokens grant ability/move access before an encounter wheel; `Beast In A Dream` perk references them. | Token contract, shop/art/docs, teambuilder grant concepts. | V2 CONVERT / LATER REVIEW. | If preserved, map to temporary grant on selected/revealed Route encounter; define exactly when the player names the move/ability. |
+| Type/class route examples | Exact `Steel Spark`, `Fighting Draw`, and named Type Class implementations were not found. Existing trainer class wheel contains class names and generic class/token hooks. | Trainer Class Wheel, Class Change/Rebrand, class state, manual class ability controls. | V2 REDESIGN / LATER REVIEW. | If these are planned V2 class rules, implement as new V2 class contracts: private Primary-Type route knowledge and temporary Primary-Type injection; add tests. |
+| Collector Wheel | Exact `Collector Wheel` implementation was not found. `Collector` exists as a Trainer Class wheel result only. | Trainer Class Wheel only. | V2 REMOVE / LATER REVIEW. | Confirm whether Collector Wheel lives outside this repo or in old save data. Do not create Route behavior from the class name alone. |
+| Ranger Base Repel reward | Ranger Base milestone grants `Repel Token`. | Ranger Base reward definitions and inventory. | V2 CONVERT. | If Repel remains Route-era, update reward text and generated token docs; otherwise replace reward during V2 balance review. |
+| Pokemon Center encounter wording | Architecture docs say Pokemon Center can cleanse/protect the Encounter Wheel; current UI mainly implements curse/restrict restoration and emergency immunity. | Docs and possible table expectations. | V2 REDESIGN / LATER REVIEW. | Clarify whether any Route protection/cleanse service exists; update docs when V2 rules are approved. |
+| Bulletin Board quests | Quest bank references "Spin The Encounter Wheel Twice", "Catch A Pokemon From The Hidden Grotto", and "New Power: obtain a Pokemon this Gym". | Bulletin Board UI/session data and action completion. | V2 CONVERT / REMOVE. | Rewrite V2 quests around Route exploration and remove Hidden Grotto quest unless Grotto is deliberately preserved. |
+| Import tooling | `scripts/import-pokeapi-hoenn-encounters.js` imports Hoenn encounter data and cross-checks against hard-coded wheels. | `npm run import:encounters:hoenn`, data generation, docs. | V2 CONVERT. | Replace or fork importer to build Route resident data and route reports rather than wheel buckets. |
+| Tests | Existing tests assert V1 action operation hooks, Extra Encounter runtime, token sandbox, token browser flows, Reroll/Honey lifecycle, and docs generated from token contracts. | CI/local validation, generated docs. | V2 CONVERT. | Add isolated V2 route tests before root promotion; keep V1 tests passing until retirement. |
+| Server persistence | `server.js` stores whole game snapshots; most encounter behavior is client-side. Backend accepts normalized state and activity routes. | Save/load, SSE, activity response nesting, provisional action routes. | SHARED / UNAFFECTED with migration risk. | Version route-era state in snapshots and reject/migrate ambiguous mixed V1/V2 encounter records safely. |
+
+## V2 Migration Checklist
+
+1. Add a V2 Route encounter contract in `versions/next-action-phase/` before editing root code. `ROUTE_ENCOUNTER_ENGINE.md` and `implementation/route-encounter-engine.js` now define the first isolated contract.
+2. Define Route state shape: route id, resident pool, revealed residents per player, private knowledge, suppressions, temporary injections, pending encounter opportunities, and finalized acquisition records. The isolated engine uses exact resident IDs, stable species IDs, Battle Tier records, Primary Type metadata, source metadata, public discovery IDs, per-player private knowledge IDs, suppressions, opportunities, revisioned results, and acquisition records.
+3. Decide whether Route encounter results reuse `randomPokemonSessions` or use a new route result collection.
+4. Convert Reroll to exact same-Route reroll with stable revision links and causal undo.
+5. Convert Extra Encounter to one additional Route encounter opportunity for an exact chosen player.
+6. Convert Repel to suppress 5 Route residents of a chosen Battle Tier, with exact persistence and undo.
+7. Convert Master Ball to choose from Pokemon revealed to the acting player on the Route.
+8. Convert or defer Honey, Quick Ball, Dream Ball, Beast Ball, and `Beast In A Dream` based on approved Route timing.
+9. Remove rods/Tackle Box and Fishing/Surf wheel toggles from V2; represent water or fishing concepts as Route residents/tags only if approved.
+10. Remove Hidden Grotto and Hidden Grotto perks from V2 unless a later balance review explicitly redesigns them.
+11. Replace Encounter Wheel and Hidden Grotto Bulletin Board quests with Route-era quests.
+12. Replace Hoenn wheel importer/cross-checks with Route resident import/generation tooling.
+13. Add isolated V2 tests for Route session creation, reveal privacy, reroll, extra encounter, repel suppression, master-ball selection, persistence, reload, and undo.
+14. Add migration tests proving existing V1 saves with `encounterSessions`, `randomPokemonSessions`, `hiddenGrottoSessions`, rods, and legacy perks remain playable under V1.
+15. Promote V2 to root only after `ARCHITECTURE.md`, `TIMING_AND_PHASES.md`, `IMPLEMENTATION_STATUS.md`, token matrices, and browser evidence are updated.
+
+## Notes From Search
+
+- Exact names `Steel Spark` and `Fighting Draw` were not found in code or docs.
+- Exact `Collector Wheel` was not found; only `Collector` as a Trainer Class wheel outcome was found.
+- There is no separate V1 source directory. Root code is V1, and V2 work must avoid root runtime changes until promotion.

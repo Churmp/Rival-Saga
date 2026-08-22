@@ -7,129 +7,10 @@ const appSource = fs.readFileSync(path.join(__dirname, "..", "app.js"), "utf8");
 const cssSource = fs.readFileSync(path.join(__dirname, "..", "styles.css"), "utf8");
 const htmlSource = fs.readFileSync(path.join(__dirname, "..", "index.html"), "utf8");
 
-function harness() {
-  const state = { visits: [], operations: [], pending: false, manualTask: false };
-  const commit = (playerId, locationId, featureStatus = "completed") => {
-    const visit = { id: `visit-${state.visits.length + 1}`, playerId, locationId, actionCost: 1 };
-    state.visits.push(visit);
-    state.operations.push({
-      id: `operation-${visit.id}`,
-      visitId: visit.id,
-      playerId,
-      actionNumber: state.visits.filter((entry) => entry.playerId === playerId).length,
-      locationId,
-      committed: true,
-      status: "resolving",
-      featureStatus
-    });
-    return visit;
-  };
-  const activeOperation = () => state.operations.find((operation) => operation.status === "resolving") || null;
-  const complete = (visitId) => {
-    const operation = state.operations.find((entry) => entry.visitId === visitId);
-    if (!operation || operation.status === "completed") return Boolean(operation);
-    if (state.pending || state.manualTask || operation.featureStatus !== "completed") return false;
-    operation.status = "completed";
-    return true;
-  };
-  const turn = (order) => {
-    const operation = activeOperation();
-    if (operation) return operation.playerId;
-    return order[state.visits.length % order.length];
-  };
-  return { state, commit, complete, turn };
-}
-
 test("all Action visit commits use the shared operation entry point", () => {
   assert.equal((appSource.match(/actionVisitsForPlayer\([^\n]+\)\.push\(visit\)/g) || []).length, 0);
   assert.match(appSource, /function commitActionVisit\(visit\)/);
   assert.match(appSource, /function completeActionOperationForVisit\(visitId/);
-});
-
-test("simple immediate Action advances exactly once", () => {
-  const h = harness();
-  const visit = h.commit("p1", "ranger-base");
-  assert.equal(h.turn(["p1", "p2"]), "p1");
-  assert.equal(h.complete(visit.id), true);
-  assert.equal(h.complete(visit.id), true);
-  assert.equal(h.turn(["p1", "p2"]), "p2");
-});
-
-test("Hidden Grotto choices hold Action ownership", () => {
-  const h = harness();
-  const visit = h.commit("p1", "hidden-grotto", "type-choice");
-  assert.equal(h.complete(visit.id), false);
-  h.state.operations[0].featureStatus = "pokemon-choice";
-  assert.equal(h.complete(visit.id), false);
-  h.state.operations[0].featureStatus = "completed";
-  assert.equal(h.complete(visit.id), true);
-});
-
-test("Encounter result and nested response chain hold Action ownership", () => {
-  const h = harness();
-  const visit = h.commit("p1", "encounter", "pending");
-  h.state.pending = true;
-  assert.equal(h.complete(visit.id), false);
-  h.state.operations[0].featureStatus = "completed";
-  assert.equal(h.complete(visit.id), false);
-  h.state.pending = false;
-  assert.equal(h.complete(visit.id), true);
-});
-
-test("Daycare visit remains resolving until explicitly finished", () => {
-  const h = harness();
-  const visit = h.commit("p1", "pokemon-breeder", "active");
-  assert.equal(h.turn(["p1", "p2"]), "p1");
-  assert.equal(h.complete(visit.id), false);
-  h.state.operations[0].featureStatus = "completed";
-  assert.equal(h.complete(visit.id), true);
-});
-
-test("Trade return does not replace the Action operation", () => {
-  const h = harness();
-  h.commit("p1", "encounter", "pending");
-  h.state.pending = true;
-  const serialized = JSON.stringify(h.state);
-  assert.equal(JSON.parse(serialized).operations[0].playerId, "p1");
-  assert.equal(h.turn(["p1", "p2"]), "p1");
-});
-
-test("manual result task blocks Action completion", () => {
-  const h = harness();
-  const visit = h.commit("p1", "pokemon-breeder");
-  h.state.manualTask = true;
-  assert.equal(h.complete(visit.id), false);
-});
-
-test("reload preserves committed cost, owner, Action number, and session", () => {
-  const h = harness();
-  h.commit("p1", "hidden-grotto", "pokemon-choice");
-  const restored = JSON.parse(JSON.stringify(h.state));
-  assert.equal(restored.visits.length, 1);
-  assert.deepEqual(restored.operations[0], {
-    id: "operation-visit-1", visitId: "visit-1", playerId: "p1", actionNumber: 1,
-    locationId: "hidden-grotto", committed: true, status: "resolving", featureStatus: "pokemon-choice"
-  });
-});
-
-test("completing an operation selects the exact next player", () => {
-  const h = harness();
-  const visit = h.commit("p2", "hidden-grotto");
-  assert.equal(h.turn(["p2", "p3", "p1"]), "p2");
-  h.complete(visit.id);
-  assert.equal(h.turn(["p2", "p3", "p1"]), "p3");
-});
-
-test("cancel before confirmation spends no Action", () => {
-  const h = harness();
-  assert.equal(h.state.visits.length, 0);
-  assert.equal(h.turn(["p1", "p2"]), "p1");
-});
-
-test("closing an intermediate submenu cannot complete an operation", () => {
-  const h = harness();
-  h.commit("p1", "hidden-grotto", "pokemon-choice");
-  assert.equal(h.state.operations[0].status, "resolving");
 });
 
 test("required completion hooks and bounded picker layout are wired", () => {
@@ -142,6 +23,71 @@ test("required completion hooks and bounded picker layout are wired", () => {
   assert.match(cssSource, /\.live-referee-stage \.live-referee-tokens-screen\s*\{[^}]*overflow:\s*hidden;/s);
 });
 
+test("obtaining every Encounter result completes the linked Action operation", () => {
+  assert.match(appSource, /function encounterSessionReadyForAutomaticCompletion\(session\)/);
+  assert.match(appSource, /rolls\.every\(encounterRollWasObtained\)/);
+  assert.match(appSource, /function completeObtainedEncounterSession\(session/);
+  assert.match(appSource, /completeActionOperationForVisit\(visitId, completionReason, session\.series, session\.gym\)/);
+  assert.match(appSource, /completeObtainedEncounterSession\(session\);/);
+  assert.match(appSource, /completeObtainedEncounterSession\(encounterSession\);/);
+});
+
+test("backend mutation tracking acknowledges versions before full-state saves continue", () => {
+  assert.match(appSource, /const payload = await response\.clone\(\)\.json\(\)\.catch\(\(\) => null\);/);
+  assert.match(appSource, /backendSync\.version = Math\.max\(Number\(backendSync\.version \|\| 0\), acknowledgedVersion\);/);
+  assert.match(appSource, /while \(backendSync\.pendingGameplayWrites\.size\)/);
+  assert.match(appSource, /startsWith\("action-destination-"\)[\s\S]*Number\(payload\.version \|\| 0\) <= Number\(backendSync\.version \|\| 0\)/);
+});
+
+test("manual location completion uses the compact authoritative command", () => {
+  assert.match(appSource, /async function finishCurrentActionOperation\(\)/);
+  assert.match(appSource, /action-destination-commits\/\$\{encodeURIComponent\(commit\.id\)\}\/complete/);
+  assert.match(appSource, /operationId: operation\.id/);
+});
+
+test("phase advancement is blocked while a V1 Action operation is unresolved", () => {
+  assert.match(appSource, /function phaseAdvanceBlockedByActionOperation\(target = nextPhaseTarget\(\)\)/);
+  assert.match(appSource, /const operation = currentActionOperation\(\)/);
+  assert.match(appSource, /Finish or undo that Action before advancing phases\./);
+  assert.match(appSource, /function openPhaseAdvanceConfirm\(\)[\s\S]*phaseAdvanceBlockedByActionOperation\(pendingPhaseAdvance\)/);
+  assert.match(appSource, /async function confirmPhaseAdvance[\s\S]*phaseAdvanceBlockedByActionOperation\(target\)/);
+  assert.match(appSource, /if \(blockedReason\) \{[\s\S]*alert\(blockedReason\);[\s\S]*return;/);
+});
+
+test("legacy Game Corner Tickets fall back to their name for tier detection", () => {
+  assert.match(appSource, /for \(const candidate of \[item\?\.gameCornerTierId, item\?\.gameCornerTier, item\?\.name, item\?\.tier\]\)/);
+  assert.match(appSource, /counts\[definition\.gameCornerTierId\]/);
+  assert.match(appSource, /service\.disabled && service\.disabledReason/);
+});
+
+test("Game Corner tickets expose inline Pokemon result controls", () => {
+  assert.match(appSource, /function renderGameCornerTicketResultPanel\(player, session\)/);
+  assert.match(appSource, /sourceType === "game-corner-token"/);
+  assert.match(appSource, /Ticket Pokemon Wheel/);
+  assert.match(appSource, /data-confirm-random-pokemon/);
+  assert.match(appSource, /data-reroll-random-pokemon/);
+  assert.match(appSource, /data-cancel-random-pokemon/);
+  assert.match(cssSource, /\.gc-ticket-result-panel/);
+});
+
+test("Game Corner result resolutions stay attached to their parent undo", () => {
+  assert.match(appSource, /gameCornerSessionId: session\.gameCornerSessionId \|\| ""/);
+  assert.match(appSource, /actionVisitId: session\.actionVisitId \|\| ""/);
+  assert.match(appSource, /linkedEventId: activity\.id \|\| ""/);
+  assert.match(appSource, /randomPokemonSessionId: activity\.payload\?\.randomPokemonSessionId \|\| ""/);
+  assert.match(appSource, /gameCornerSessionId: activity\.payload\?\.gameCornerSessionId \|\| ""/);
+  assert.match(appSource, /linkedInteractionIds\.has\(entry\.linkedEventId\)/);
+  assert.match(appSource, /entry\.type === "interaction-resolution" && linkedInteractionTitles\.has/);
+});
+
+test("Hidden Grotto supports direct type choice starts", () => {
+  assert.match(appSource, /async function startHiddenGrottoSession\(\{ chosenType = "" \} = \{\}\)/);
+  assert.match(appSource, /data-grotto-start-type/);
+  assert.match(appSource, /Direct Type Choice/);
+  assert.match(appSource, /status: directType \? "pokemon-choice" : "type-choice"/);
+  assert.match(cssSource, /\.grotto-type-direct-grid/);
+});
+
 test("accepted destination reservations continue into their exact local starter", () => {
   assert.match(appSource, /function matchingAcceptedActionDestination\(\{ playerId = "", locationId = "", serviceId = "" \} = \{\}\)/);
   assert.match(appSource, /function createLocationActionVisit[\s\S]*matchingAcceptedActionDestination\(\{ playerId: player\.id, locationId: location\.id, serviceId \}\)/);
@@ -149,6 +95,30 @@ test("accepted destination reservations continue into their exact local starter"
   assert.match(appSource, /function startEncounterSession\(\{ skipConfirmCheck = false \} = \{\}\)/);
   assert.match(appSource, /startEncounterSession\(\{ skipConfirmCheck: true \}\)/);
   assert.match(appSource, /if \(!startEncounterSession\([\s\S]*throw new Error\("The Encounter location could not start\."\)/);
+  assert.match(appSource, /async function persistStartedActionDestination\(\)/);
+  assert.match(appSource, /if \(location\?\.id === "encounter"\)[\s\S]*await persistStartedActionDestination\(\);[\s\S]*return;/);
+  assert.match(appSource, /saveState\(\);[\s\S]*await persistStartedActionDestination\(\);[\s\S]*render\(\);/);
+});
+
+test("stale destination reservations are repaired when their visit flow is gone", () => {
+  assert.match(appSource, /function staleActionDestinationCommit\(gymState = \{\}\)/);
+  assert.match(appSource, /ACTION_DESTINATION_START_GRACE_MS/);
+  assert.match(appSource, /DESTINATION_STATES\.COMPLETED/);
+  assert.match(appSource, /Date\.now\(\) - acceptedMs > ACTION_DESTINATION_START_GRACE_MS/);
+  assert.match(appSource, /if \(staleActionDestinationCommit\(gymState\)\) \{[\s\S]*gymState\.destinationCommit = null;/);
+  assert.match(appSource, /if \(staleLocationId && gymState\.selectedLocationId === staleLocationId\) gymState\.selectedLocationId = "";/);
+  assert.match(appSource, /actionPhaseStateRepairQueued = true;/);
+  assert.match(appSource, /if \(actionPhaseStateRepairQueued && !backendSync\.applyingRemote[\s\S]+saveState\(\{ immediate: true, immediateBackend: true \}\);/);
+  assert.match(appSource, /if \(!operation\) return true;/);
+  assert.match(appSource, /return !isActiveActionVisit\(visit\);/);
+});
+
+test("undoing an Action visit clears its linked operation and destination", () => {
+  assert.match(appSource, /function clearActionOperationForUndoneVisit\(visitId/);
+  assert.match(appSource, /gymState\.actionOperations = \(gymState\.actionOperations \|\| \[\]\)\.filter/);
+  assert.match(appSource, /removedOperationIds\.has\(gymState\.activeActionOperationId\)/);
+  assert.match(appSource, /removedOperationIds\.has\(commit\.operationId\)/);
+  assert.match(appSource, /clearActionOperationForUndoneVisit\(undoData\.visitId, undoData\.playerId, undoData\.series, undoData\.gym\);/);
 });
 
 test("Action Phase Demo Mode controls and player switching are wired", () => {
@@ -157,6 +127,6 @@ test("Action Phase Demo Mode controls and player switching are wired", () => {
   assert.match(appSource, /function renderActionDemoControls\(\)/);
   assert.match(appSource, /data-action-player-id=/);
   assert.match(appSource, /setTestingToolsState\(\{ controlledPlayerId: playerId \}\)/);
-  assert.match(cssSource, /\.action-demo-controls\s*\{/);
+  assert.match(cssSource, /\.game-header-demo-popover\s*\{/);
   assert.match(cssSource, /\.action-turn-chip\.selectable/);
 });

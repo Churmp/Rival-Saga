@@ -22,6 +22,7 @@ const records = [
   fixtures.supportedLegacy,
   fixtures.modernTokenReferee,
   fixtures.malformedOptional,
+  fixtures.v2Lobby,
   fixtures.unsupportedSchema,
   fixtures.isolatedQa,
   fixtures.orphanedValid
@@ -57,6 +58,18 @@ test("normalizes current, legacy, modern, and malformed optional records", () =>
   assert.equal(progressed.gym, 6);
   assert.equal(progressed.phase, "battle");
   assert.equal(progressed.playerCount, 2);
+  assert.equal(progressed.actionPhaseVersion, "action-phase-v1-current-series");
+  assert.equal(contract.normalizeGameSummary(fixtures.modernTokenReferee).summary.actionPhaseVersion, "action-phase-v2-real-series");
+});
+
+test("brand-new summaries default to V2 while legacy snapshots remain V1-compatible", () => {
+  assert.equal(contract.DEFAULT_ACTION_PHASE_VERSION, "action-phase-v2-real-series");
+  assert.equal(contract.normalizeGameSummary({ id: "brand-new", name: "Brand New", state: null }).summary.actionPhaseVersion, "action-phase-v2-real-series");
+  assert.equal(contract.normalizeGameSummary({
+    id: "pre-version-save",
+    name: "Pre-version Save",
+    state: { series: "Kanto", gym: 2, currentPhase: "action", players: [] }
+  }).summary.actionPhaseVersion, "action-phase-v1-current-series");
 });
 
 test("rejects unsupported required schemas without modifying the record", () => {
@@ -83,12 +96,27 @@ test("authoritative progressed game appears with matching gym and phase", async 
   assert.equal(progressed.gym, fixtures.currentProgressed.state.gym);
   assert.equal(progressed.phase, fixtures.currentProgressed.state.currentPhase);
   assert.equal(progressed.playerCount, fixtures.currentProgressed.state.players.length);
+  assert.equal(progressed.actionPhaseVersion, "action-phase-v1-current-series");
+  const modern = payload.games.find((game) => game.id === "modern-token-referee");
+  assert.equal(modern.actionPhaseVersion, "action-phase-v2-real-series");
+  const v2Lobby = payload.games.find((game) => game.id === "v2-lobby");
+  assert.equal(v2Lobby.actionPhaseVersion, "action-phase-v2-real-series");
 });
 
 test("opening a summary loads the exact same stable game ID", async () => {
   const payload = await fetch(`${origin}/api/games/progressed-current/state`).then((response) => response.json());
   assert.equal(payload.gameId, "progressed-current");
   assert.equal(payload.state.series, "Hoenn");
+});
+
+test("persisted V1 games load as V1 without converting the save", async () => {
+  const file = path.join(gamesDir, "legacy-supported.json");
+  const before = digest(file);
+  const payload = await fetch(`${origin}/api/games/legacy-supported/state`).then((response) => response.json());
+  assert.equal(payload.gameId, "legacy-supported");
+  assert.equal(payload.actionPhaseVersion, "action-phase-v1-current-series");
+  assert.equal(payload.state.series, "Johto");
+  assert.equal(digest(file), before);
 });
 
 test("orphaned records are directory-indexed once and isolated QA does not leak", async () => {
@@ -115,13 +143,27 @@ test("stale deep links fail with 404 and do not create replacement games", async
 test("retry succeeds after the backend becomes reachable", async () => {
   const response = await fetch(`${origin}/api/site`);
   assert.equal(response.status, 200);
-  assert.equal((await response.json()).games.length, 6);
+  assert.equal((await response.json()).games.length, 7);
 });
 
 test("listing and opening do not modify authoritative records", () => {
   records.forEach((record) => {
     assert.equal(digest(path.join(gamesDir, `${record.id}.json`)), hashesBefore.get(record.id), record.id);
   });
+});
+
+test("newly created games default to V2 without a requested version", async () => {
+  const response = await fetch(`${origin}/api/games`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ id: "new-default-v2", name: "New Default V2" })
+  });
+  assert.equal(response.status, 201);
+  const payload = await response.json();
+  assert.equal(payload.game.actionPhaseVersion, "action-phase-v2-real-series");
+  const loaded = await fetch(`${origin}/api/games/new-default-v2/state`).then((loadResponse) => loadResponse.json());
+  assert.equal(loaded.actionPhaseVersion, "action-phase-v2-real-series");
+  assert.equal(loaded.state, null);
 });
 
 test("shell source preserves stale identities narrowly and never labels request failure as no games", () => {

@@ -7,6 +7,9 @@
 
   const SUPPORTED_GAME_SCHEMA_VERSION = 1;
   const ISOLATED_GAME_ID_PATTERN = /^(?:browser-smoke|codex-)/i;
+  const ACTION_PHASE_VERSION_V1 = "action-phase-v1-current-series";
+  const ACTION_PHASE_VERSION_V2 = "action-phase-v2-real-series";
+  const DEFAULT_ACTION_PHASE_VERSION = ACTION_PHASE_VERSION_V2;
 
   function isObject(value) {
     return Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -39,6 +42,17 @@
     const phaseState = isObject(state.phaseState) ? state.phaseState : {};
     const keyedPhase = phaseState[`${series}:${gym}`] || phaseState[`${series}-${gym}`] || {};
     return text(record.phase || state.currentPhase || keyedPhase.currentPhase || state.phase, "start");
+  }
+
+  function actionPhaseVersion(record = {}) {
+    const state = isObject(record.state) ? record.state : {};
+    const candidate = record.actionPhaseVersion
+      || record.ruleset?.actionPhaseVersion
+      || state.ruleset?.actionPhaseVersion
+      || state.actionPhaseVersion;
+    if (candidate === ACTION_PHASE_VERSION_V1) return ACTION_PHASE_VERSION_V1;
+    if (candidate === ACTION_PHASE_VERSION_V2) return ACTION_PHASE_VERSION_V2;
+    return isObject(record.state) ? ACTION_PHASE_VERSION_V1 : DEFAULT_ACTION_PHASE_VERSION;
   }
 
   function normalizedMembers(record = {}) {
@@ -84,6 +98,7 @@
       schemaVersion,
       version: Math.max(0, finiteNumber(record.version, 0)),
       rulesetVersion: text(record.rulesetVersion || state.ruleset?.version, "S3-dev"),
+      actionPhaseVersion: actionPhaseVersion(record),
       maxPlayers: Math.max(1, finiteNumber(record.maxPlayers, 5)),
       rulesetPatchHistory: Array.isArray(record.rulesetPatchHistory) ? record.rulesetPatchHistory : [],
       members
@@ -125,7 +140,9 @@
 
   return {
     SUPPORTED_GAME_SCHEMA_VERSION,
+    DEFAULT_ACTION_PHASE_VERSION,
     gameRecordId,
+    actionPhaseVersion,
     isIsolatedGameRecord,
     normalizeGameSummary,
     normalizeGameIndex,

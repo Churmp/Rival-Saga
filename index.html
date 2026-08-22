@@ -5,10 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Rival Saga</title>
     <link rel="icon" href="data:,">
-    <link rel="stylesheet" href="styles.css?v=310">
+    <link rel="stylesheet" href="styles.css?v=341">
     <script defer src="game-shell-contract.js?v=1"></script>
+    <script defer src="save-compaction.js?v=1"></script>
     <script defer src="move-classification-data.js?v=5"></script>
-    <script defer src="shop-data.js?v=7"></script>
+    <script defer src="shop-choice-data.js?v=3"></script>
+    <script defer src="shop-data.js?v=9"></script>
     <script defer src="interaction-situation-lifecycle.js?v=2"></script>
     <script defer src="provisional-declaration-runtime.js?v=2"></script>
     <script defer src="encounter-token-runtime.js?v=1"></script>
@@ -18,14 +20,28 @@
     <script defer src="token-result-summary.js?v=1"></script>
     <script defer src="token-inventory-runtime.js?v=1"></script>
     <script defer src="token-sandbox-session.js?v=1"></script>
-    <script defer src="shop-choice-data.js?v=2"></script>
     <script defer src="item-reference-data.js?v=3"></script>
+    <script defer src="shop-sprite-data.js?v=1"></script>
+    <script defer src="shop-browse-data.js?v=2"></script>
     <script defer src="pokemon-balance-tiers.js?v=188"></script>
     <script defer src="silph-data.js?v=3"></script>
     <script defer src="action-phase-balance.js?v=1"></script>
-    <script defer src="app.js?v=405"></script>
+    <script defer src="app.js?v=447"></script>
   </head>
   <body>
+    <section id="gameHydrationScreen" class="game-hydration-screen hidden" role="status" aria-live="polite" aria-busy="true">
+      <div class="game-hydration-orbit" aria-hidden="true">
+        <span class="game-hydration-core">RS</span>
+        <i></i><i></i><i></i>
+      </div>
+      <div class="game-hydration-copy">
+        <p>League connection</p>
+        <h1 id="gameHydrationTitle">Loading Rival Saga</h1>
+        <span id="gameHydrationDetail">Syncing the authoritative table state&hellip;</span>
+      </div>
+      <div class="game-hydration-track" aria-hidden="true"><span></span></div>
+      <button id="gameHydrationRetry" class="ghost-button hidden" type="button">Retry Connection</button>
+    </section>
     <aside id="tokenSandboxBanner" class="token-sandbox-banner" role="status" aria-live="polite" hidden>
       <div class="token-sandbox-banner-main">
         <strong>SANDBOX MODE</strong>
@@ -40,6 +56,161 @@
         <button id="tokenSandboxBannerCommit" class="buy-button sandbox-commit-button" type="button">Commit</button>
       </div>
     </aside>
+    <header id="globalAppShell" class="global-app-shell" aria-label="Rival Saga global navigation">
+      <div class="global-shell-bar">
+        <button class="global-shell-brand" type="button" data-global-shell-section="home" aria-label="Rival Saga home">
+          <span class="global-shell-mark" aria-hidden="true">RS</span>
+          <span><small>Pokemon League</small><strong>Rival Saga</strong></span>
+        </button>
+        <nav class="global-shell-primary" aria-label="Platform navigation">
+          <button class="global-shell-control global-shell-game" type="button" data-global-shell-section="games">
+            <span class="global-shell-control-icon" aria-hidden="true">G</span>
+            <span><small>Current game</small><strong id="globalShellGameName">Choose a game</strong></span>
+          </button>
+          <button class="global-shell-control" type="button" data-global-shell-section="rulebook">
+            <span class="global-shell-control-icon" aria-hidden="true">R</span>
+            <span><small>Reference</small><strong>Rules</strong></span>
+          </button>
+        </nav>
+        <details id="globalAccountMenu" class="global-account-menu">
+          <summary aria-label="Account menu">
+            <span id="globalAccountAvatar" class="global-account-avatar" aria-hidden="true">?</span>
+            <span class="global-account-copy"><small>Signed-in account</small><strong id="globalAccountName">Not signed in</strong></span>
+            <span aria-hidden="true">&#9662;</span>
+          </summary>
+          <div class="global-account-popover">
+            <button type="button" data-global-shell-section="profiles">View or edit profile</button>
+            <button id="globalAccountAdmin" type="button" data-global-account-action="site-admin" hidden>Admin tools</button>
+            <button id="globalAccountLogout" type="button" data-global-account-action="logout" hidden>Log out</button>
+          </div>
+        </details>
+      </div>
+    </header>
+    <header id="gameClientHeader" class="game-client-header" aria-label="Current game header">
+      <div class="game-header-left">
+        <span class="game-header-mark" aria-hidden="true">RS</span>
+        <div class="game-header-game-control">
+          <button id="gameHeaderGameToggle" type="button" aria-expanded="false" aria-controls="gameHeaderGameMenu">
+            <strong id="gameHeaderGameName">Rival Saga</strong><span aria-hidden="true">&#9662;</span>
+            <small id="gameHeaderContext">Kanto · Gym 1</small>
+          </button>
+          <div id="gameHeaderGameMenu" class="game-header-game-menu hidden">
+            <button type="button" data-global-shell-section="games">Return to Games</button>
+            <button type="button" data-global-shell-section="games">Switch Game</button>
+          </div>
+        </div>
+      </div>
+      <div class="game-header-navigation">
+        <div id="gameplayRibbonScroll" class="gameplay-ribbon-scroll">
+          <nav id="gameplayRibbon" class="gameplay-ribbon" aria-label="Gameplay destinations">
+            <button type="button" data-game-ribbon="referee" data-game-action="live-referee" aria-label="Live Referee" title="Live Referee">Referee</button>
+            <button class="top-level-tab" type="button" data-game-ribbon="actionPhase" data-page="actionPhase" aria-label="Action Phase" title="Action Phase">Actions</button>
+            <button type="button" data-game-ribbon="teambuilder" data-game-page="playerHub" data-game-view="teambuilder" aria-label="Team Builder" title="Team Builder">Team</button>
+            <button type="button" data-game-ribbon="sheet" data-game-page="playerHub" data-game-view="sheet" aria-label="Player Sheet" title="Player Sheet">Player</button>
+            <button type="button" data-game-ribbon="shop" data-game-page="playerHub" data-game-view="shop" aria-label="Shops" title="Shops">Shops</button>
+            <button class="top-level-tab" type="button" data-game-ribbon="battlePhase" data-page="battlePhase" aria-label="Battle Phase" title="Battle Phase">Battle</button>
+            <button id="gameLeagueToggle" class="game-league-toggle" type="button" aria-expanded="false" aria-haspopup="menu" aria-controls="gameLeagueMenu">
+              <span>League</span><span aria-hidden="true">&#9662;</span>
+            </button>
+          </nav>
+        </div>
+        <div id="gameLeagueMenu" class="game-league-menu hidden" role="menu" aria-labelledby="gameLeagueToggle">
+          <header>
+            <small>League Center</small>
+            <strong>Competition and records</strong>
+          </header>
+          <div class="game-league-menu-groups">
+            <section>
+              <h2>Current Competition</h2>
+              <button class="top-level-tab" type="button" role="menuitem" data-league-destination="leaderboard" data-page="leaderboard">
+                <span>Standings</span><small>Trainer order and series breakdown</small>
+              </button>
+              <button class="top-level-tab" type="button" role="menuitem" data-league-destination="mvpRace" data-page="mvpRace">
+                <span>MVP Race</span><small>Pok&eacute;mon rankings and performance</small>
+              </button>
+            </section>
+            <section>
+              <h2>Records &amp; Reference</h2>
+              <button class="top-level-tab" type="button" role="menuitem" data-league-destination="banlist" data-page="banlist">
+                <span>Pok&eacute;dex</span><small>Ownership, tiers, status, and ban history</small>
+              </button>
+              <button type="button" role="menuitem" data-league-destination="history" data-game-action="history">
+                <span>Activity Log</span><small>League actions and historical events</small>
+              </button>
+            </section>
+          </div>
+        </div>
+      </div>
+      <div class="game-header-actions">
+        <div class="game-header-phase-controls" aria-label="Global phase controls">
+          <div class="game-header-agenda-control">
+            <button id="phaseAgendaToggle" class="game-header-agenda-toggle" type="button" aria-expanded="false" aria-label="Open phase agenda">
+              <span id="currentPhaseStatus" class="sr-only">Kanto - Gym 1 - Start of Gym Phase</span>
+              <small id="phaseReminderText">Agenda</small>
+            </button>
+            <div id="phaseAgendaPanel" class="phase-agenda-panel game-header-agenda-panel hidden">
+              <ul id="phaseAgendaList"></ul>
+              <p id="phaseAgendaOrder"></p>
+            </div>
+          </div>
+          <button id="advancePhase" class="buy-button game-header-phase-advance" type="button" onclick="advancePhase()">Start Battle Phase</button>
+          <div class="game-header-demo-control">
+            <button id="actionDemoBadge" class="game-header-demo-badge" type="button" aria-expanded="false" aria-controls="actionDemoNotice">Demo</button>
+            <div id="actionDemoNotice" class="game-header-demo-popover hidden" role="status">
+              <span>Demo Mode</span>
+              <strong id="actionDemoStatus">Off - normal turn order is enforced</strong>
+              <button id="actionToggleDemoMode" class="secondary-button mini-button" type="button" aria-pressed="false">Turn Demo Mode On</button>
+            </div>
+          </div>
+        </div>
+        <button id="gameSaveStatus" class="game-save-status state-saved" type="button" aria-live="polite" disabled>
+          <span aria-hidden="true"></span><strong>Saved</strong>
+        </button>
+        <div class="game-header-trainer-control">
+          <button id="gameHeaderTrainerToggle" type="button" aria-expanded="false" aria-controls="gameHeaderTrainerMenu">
+            <span id="gameHeaderTrainerName">Trainer</span><span aria-hidden="true">&#9662;</span>
+          </button>
+          <div id="gameHeaderTrainerMenu" class="game-header-trainer-menu hidden" aria-label="Viewed trainer choices"></div>
+        </div>
+        <button id="gameMenuToggle" class="game-menu-toggle" type="button" aria-expanded="false" aria-controls="gameMenuOverlay">Menu</button>
+      </div>
+    </header>
+    <div id="gameMenuOverlay" class="game-menu-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="gameMenuTitle">
+      <aside class="game-menu-drawer">
+        <header class="game-menu-heading">
+          <div><small>Rival Saga</small><h2 id="gameMenuTitle">Game Menu</h2></div>
+          <button id="closeGameMenu" type="button" aria-label="Close game menu">&times;</button>
+        </header>
+        <nav class="game-menu-sections" aria-label="Game menu destinations">
+          <section>
+            <h3>Rival Saga</h3>
+            <button type="button" data-global-shell-section="games">Return to Games</button>
+            <button type="button" data-global-shell-section="rulebook">Rules</button>
+            <button type="button" data-global-shell-section="profiles">View Profile</button>
+            <button type="button" data-global-shell-section="profiles">Edit Profile</button>
+          </section>
+          <section class="game-menu-preferences">
+            <h3>Preferences</h3>
+            <div class="top-theme-control game-menu-theme-control">
+              <button id="globalThemeToggle" type="button" aria-expanded="false" aria-controls="globalThemeMenu">
+                <span>Theme</span><small>Change the viewed trainer's interface theme</small>
+              </button>
+              <div id="globalThemeMenu" class="theme-menu hidden" aria-label="Global theme choices"></div>
+            </div>
+          </section>
+          <section id="gameMenuAdminSection" hidden>
+            <h3>Administration</h3>
+            <button id="gameMenuGameAdmin" type="button" data-global-account-action="game-admin" hidden>Game Admin</button>
+            <button id="gameMenuSiteAdmin" type="button" data-global-account-action="site-admin" hidden>Site Admin</button>
+          </section>
+        </nav>
+        <footer class="game-menu-account">
+          <span id="gameMenuAccountAvatar" aria-hidden="true">?</span>
+          <div><small>Signed in as</small><strong id="gameMenuAccountName">Not signed in</strong></div>
+          <button id="gameMenuLogout" type="button" data-global-account-action="logout" hidden>Log out</button>
+        </footer>
+      </aside>
+    </div>
     <section id="siteShellModal" class="site-shell-modal hidden" aria-labelledby="siteShellTitle">
       <aside class="site-shell-sidebar" aria-label="Site navigation">
         <div class="site-shell-brand">
@@ -314,59 +485,14 @@
         </section>
       </main>
     </section>
-    <header class="topbar">
-      <div class="brand-lockup">
-        <p class="eyebrow">Pokemon</p>
-        <h1>Rival Saga</h1>
-      </div>
-      <nav class="top-level-tabs" aria-label="Top-level sections">
-        <button class="top-level-tab active" type="button" data-page="playerHub">Player Hub</button>
-        <button class="top-level-tab" type="button" data-page="actionPhase">Action Phase</button>
-        <button class="top-level-tab" type="button" data-page="battlePhase">Battle Phase</button>
-        <button class="top-level-tab" type="button" data-page="leaderboard">Leaderboard</button>
-        <button class="top-level-tab" type="button" data-page="mvpRace">MVP Race</button>
-        <button class="top-level-tab" type="button" data-page="banlist">Pokedex</button>
-        <button class="top-level-tab" type="button" data-page="info">Info</button>
-      </nav>
-      <div class="phase-controls" aria-label="App controls">
-        <button id="siteShellToggle" class="ghost-button mini-button" type="button">Site Menu</button>
-        <button id="openAdminToolsTop" class="ghost-button mini-button admin-top-button" type="button">League Manager</button>
-        <div class="phase-status-card" aria-live="polite">
-          <button id="phaseAgendaToggle" class="phase-agenda-toggle" type="button" aria-expanded="false">
-            <span id="currentPhaseStatus">Kanto - Gym 1 - Start of Gym Phase</span>
-            <small id="phaseReminderText">Agenda</small>
-          </button>
-          <button id="advancePhase" class="ghost-button mini-button" type="button" onclick="advancePhase()">Start Battle Phase</button>
-          <div id="phaseAgendaPanel" class="phase-agenda-panel hidden">
-            <ul id="phaseAgendaList"></ul>
-            <p id="phaseAgendaOrder"></p>
-          </div>
-        </div>
-        <div class="top-theme-control">
-          <button id="globalThemeToggle" class="icon-button palette-button" type="button" aria-label="Choose global theme" title="Choose global theme">
-            <span class="palette-glyph" aria-hidden="true"></span>
-          </button>
-          <div id="globalThemeMenu" class="theme-menu hidden" aria-label="Global theme choices"></div>
-        </div>
-        <div class="hidden-admin-selects" aria-hidden="true">
-          <select id="seriesSelect" tabindex="-1"></select>
-          <select id="gymSelect" tabindex="-1"></select>
-        </div>
-      </div>
-    </header>
-    <div id="freeTestingBanner" class="free-testing-banner hidden" role="status">
-      Demo controls unlocked - profile locks, private prep, and turn order are ignored for testing.
+    <div class="hidden-admin-selects" aria-hidden="true">
+      <select id="seriesSelect" tabindex="-1"></select>
+      <select id="gymSelect" tabindex="-1"></select>
     </div>
 
     <main class="layout">
-      <section class="workbench">
-        <section id="playerHubView">
-          <nav class="app-tabs" aria-label="Player Hub sections">
-            <button class="app-tab active" type="button" data-view="sheet">Player Sheet</button>
-            <button class="app-tab" type="button" data-view="teambuilder">Teambuilder</button>
-            <button class="app-tab" type="button" data-view="shop">Shop</button>
-          </nav>
-
+        <section class="workbench">
+          <section id="playerHubView">
           <div id="playerHubTrainerCardSlot" class="trainer-card-slot">
           <div class="player-summary">
           <div class="identity-card" id="trainerCard">
@@ -466,10 +592,17 @@
           </div>
 
           <section id="shopView" class="hidden">
-          <nav class="tabs" aria-label="Shop categories">
+          <header class="shop-storefront-header">
+            <div>
+              <p class="eyebrow">Shop</p>
+              <strong>Rival Mart</strong>
+            </div>
+            <span id="shopHeaderBalance"></span>
+          </header>
+
+          <nav class="tabs shop-mode-tabs" aria-label="Shop categories">
             <button class="tab active" type="button" data-shop="items">Items</button>
             <button class="tab" type="button" data-shop="tms">TMs</button>
-            <button class="tab" type="button" data-shop="utility">Utility</button>
             <button class="tab" type="button" data-shop="tokens">Tokens</button>
           </nav>
 
@@ -503,30 +636,26 @@
 
           <section class="shop-toolbar" aria-label="Shop filters">
             <div class="shop-filter-group shop-filter-search">
-              <span class="shop-filter-group-label">Find</span>
               <label>
-                Search
-                <input id="searchInput" type="search" placeholder="Name or effect">
+                <span class="sr-only">Search</span>
+                <input id="searchInput" type="search" placeholder="Search items or effects...">
               </label>
             </div>
-            <div id="shopTierFilterGroup" class="shop-filter-group shop-filter-access">
-              <span class="shop-filter-group-label">Access</span>
-              <label>
-                Minimum tier
-                <select id="tierFilter"></select>
+            <button id="itemShopFiltersToggle" class="ghost-button shop-filter-toggle hidden" type="button" aria-expanded="false" aria-controls="itemShopAdvancedFilters">Filters</button>
+            <div id="itemShopAffordFilterGroup" class="shop-filter-group shop-filter-afford hidden">
+              <label class="shop-toggle-filter">
+                <input id="itemShopCanAffordFilter" type="checkbox">
+                <span>Can Afford</span>
               </label>
             </div>
-            <div class="shop-filter-group shop-filter-price">
-              <span class="shop-filter-group-label">Price Range</span>
-              <div class="shop-filter-pair">
-                <label>
-                  Min
-                  <input id="minPriceFilter" type="number" min="0" step="1" placeholder="0">
-                </label>
-                <label>
-                  Max
-                  <input id="maxPriceFilter" type="number" min="0" step="1" placeholder="Any">
-                </label>
+            <div id="itemShopAdvancedFilters" class="item-shop-filter-disclosure hidden">
+              <div id="itemShopRoleFilterGroup" class="shop-filter-group shop-filter-chips">
+                <span class="shop-filter-group-label">Roles</span>
+                <div id="itemShopRoleFilters" class="shop-chip-row" role="group" aria-label="Item role filters"></div>
+              </div>
+              <div id="itemShopTagFilterGroup" class="shop-filter-group shop-filter-chips">
+                <span class="shop-filter-group-label">Strategy</span>
+                <div id="itemShopTagFilters" class="shop-chip-row" role="group" aria-label="Item strategy filters"></div>
               </div>
             </div>
             <div id="tmMoveFilters" class="shop-filter-group shop-filter-move hidden">
@@ -547,24 +676,10 @@
                 </label>
               </div>
             </div>
-            <div class="shop-filter-group shop-filter-sort">
-              <span class="shop-filter-group-label">Order</span>
-              <label>
-                Sort by
-                <select id="shopSortSelect">
-                  <option value="price-asc">Price: Low to High</option>
-                  <option value="price-desc">Price: High to Low</option>
-                  <option value="name-asc">Name: A to Z</option>
-                  <option value="name-desc">Name: Z to A</option>
-                  <option value="tier-asc">Item Tier</option>
-                  <option value="type-asc" data-tm-sort>Move Type</option>
-                  <option value="power-desc" data-tm-sort>Base Power: High to Low</option>
-                  <option value="power-asc" data-tm-sort>Base Power: Low to High</option>
-                </select>
-              </label>
-            </div>
           </section>
 
+          <section id="itemShopAppliedFilters" class="item-shop-applied-filters hidden" aria-live="polite"></section>
+          <section id="itemShopBreadcrumb" class="item-shop-breadcrumb hidden" aria-label="Item Shop folder navigation"></section>
           <section id="shopGrid" class="shop-grid" aria-live="polite"></section>
           </section>
 
@@ -732,67 +847,37 @@
         </section>
 
         <section id="actionPhaseView" class="action-phase-view hidden">
-          <div id="actionPhaseTrainerCardSlot" class="trainer-card-slot"></div>
-          <header class="page-title">
-            <h2>Action Phase</h2>
-            <p id="actionPhaseContext"></p>
-          </header>
-          <section class="leaderboard-panel action-status-panel">
-            <div class="panel-header">
-              <div>
-                <p class="eyebrow">Selected Trainer</p>
-                <h2 id="actionPhasePlayerName"></h2>
-              </div>
-              <span id="actionPhaseRemaining" class="team-lock-status"></span>
+          <section class="action-compact-hud" aria-label="Current Action state">
+            <p id="actionPhaseContext" class="sr-only"></p>
+            <div class="action-inline-status">
+              <strong id="actionPhasePlayerName"></strong>
+              <span id="actionPhaseBalance"></span>
+              <span id="actionPhaseRemaining"></span>
+              <span id="actionCommandRemaining" class="sr-only">3 actions remaining</span>
+              <span id="actionPhaseUsed" class="sr-only"></span>
+              <span id="actionPhaseVisited" class="sr-only"></span>
             </div>
-            <div class="action-phase-status-grid">
-              <div>
-                <span>Actions Used</span>
-                <strong id="actionPhaseUsed"></strong>
-              </div>
-              <div>
-                <span>Visited</span>
-                <strong id="actionPhaseVisited"></strong>
-              </div>
-              <div>
-                <span>Whole Table</span>
-                <strong id="actionPhaseTableStatus"></strong>
-              </div>
+            <div class="action-players-control">
+              <button id="actionPlayersToggle" class="ghost-button mini-button action-players-toggle" type="button" aria-expanded="false" aria-controls="actionTurnRail">
+                <span id="actionTurnSummary">Players</span>
+              </button>
+              <div id="actionTurnRail" class="action-turn-rail hidden" aria-label="Action Phase turn order"></div>
             </div>
-            <div id="actionTurnRail" class="action-turn-rail" aria-label="Action Phase turn order"></div>
-            <div class="action-demo-controls">
-              <div>
-                <span>Action Phase Demo Mode</span>
-                <strong id="actionDemoStatus">Off - normal turn order is enforced</strong>
-              </div>
-              <button id="actionToggleDemoMode" class="secondary-button" type="button" aria-pressed="false">Turn Demo Mode On</button>
-            </div>
-            <p id="actionPhaseWarning" class="battle-rule-warning hidden"></p>
           </section>
-          <section class="action-map-layout">
-            <div class="leaderboard-panel action-map-panel">
-              <div class="panel-header">
-                <div>
-                  <p class="eyebrow">Location Board</p>
-                  <h2>Choose A Location</h2>
-                </div>
-                <span class="team-lock-status">3 actions per trainer</span>
+          <section id="actionPhaseAlerts" class="action-alert-stack" aria-label="Action notices">
+            <p id="actionPhaseWarning" class="action-context-alert hidden"></p>
+          </section>
+          <section class="action-workspace" aria-label="Action Workspace">
+            <header class="action-workspace-header">
+              <div>
+                <p class="eyebrow">Action Workspace</p>
+                <h2 id="actionLocationTitle">Choose an Action</h2>
+                <p id="actionLocationDescription" class="description">Select a destination to open it here.</p>
               </div>
-              <div id="actionLocationBoard" class="action-location-board"></div>
-            </div>
-            <aside class="leaderboard-panel action-detail-panel">
-              <div class="panel-header">
-                <div>
-                  <p class="eyebrow">Location Details</p>
-                  <h2 id="actionLocationTitle">Select a location</h2>
-                </div>
-              </div>
-              <p id="actionLocationDescription" class="description">Choose a map location to preview its action before confirming.</p>
-              <div id="actionLocationMeta" class="action-location-meta"></div>
-              <div class="split-actions">
-                <button id="cancelActionVisit" class="ghost-button" type="button">Clear</button>
-              </div>
-            </aside>
+              <button id="cancelActionVisit" class="ghost-button action-workspace-back" type="button">Actions</button>
+            </header>
+            <div id="actionLocationBoard" class="action-location-board"></div>
+            <div id="actionLocationMeta" class="action-location-meta"></div>
           </section>
         </section>
 
@@ -1292,6 +1377,28 @@
     </template>
 
     <div id="pokemonActionMenu" class="pokemon-action-menu hidden" aria-label="Pokemon actions"></div>
+
+    <div id="perkTestRollerModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="perkTestRollerTitle">
+      <section class="admin-tools-modal perk-test-roller-modal">
+        <div class="panel-header">
+          <div>
+            <p class="eyebrow">Test Rolls</p>
+            <h2 id="perkTestRollerTitle">Roll Perks</h2>
+          </div>
+          <button id="closePerkTestRoller" class="ghost-button" type="button">Close</button>
+        </div>
+        <div class="perk-test-roller-controls">
+          <label>
+            Trainer
+            <select id="perkTestRollerPlayer"></select>
+          </label>
+          <button id="perkTestRollerRoll" class="buy-button" type="button">Roll 3 Perks</button>
+        </div>
+        <div id="perkTestRollerStatus" class="info-stat-strip compact"></div>
+        <div id="perkTestRollerResults" class="perk-roll-list"></div>
+        <div id="perkTestRollerSafety" class="info-rule-card"></div>
+      </section>
+    </div>
 
     <div id="moneyLedgerModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="moneyLedgerTitle">
       <section class="admin-tools-modal money-ledger-modal">

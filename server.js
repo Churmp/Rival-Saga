@@ -4,6 +4,7 @@ const path = require("path");
 const zlib = require("zlib");
 const { createHash, randomBytes, randomUUID, timingSafeEqual } = require("crypto");
 const gameShellContract = require("./game-shell-contract.js");
+const saveCompactionRuntime = require("./save-compaction.js");
 const interactionSituationLifecycle = require("./interaction-situation-lifecycle.js");
 const provisionalDeclarationRuntime = require("./provisional-declaration-runtime.js");
 const tokenEffectContract = require("./token-effect-contract.js");
@@ -19,10 +20,14 @@ const GAMES_DIR = path.join(DATA_DIR, "games");
 const TOKEN_ART_DIR = path.join(DATA_DIR, "token-art");
 const USERS_FILE = path.join(DATA_DIR, "users.json");
 const RULESET_PATCHES_FILE = path.join(DATA_DIR, "ruleset-patches.json");
+const ACTION_PHASE_VERSION_V1 = "action-phase-v1-current-series";
+const ACTION_PHASE_VERSION_V2 = "action-phase-v2-real-series";
+const DEFAULT_ACTION_PHASE_VERSION = ACTION_PHASE_VERSION_V2;
 const STATIC_FILES = new Set([
   "/",
   "/index.html",
   "/app.js",
+  "/save-compaction.js",
   "/game-shell-contract.js",
   "/interaction-situation-lifecycle.js",
   "/provisional-declaration-runtime.js",
@@ -39,7 +44,9 @@ const STATIC_FILES = new Set([
   "/styles.css",
   "/shop-data.js",
   "/shop-choice-data.js",
+  "/shop-browse-data.js",
   "/item-reference-data.js",
+  "/shop-sprite-data.js",
   "/move-classification-data.js",
   "/pokemon-balance-tiers.js",
   "/pokemon-build-data.js",
@@ -50,9 +57,20 @@ const STATIC_FILES = new Set([
   "/README.md"
 ]);
 const COMPRESSIBLE_STATIC_EXTENSIONS = new Set([".html", ".js", ".css", ".json", ".svg", ".md"]);
+const SITE_SHELL_ROUTES = new Set([
+  "/",
+  "/games",
+  "/rulebook",
+  "/patch-notes",
+  "/profiles",
+  "/forums",
+  "/admin"
+]);
 
 const sseClients = new Map();
 const gameSummaryCache = new Map();
+const V2_ROUTE_PUBLIC_ACTIVITY_STAGES = new Set(["exploring", "encountered", "rerolled", "obtained"]);
+const V2_ROUTE_PUBLIC_ACTIVITY_TTL_MS = 30 * 1000;
 
 function ensureDataDirs() {
   fs.mkdirSync(GAMES_DIR, { recursive: true });
@@ -150,6 +168,7 @@ function defaultGameRecord(gameId = "default", name = "Rival Saga Table") {
     updatedAt: nowIso(),
     version: 0,
     rulesetVersion: "S3-dev",
+    actionPhaseVersion: DEFAULT_ACTION_PHASE_VERSION,
     rulesetPatchHistory: [],
     sandboxCommits: [],
     state: null,
@@ -253,7 +272,7 @@ function writeGame(record) {
   ensureDataDirs();
   const file = gamePath(record.id);
   const tmp = `${file}.tmp`;
-  fs.writeFileSync(tmp, JSON.stringify(record, null, 2));
+  fs.writeFileSync(tmp, JSON.stringify(record));
   fs.renameSync(tmp, file);
   gameSummaryCache.delete(safeGameId(record.id));
 }
@@ -440,34 +459,11 @@ function compactTokenArtLibraryForState(gameId, library, { persistTokenArt = tru
 }
 
 function compactUndoDataForStorage(undoData) {
-  if (!isPlainObject(undoData)) return false;
-  let changed = false;
-  if (Array.isArray(undoData.previousInteractionEvents)) {
-    undoData.previousInteractionEventIds ||= undoData.previousInteractionEvents
-      .map((activity) => activity?.id)
-      .filter(Boolean);
-    delete undoData.previousInteractionEvents;
-    changed = true;
-  }
-  if (Array.isArray(undoData.previousTransactions)) {
-    undoData.previousTransactionIds ||= undoData.previousTransactions
-      .map((transaction) => transaction?.id)
-      .filter(Boolean);
-    delete undoData.previousTransactions;
-    changed = true;
-  }
-  return changed;
+  return saveCompactionRuntime.compactUndoData(undoData);
 }
 
 function compactUndoSnapshotsForStorage(state) {
-  let changed = false;
-  (Array.isArray(state.log) ? state.log : []).forEach((entry) => {
-    if (entry?.undoData) changed = compactUndoDataForStorage(entry.undoData) || changed;
-  });
-  (Array.isArray(state.interactionEvents) ? state.interactionEvents : []).forEach((activity) => {
-    if (activity?.payload?.undoData) changed = compactUndoDataForStorage(activity.payload.undoData) || changed;
-  });
-  return changed;
+  return saveCompactionRuntime.compactUndoSnapshots(state).changed;
 }
 
 function compactGameStateForStorage(gameId, state, { compactUndoSnapshots = false, persistTokenArt = true } = {}) {
@@ -560,7 +556,9 @@ function mergeActivityRecordMaps(existing = {}, incoming = {}, { incomingAuthori
 function mergeActivitySnapshots(existing, incoming, { incomingAuthoritative = false } = {}) {
   if (!isPlainObject(existing)) return cloneJson(incoming);
   const next = { ...cloneJson(existing), ...cloneJson(incoming) };
-  next.payload = { ...(existing.payload || {}), ...(incoming.payload || {}) };
+  next.payload = incomingAuthoritative
+    ? cloneJson(incoming.payload || {})
+    : { ...(existing.payload || {}), ...(incoming.payload || {}) };
   next.responses = mergeActivityRecordLists(existing.responses, incoming.responses);
   next.transactions = mergeActivityRecordLists(existing.transactions, incoming.transactions);
   next.promptPriority = mergeActivityRecordMaps(existing.promptPriority, incoming.promptPriority, { incomingAuthoritative });
@@ -608,6 +606,8 @@ function syncGameActivitiesFromState(game) {
   game.state.interactionEvents = interactionSituationLifecycle.cleanActivityRecords(game.state.interactionEvents);
   game.activity = interactionSituationLifecycle.cleanActivityRecords(game.activity || []);
   game.state.interactionEvents.forEach((activity) => upsertGameActivity(game, activity, { incomingAuthoritative: true }));
+  saveCompactionRuntime.compactUndoSnapshots({ log: [], interactionEvents: game.activity });
+  saveCompactionRuntime.compactUndoSnapshots(game.state);
   game.activity = (game.activity || [])
     .sort((a, b) => Number(b.eventOrder || 0) - Number(a.eventOrder || 0)
       || new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
@@ -622,6 +622,17 @@ function parseSummaryScalar(rawValue) {
   }
 }
 
+function normalizeActionPhaseVersion(value) {
+  if (value === ACTION_PHASE_VERSION_V1) return ACTION_PHASE_VERSION_V1;
+  return value === ACTION_PHASE_VERSION_V2 ? ACTION_PHASE_VERSION_V2 : DEFAULT_ACTION_PHASE_VERSION;
+}
+
+function persistedActionPhaseVersion(game = {}) {
+  const candidate = game.actionPhaseVersion || game.state?.ruleset?.actionPhaseVersion || game.state?.actionPhaseVersion;
+  if (candidate) return normalizeActionPhaseVersion(candidate);
+  return game.state ? ACTION_PHASE_VERSION_V1 : DEFAULT_ACTION_PHASE_VERSION;
+}
+
 function scanLargeGameSummary(file, fallbackId) {
   const summary = { id: fallbackId, members: [], state: { players: [] } };
   let inState = false;
@@ -633,7 +644,7 @@ function scanLargeGameSummary(file, fallbackId) {
   const chunk = Buffer.allocUnsafe(1024 * 1024);
   let remainder = "";
   const visitLine = (line) => {
-    const topLevel = line.match(/^  "(id|name|description|status|maxPlayers|createdAt|updatedAt|version|rulesetVersion|schemaVersion)": (.*)$/);
+    const topLevel = line.match(/^  "(id|name|description|status|maxPlayers|createdAt|updatedAt|version|rulesetVersion|schemaVersion|actionPhaseVersion)": (.*)$/);
     if (topLevel) summary[topLevel[1]] = parseSummaryScalar(topLevel[2]);
     if (/^  "state": \{$/.test(line)) inState = true;
     else if (inState && /^  \},?$/.test(line)) inState = false;
@@ -646,6 +657,11 @@ function scanLargeGameSummary(file, fallbackId) {
           summary.state.ruleset = { schemaVersion: parseSummaryScalar(rulesetSchema[1]) };
           rulesetSchemaCaptured = true;
         }
+      }
+      const rulesetActionPhaseVersion = line.match(/^      "actionPhaseVersion": (.*)$/);
+      if (rulesetActionPhaseVersion) {
+        summary.state.ruleset ||= {};
+        summary.state.ruleset.actionPhaseVersion = parseSummaryScalar(rulesetActionPhaseVersion[1]);
       }
       if (/^    "players": \[$/.test(line)) inPlayers = true;
       else if (inPlayers && /^    \],?$/.test(line)) inPlayers = false;
@@ -824,9 +840,10 @@ function userCanAdminGame(userId, gameId) {
 function readBody(req) {
   return new Promise((resolve, reject) => {
     let body = "";
+    const maxBodyBytes = 96 * 1024 * 1024;
     req.on("data", (chunk) => {
       body += chunk;
-      if (body.length > 25 * 1024 * 1024) {
+      if (body.length > maxBodyBytes) {
         reject(new Error("Request body too large"));
         req.destroy();
       }
@@ -864,6 +881,51 @@ function broadcast(gameId, payload) {
   if (!clients) return;
   const message = `data: ${JSON.stringify(sanitizeSharedGamePayloadForDelivery(payload))}\n\n`;
   clients.forEach((client) => client.write(message));
+}
+
+function v2RoutePublicActivityFromBody(game, body = {}) {
+  const stage = String(body.stage || "").trim();
+  if (!V2_ROUTE_PUBLIC_ACTIVITY_STAGES.has(stage)) {
+    return { ok: false, status: 400, error: "Unsupported V2 Route public activity stage." };
+  }
+  const state = game.state && typeof game.state === "object" && !Array.isArray(game.state) ? game.state : {};
+  const actorPlayerId = String(body.actorPlayerId || "").trim();
+  const actor = (state.players || []).find((player) => String(player.id || "") === actorPlayerId);
+  if (!actor) return { ok: false, status: 400, error: "Activity actor must be an authoritative player." };
+  const routeNumber = Number(body.routeNumber || 0);
+  if (!Number.isInteger(routeNumber) || routeNumber < 1 || routeNumber > 9) {
+    return { ok: false, status: 400, error: "Route public activity requires Route 1-9." };
+  }
+  const seriesId = String(body.seriesId || state.series || "").trim();
+  if (!seriesId) return { ok: false, status: 400, error: "Route public activity requires a series." };
+  const now = Date.now();
+  const activity = {
+    schemaVersion: 1,
+    activityId: `v2-route-activity-${now}-${randomUUID().slice(0, 8)}`,
+    kind: "v2-route-encounter",
+    stage,
+    actorPlayerId,
+    actorName: String(actor.name || actor.title || actor.id || "Trainer"),
+    seriesId,
+    routeNumber,
+    occurredAt: new Date(now).toISOString(),
+    expiresAt: new Date(now + V2_ROUTE_PUBLIC_ACTIVITY_TTL_MS).toISOString()
+  };
+  if (stage === "obtained") {
+    const pokemonRecordId = String(body.pokemonRecordId || "").trim();
+    const pokemon = (state.pokemonRecords || []).find((record) => String(record.id || "") === pokemonRecordId);
+    if (!pokemon || String(pokemon.trainerId || pokemon.ownerId || "") !== actorPlayerId) {
+      return { ok: false, status: 400, error: "Obtained activity requires an authoritative owned Pokemon record." };
+    }
+    const routeMetadata = pokemon.routeEncounterMetadata || pokemon.acquisitionMetadata || {};
+    if (String(routeMetadata.sourceType || pokemon.source || "").toLowerCase() !== "route encounter"
+      && String(routeMetadata.sourceType || "").toLowerCase() !== "v2-route-encounter") {
+      return { ok: false, status: 400, error: "Obtained activity Pokemon must come from Route Encounter." };
+    }
+    activity.pokemonRecordId = pokemon.id;
+    activity.pokemonName = String(pokemon.name || pokemon.acquiredSpeciesName || pokemon.currentSpecies || "Pokemon");
+  }
+  return { ok: true, activity };
 }
 
 function serveStatic(req, res, pathname) {
@@ -957,6 +1019,82 @@ function gameStateVersionConflict(game, expectedVersion) {
   return null;
 }
 
+const ACTION_DESTINATION_START_GRACE_MS = 30 * 1000;
+
+function unstartedActionDestinationExpired(commit = {}, nowMs = Date.now()) {
+  if (commit.status !== provisionalDeclarationRuntime.DESTINATION_STATES.ACCEPTED || commit.operationId) return false;
+  const acceptedMs = Date.parse(commit.acceptedAt || "");
+  return Number.isFinite(acceptedMs) && nowMs - acceptedMs > ACTION_DESTINATION_START_GRACE_MS;
+}
+
+function orphanedActionDestinationCommit(gymState = {}) {
+  const commit = provisionalDeclarationRuntime.activeDestinationCommit(gymState);
+  if (!commit) return false;
+  if (commit.status === provisionalDeclarationRuntime.DESTINATION_STATES.ACCEPTED && !commit.operationId) {
+    return unstartedActionDestinationExpired(commit);
+  }
+  const operation = (Array.isArray(gymState.actionOperations) ? gymState.actionOperations : [])
+    .find((entry) => entry?.id === commit.operationId);
+  if (!operation || operation.status !== "resolving") return true;
+  const visit = (gymState.playerVisits?.[commit.playerId] || [])
+    .find((entry) => entry?.id === operation.visitId);
+  return !visit
+    || visit.undone
+    || visit.cancelled
+    || ["undone", "cancelled"].includes(String(visit.status || "").toLowerCase());
+}
+
+function actionPhaseSelectionForState(state = {}, series = state.series, gym = state.gym) {
+  const key = `${series}-G${Number(gym || 1)}`;
+  return state.actionPhaseState?.selections?.[key] || null;
+}
+
+function activeActionVisitForOperation(gymState = {}, operation = {}) {
+  const visits = gymState.playerVisits?.[operation.playerId] || [];
+  const visit = visits.find((entry) => entry?.id === operation.visitId);
+  if (!visit || visit.undone || visit.cancelled) return null;
+  if (["undone", "cancelled"].includes(String(visit.status || "").toLowerCase())) return null;
+  return visit;
+}
+
+function incomingActionDestinationMatchesCurrent(currentCommit = {}, currentGymState = {}, incomingGymState = {}) {
+  const incomingCommit = incomingGymState.destinationCommit || null;
+  const incomingOperations = Array.isArray(incomingGymState.actionOperations) ? incomingGymState.actionOperations : [];
+  const operationId = currentCommit.operationId || incomingCommit?.operationId || "";
+  const incomingOperation = incomingOperations.find((operation) => operation.id === operationId) || null;
+  const matchingOperation = incomingOperation
+    && incomingOperation.playerId === currentCommit.playerId
+    && incomingOperation.locationId === currentCommit.locationId
+    && (!currentCommit.serviceId || incomingOperation.serviceId === currentCommit.serviceId);
+  const matchingId = incomingCommit?.id === currentCommit.id;
+  const sameStatus = incomingCommit?.status === currentCommit.status;
+  const advancesMatchingOperation = [
+    provisionalDeclarationRuntime.DESTINATION_STATES.RESOLVING,
+    provisionalDeclarationRuntime.DESTINATION_STATES.COMPLETED
+  ].includes(incomingCommit?.status)
+    && (currentCommit.status === provisionalDeclarationRuntime.DESTINATION_STATES.ACCEPTED
+      || currentCommit.status === provisionalDeclarationRuntime.DESTINATION_STATES.RESOLVING)
+    && incomingCommit.operationId
+    && matchingOperation
+    && incomingOperation.status === (incomingCommit.status === provisionalDeclarationRuntime.DESTINATION_STATES.COMPLETED ? "completed" : "resolving");
+  if (matchingId && (sameStatus || advancesMatchingOperation)) return true;
+  if (incomingCommit) return false;
+
+  const currentOperation = (Array.isArray(currentGymState.actionOperations) ? currentGymState.actionOperations : [])
+    .find((operation) => operation.id === currentCommit.operationId) || {};
+  if (matchingOperation && incomingOperation.status === "completed") return true;
+  if (matchingOperation && !activeActionVisitForOperation(incomingGymState, incomingOperation)) return true;
+  if (!incomingOperation && currentOperation.visitId) {
+    const incomingVisit = (incomingGymState.playerVisits?.[currentCommit.playerId] || [])
+      .find((visit) => visit?.id === currentOperation.visitId);
+    return !incomingVisit
+      || incomingVisit.undone
+      || incomingVisit.cancelled
+      || ["undone", "cancelled"].includes(String(incomingVisit.status || "").toLowerCase());
+  }
+  return false;
+}
+
 function authoritativeTimingOverwriteConflict(currentState, incomingState) {
   const currentDeclaration = provisionalDeclarationRuntime.currentProvisional(currentState || {});
   if (currentDeclaration) {
@@ -980,27 +1118,11 @@ function authoritativeTimingOverwriteConflict(currentState, incomingState) {
       };
     }
   }
-  const currentCommit = provisionalDeclarationRuntime.activeDestinationCommit(
-    provisionalDeclarationRuntime.actionGymState(currentState || {}) || {}
-  );
-  if (currentCommit) {
-    const incomingGymState = provisionalDeclarationRuntime.actionGymState(incomingState || {}) || {};
-    const incomingCommit = incomingGymState.destinationCommit || null;
-    const matchingId = incomingCommit?.id === currentCommit.id;
-    const sameStatus = incomingCommit?.status === currentCommit.status;
-    const advancesMatchingOperation = [
-      provisionalDeclarationRuntime.DESTINATION_STATES.RESOLVING,
-      provisionalDeclarationRuntime.DESTINATION_STATES.COMPLETED
-    ].includes(incomingCommit?.status)
-      && (currentCommit.status === provisionalDeclarationRuntime.DESTINATION_STATES.ACCEPTED
-        || currentCommit.status === provisionalDeclarationRuntime.DESTINATION_STATES.RESOLVING)
-      && incomingCommit.operationId
-      && (incomingGymState.actionOperations || [])
-        .some((operation) => operation.id === incomingCommit.operationId
-          && operation.playerId === currentCommit.playerId
-          && operation.locationId === currentCommit.locationId
-          && operation.status === (incomingCommit.status === provisionalDeclarationRuntime.DESTINATION_STATES.COMPLETED ? "completed" : "resolving"));
-    if (!matchingId || (!sameStatus && !advancesMatchingOperation)) {
+  const currentGymState = provisionalDeclarationRuntime.actionGymState(currentState || {}) || {};
+  const currentCommit = provisionalDeclarationRuntime.activeDestinationCommit(currentGymState);
+  if (currentCommit && !orphanedActionDestinationCommit(currentGymState)) {
+    const incomingGymState = actionPhaseSelectionForState(incomingState || {}, currentGymState.series, currentGymState.gym) || {};
+    if (!incomingActionDestinationMatchesCurrent(currentCommit, currentGymState, incomingGymState)) {
       return {
         reason: "An authoritative Action destination changed after this client loaded the game.",
         currentSituation: provisionalDeclarationRuntime.blockingActivity(currentState || {}, interactionSituationLifecycle.isBlocking)
@@ -1496,6 +1618,7 @@ async function handleApi(req, res, url) {
     game.status = body.status || "lobby";
     game.maxPlayers = Math.max(2, Math.min(12, Number(body.maxPlayers || 5)));
     game.rulesetVersion = body.rulesetVersion || game.rulesetVersion;
+    game.actionPhaseVersion = normalizeActionPhaseVersion(body.actionPhaseVersion || game.actionPhaseVersion);
     game.members = Array.isArray(body.members) ? body.members.map((member) => typeof member === "string" ? { userId: safeUserId(member), role: "player" } : {
       userId: safeUserId(member.userId || member.id),
       role: member.role || "player"
@@ -1691,6 +1814,68 @@ async function handleApi(req, res, url) {
     const payload = writeAuthoritativeTimingMutation(game, body, "action-destination-released");
     payload.commit = released.commit;
     payload.duplicate = Boolean(released.duplicate);
+    return sendJson(res, 200, payload);
+  }
+
+  const destinationCompleteMatch = url.pathname.match(/^\/api\/games\/([^/]+)\/action-destination-commits\/([^/]+)\/complete$/);
+  if (destinationCompleteMatch && req.method === "POST") {
+    const gameId = safeGameId(destinationCompleteMatch[1]);
+    if (!fs.existsSync(gamePath(gameId))) return sendError(res, 404, "Game not found.");
+    const body = await readBody(req);
+    const game = readGame(gameId);
+    if (!isPlainObject(game.state)) return sendError(res, 409, "The game has no authoritative state.");
+    const conflict = gameStateVersionConflict(game, body.expectedVersion);
+    if (conflict) return sendJson(res, conflict.status, conflict.payload);
+    const gymState = provisionalDeclarationRuntime.actionGymState(game.state, { create: true });
+    const commit = gymState.destinationCommit || null;
+    if (!commit || commit.id !== destinationCompleteMatch[2]) {
+      return sendJson(res, 409, { error: "destination-missing", reason: "The Action destination is no longer active.", currentVersion: game.version, state: game.state });
+    }
+    const operation = (gymState.actionOperations || []).find((entry) => entry.id === commit.operationId);
+    if (!operation || (body.operationId && operation.id !== body.operationId)) {
+      return sendJson(res, 409, { error: "operation-missing", reason: "The linked Action operation no longer matches this destination.", currentVersion: game.version, state: game.state });
+    }
+    if (commit.status === provisionalDeclarationRuntime.DESTINATION_STATES.COMPLETED && operation.status === "completed") {
+      return sendJson(res, 200, sanitizeSharedGamePayloadForDelivery({ ok: true, duplicate: true, commit, operation, version: game.version, state: game.state }));
+    }
+    if (commit.status !== provisionalDeclarationRuntime.DESTINATION_STATES.RESOLVING || operation.status !== "resolving") {
+      return sendJson(res, 409, { error: "operation-not-resolving", reason: "The Action operation is not awaiting completion.", currentVersion: game.version, state: game.state });
+    }
+    const openWheel = (game.state.wheelSessions || []).find((session) => (session.sourceActionVisitId === operation.visitId || session.actionVisitId === operation.visitId)
+      && !["completed", "cancelled", "undone"].includes(String(session.status || "").toLowerCase()));
+    if (openWheel) {
+      return sendJson(res, 409, { error: "wheel-session-open", reason: "The linked wheel session is still open.", currentVersion: game.version, state: game.state });
+    }
+    const sessionCollections = {
+      breeder: game.state.breederVisits,
+      "game-corner": game.state.gameCornerSessions,
+      "pokemon-center": game.state.pokemonCenterSessions,
+      graveyard: game.state.graveyardSessions,
+      pc: game.state.pcSessions,
+      "department-store": game.state.departmentStoreVisits
+    };
+    const linkedSession = (sessionCollections[operation.linkedFeatureType] || [])
+      .find((session) => session.id === operation.linkedFeatureSessionId);
+    const completedAt = nowIso();
+    if (linkedSession) {
+      linkedSession.actionOperationReady = true;
+      linkedSession.actionOperationFinishedAt = completedAt;
+      linkedSession.status = "completed";
+      linkedSession.completedAt ||= completedAt;
+    }
+    operation.status = "completed";
+    operation.completedAt = completedAt;
+    operation.completionReason = "location-session-finished";
+    commit.status = provisionalDeclarationRuntime.DESTINATION_STATES.COMPLETED;
+    commit.completedAt = completedAt;
+    if (gymState.activeActionOperationId === operation.id) gymState.activeActionOperationId = "";
+    const visit = (gymState.playerVisits?.[operation.playerId] || []).find((entry) => entry.id === operation.visitId);
+    if (visit) visit.actionOperationStatus = "completed";
+    const payload = writeAuthoritativeTimingMutation(game, body, "action-destination-completed");
+    delete payload.state;
+    payload.commit = commit;
+    payload.operation = operation;
+    payload.linkedSession = linkedSession || null;
     return sendJson(res, 200, payload);
   }
 
@@ -1897,6 +2082,24 @@ async function handleApi(req, res, url) {
     }
     return sendError(res, 405, "Unsupported token art request");
   }
+  const presenceMatch = url.pathname.match(/^\/api\/games\/([^/]+)\/presence\/activity$/);
+  if (presenceMatch) {
+    const gameId = safeGameId(presenceMatch[1]);
+    if (req.method !== "POST") return sendError(res, 405, "Unsupported presence activity request");
+    if (!fs.existsSync(gamePath(gameId))) return sendError(res, 404, "Game not found.");
+    const body = await readBody(req);
+    const game = readGame(gameId);
+    const normalized = v2RoutePublicActivityFromBody(game, body || {});
+    if (!normalized.ok) return sendError(res, normalized.status || 400, normalized.error || "Invalid public activity.");
+    broadcast(game.id, {
+      type: "v2-route-public-activity",
+      gameId: game.id,
+      clientId: body.clientId || "",
+      activity: normalized.activity
+    });
+    return sendJson(res, 202, { ok: true, activity: normalized.activity });
+  }
+
   const gameMatch = url.pathname.match(/^\/api\/games\/([^/]+)(?:\/(state|events|activity)(?:\/([^/]+)(?:\/(responses|status))?)?)?$/);
   if (!gameMatch) return sendError(res, 404, "Not found");
   const gameId = safeGameId(gameMatch[1]);
@@ -1938,8 +2141,13 @@ async function handleApi(req, res, url) {
 
   if (resource === "state" && req.method === "GET") {
     const game = readGame(gameId);
+    let storageCompacted = false;
     if (game.state) {
-      const compacted = compactGameStateForStorage(game.id, game.state, { persistTokenArt: false });
+      const compacted = compactGameStateForStorage(game.id, game.state, {
+        compactUndoSnapshots: true,
+        persistTokenArt: false
+      });
+      storageCompacted = compacted.changed;
       if (compacted.changed) game.state = compacted.state;
     }
     const users = readUsers().users;
@@ -1949,6 +2157,9 @@ async function handleApi(req, res, url) {
       name: game.name,
       version: game.version,
       updatedAt: game.updatedAt,
+      storageCompacted,
+      rulesetVersion: game.rulesetVersion,
+      actionPhaseVersion: persistedActionPhaseVersion(game),
       sandboxCommits: Array.isArray(game.sandboxCommits) ? game.sandboxCommits : [],
       members: memberIds.map((userId) => ({
         userId,
@@ -2014,6 +2225,8 @@ async function handleApi(req, res, url) {
     game.state = compactGameStateForStorage(game.id, body.state, { compactUndoSnapshots: true }).state;
     syncGameActivitiesFromState(game);
     game.name = body.name || game.name;
+    game.rulesetVersion = game.state?.ruleset?.version || game.rulesetVersion;
+    game.actionPhaseVersion = persistedActionPhaseVersion(game);
     game.version = Number(game.version || 0) + 1;
     game.updatedAt = nowIso();
     if (body.commitType === "token-scenario") {
@@ -2162,6 +2375,9 @@ const server = http.createServer(async (req, res) => {
   try {
     if (url.pathname.startsWith("/api/")) return await handleApi(req, res, url);
     if (serveStatic(req, res, url.pathname)) return;
+    if (req.method === "GET" && SITE_SHELL_ROUTES.has(url.pathname.replace(/\/+$/, "") || "/")) {
+      if (serveStatic(req, res, "/index.html")) return;
+    }
     sendError(res, 404, "Not found");
   } catch (error) {
     console.error(error);

@@ -19,6 +19,7 @@ module.exports = {
     status: "active",
     updatedAt: "2026-07-24T12:00:00.000Z",
     version: 42,
+    actionPhaseVersion: "action-phase-v1-current-series",
     maxPlayers: 5,
     members: [{ userId: "steven", role: "owner" }],
     state: progressedState
@@ -33,6 +34,7 @@ module.exports = {
   supportedLegacy: {
     id: "legacy-supported",
     name: "Legacy Supported",
+    actionPhaseVersion: "action-phase-v1-current-series",
     updatedAt: "2026-07-23T10:00:00.000Z",
     state: { series: "Johto", gym: 3, players: [{ id: "legacy-trainer", name: "Legacy" }] }
   },
@@ -44,7 +46,7 @@ module.exports = {
       series: "Sinnoh",
       gym: 4,
       currentPhase: "action",
-      ruleset: { schemaVersion: 1 },
+      ruleset: { schemaVersion: 1, actionPhaseVersion: "action-phase-v2-real-series" },
       players: [{ id: "modern-trainer", name: "Modern" }],
       tokenConsumptions: [{ id: "modern-token", resultSummary: { duration: { gyms: 2 } } }],
       liveTable: { controlledContext: { actorPlayerId: "modern-trainer" } },
@@ -73,6 +75,13 @@ module.exports = {
     id: "orphaned-valid",
     name: "Orphaned Valid",
     state: { series: "Kalos", gym: 5, currentPhase: "action", ruleset: { schemaVersion: 1 }, players: [] }
+  },
+  v2Lobby: {
+    id: "v2-lobby",
+    name: "V2 Lobby",
+    actionPhaseVersion: "action-phase-v2-real-series",
+    state: null,
+    members: []
   },
   staleRememberedGameId: "missing-remembered-game",
   staleRememberedTrainerId: "missing-remembered-trainer"
