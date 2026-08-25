@@ -17,7 +17,7 @@ if (occurrences !== 1) {
   const replacement = [
     '  const sanitizedReport = `${out.join("\\n")}\\n`',
     '    .split("\\n")',
-    '    .map((line) => line.replace(/[ \\t]+$/g, ""))',
+    '    .map((line) => line.replace(/\\r/g, "").replace(/[ \\t]+$/g, ""))',
     '    .join("\\n");',
     '  fs.writeFileSync(REPORT_PATH, sanitizedReport, "utf8");',
   ].join("\n");
