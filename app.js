@@ -2396,17 +2396,14 @@ const placeholderTrainerTitles = Object.freeze([
 ]);
 
 const CURRENT_RULESET_VERSION = "S3-dev";
-const ACTION_PHASE_VERSION_V1 = "action-phase-v1-current-series";
 const ACTION_PHASE_VERSION_V2 = "action-phase-v2-real-series";
 const DEFAULT_ACTION_PHASE_VERSION = ACTION_PHASE_VERSION_V2;
 const ACTION_PHASE_VERSION_LABELS = Object.freeze({
-  [ACTION_PHASE_VERSION_V1]: "Action Phase V1 / Legacy",
   [ACTION_PHASE_VERSION_V2]: "Action Phase V2 / Current"
 });
 
-function normalizeActionPhaseVersion(value) {
-  if (value === ACTION_PHASE_VERSION_V1) return ACTION_PHASE_VERSION_V1;
-  return value === ACTION_PHASE_VERSION_V2 ? ACTION_PHASE_VERSION_V2 : DEFAULT_ACTION_PHASE_VERSION;
+function normalizeActionPhaseVersion() {
+  return DEFAULT_ACTION_PHASE_VERSION;
 }
 
 function actionPhaseVersionLabel(value) {
@@ -2420,7 +2417,7 @@ function createDefaultRuleset() {
     version: CURRENT_RULESET_VERSION,
     schemaVersion: 1,
     actionPhaseVersion: DEFAULT_ACTION_PHASE_VERSION,
-    supportedActionPhaseVersions: [ACTION_PHASE_VERSION_V1, ACTION_PHASE_VERSION_V2],
+    supportedActionPhaseVersions: [ACTION_PHASE_VERSION_V2],
     updateMode: "manual",
     contentLibraries: {
       tokenArt: {},
@@ -2436,9 +2433,8 @@ function createDefaultRuleset() {
     },
     notes: [
       "Ruleset/content data is separate from one game's current save state.",
-      "Action Phase V2 is the current/default Rival Saga ruleset for newly created games.",
-      "Action Phase V1 is archived/maintenance-only and remains available for explicitly persisted legacy saves.",
-      "New feature development targets Action Phase V2 exclusively."
+      "The current Action Phase is the only playable Rival Saga ruleset.",
+      "Historical Action Phase implementations live in Git archives, not production runtime code."
     ]
   };
 }
@@ -21151,7 +21147,6 @@ async function loadBackendState({ renderAfter = true } = {}) {
       state.ruleset.actionPhaseVersion = normalizeActionPhaseVersion(payload.actionPhaseVersion || state.ruleset.actionPhaseVersion);
       state.ruleset.supportedActionPhaseVersions = [...new Set([
         ...(state.ruleset.supportedActionPhaseVersions || []),
-        ACTION_PHASE_VERSION_V1,
         ACTION_PHASE_VERSION_V2
       ].map(normalizeActionPhaseVersion))];
       syncLobbyMembersToTrainerSlots(payload.members || [], { force: true });
@@ -21170,7 +21165,6 @@ async function loadBackendState({ renderAfter = true } = {}) {
       normalizedRemoteState.ruleset.actionPhaseVersion = normalizeActionPhaseVersion(payload.actionPhaseVersion);
       normalizedRemoteState.ruleset.supportedActionPhaseVersions = [...new Set([
         ...(normalizedRemoteState.ruleset.supportedActionPhaseVersions || []),
-        ACTION_PHASE_VERSION_V1,
         ACTION_PHASE_VERSION_V2
       ].map(normalizeActionPhaseVersion))];
     }
@@ -22867,7 +22861,7 @@ function normalizeRuleset(ruleset = {}, legacyState = {}) {
     schemaVersion: Number(source.schemaVersion || base.schemaVersion),
     actionPhaseVersion: persistedActionPhaseVersion
       ? normalizeActionPhaseVersion(persistedActionPhaseVersion)
-      : ACTION_PHASE_VERSION_V1,
+      : DEFAULT_ACTION_PHASE_VERSION,
     supportedActionPhaseVersions: [...new Set([
       ...base.supportedActionPhaseVersions,
       ...(Array.isArray(source.supportedActionPhaseVersions) ? source.supportedActionPhaseVersions : [])
