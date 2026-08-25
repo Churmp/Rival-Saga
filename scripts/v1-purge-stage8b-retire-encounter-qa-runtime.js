@@ -37,6 +37,88 @@ function replaceExactlyOnce(text, needle, replacement, label) {
   return text.replace(needle, replacement);
 }
 
+function matchingBraceEnd(text, openIndex) {
+  if (text[openIndex] !== "{") throw new Error("Balanced-brace scan did not start on an opening brace.");
+  let depth = 0;
+  let mode = "code";
+  let escaped = false;
+  for (let i = openIndex; i < text.length; i += 1) {
+    const ch = text[i];
+    const next = text[i + 1];
+    if (mode === "line-comment") {
+      if (ch === "\n") mode = "code";
+      continue;
+    }
+    if (mode === "block-comment") {
+      if (ch === "*" && next === "/") {
+        mode = "code";
+        i += 1;
+      }
+      continue;
+    }
+    if (mode === "single" || mode === "double" || mode === "template") {
+      if (escaped) {
+        escaped = false;
+        continue;
+      }
+      if (ch === "\\") {
+        escaped = true;
+        continue;
+      }
+      if ((mode === "single" && ch === "'") || (mode === "double" && ch === '"') || (mode === "template" && ch === "`")) {
+        mode = "code";
+      }
+      continue;
+    }
+    if (ch === "/" && next === "/") {
+      mode = "line-comment";
+      i += 1;
+      continue;
+    }
+    if (ch === "/" && next === "*") {
+      mode = "block-comment";
+      i += 1;
+      continue;
+    }
+    if (ch === "'") {
+      mode = "single";
+      continue;
+    }
+    if (ch === '"') {
+      mode = "double";
+      continue;
+    }
+    if (ch === "`") {
+      mode = "template";
+      continue;
+    }
+    if (ch === "{") depth += 1;
+    if (ch === "}") {
+      depth -= 1;
+      if (depth === 0) return i + 1;
+      if (depth < 0) throw new Error("Balanced-brace scan underflowed.");
+    }
+  }
+  throw new Error("Balanced-brace scan reached EOF before closing the block.");
+}
+
+function removeExactNodeTest(text, marker) {
+  if (count(text, marker) !== 1) throw new Error(`Expected exactly one sandbox test marker: ${marker}`);
+  const start = text.indexOf(marker);
+  const open = text.indexOf("{", start);
+  if (open < 0) throw new Error(`Could not locate test body for ${marker}`);
+  const close = matchingBraceEnd(text, open);
+  let end = close;
+  while (end < text.length && (text[end] === " " || text[end] === "\t")) end += 1;
+  if (!text.startsWith(");", end)) throw new Error(`Could not locate test terminator for ${marker}`);
+  end += 2;
+  if (text.startsWith("\r\n", end)) end += 2;
+  else if (text[end] === "\n") end += 1;
+  if (text.startsWith("\r\n", end)) end += 2;
+  else if (text[end] === "\n") end += 1;
+  return text.slice(0, start) + text.slice(end);
+}
+
 function ensureSafeStart() {
   const branch = git(["branch", "--show-current"]);
   if (branch !== EXPECTED_BRANCH) {
@@ -60,6 +142,12 @@ try {
   if (!retiredTest.includes('require("../encounter-token-runtime.js")')) {
     throw new Error("Retired Encounter runtime test no longer has its expected deleted-runtime import.");
   }
+  if (!sandbox.includes('[TSB-024] Extra Encounter mutates only the sandbox clone and discard removes the exact grant')) {
+    throw new Error("Expected obsolete TSB-024 Extra Encounter sandbox test is missing.");
+  }
+  if (!sandbox.includes('[TSB-027] lifecycle-slice delayed, encounter, suppression, evolution, and payout mutations commit idempotently and discard exactly')) {
+    throw new Error("Current/deferred TSB-027 lifecycle sandbox test is missing; refusing to edit the sandbox suite.");
+  }
 
   runner = replaceExactlyOnce(
     runner,
@@ -75,11 +163,26 @@ try {
     "token sandbox deleted Encounter runtime import"
   );
 
+  sandbox = removeExactNodeTest(
+    sandbox,
+    'test("[TSB-024] Extra Encounter mutates only the sandbox clone and discard removes the exact grant", () => {'
+  );
+
   if (runner.includes("test-encounter-token-runtime.js") || runner.includes("encounter-token-runtime.js")) {
     throw new Error("Retired Encounter runtime test still appears in executable QA runner.");
   }
-  if (sandbox.includes('require("../encounter-token-runtime.js")') || sandbox.includes("encounterTokenRuntime")) {
-    throw new Error("Deleted Encounter runtime import/reference still appears in token sandbox test.");
+  for (const marker of [
+    'require("../encounter-token-runtime.js")',
+    "encounterTokenRuntime",
+    "baseline.encounterSessions = []",
+    "sandbox-extra-session",
+    "sandbox-extra-grant",
+    "[TSB-024]",
+  ]) {
+    if (sandbox.includes(marker)) throw new Error(`Deleted Encounter runtime sandbox residue remains: ${marker}`);
+  }
+  if (!sandbox.includes('[TSB-027] lifecycle-slice delayed, encounter, suppression, evolution, and payout mutations commit idempotently and discard exactly')) {
+    throw new Error("TSB-027 was damaged while removing TSB-024.");
   }
 
   fs.writeFileSync(RUNNER_PATH, runner, "utf8");
@@ -101,8 +204,9 @@ try {
   if (!staged) throw new Error("Stage 8B produced no staged changes.");
   console.log(`\n${staged}`);
   console.log("Deleted the obsolete Encounter Token runtime test and removed its executable QA wiring.");
-  console.log("Token sandbox keeps its lifecycle tests but no longer imports the deleted Encounter runtime module.");
-  console.log("Historical QA evidence and production Encounter token contracts are intentionally deferred to the Route migration stage.");
+  console.log("Removed obsolete TSB-024, which directly exercised deleted encounterSessions/grantExtraEncounter V1 runtime.");
+  console.log("Preserved TSB-027 and other token-control lifecycle tests for the later Route-token migration.");
+  console.log("Historical QA evidence and production Encounter token contracts remain intentionally deferred.");
 
   git(["commit", "-m", "Retire obsolete Encounter runtime QA"], { inherit: true });
   committed = true;
