@@ -31155,9 +31155,6 @@ function renderLiveRefereeMainPromptScreen(prompt, context = {}) {
   if (pending?.sourceType === "revenge-post-payout") {
     return liveRefereeRevengeProcedureScreenMarkup(prompt, pending);
   }
-  if (pending?.sourceType === "honey-end-action") {
-    return liveRefereeHoneyProcedureScreenMarkup(prompt, pending);
-  }
   const provisional = currentProvisionalDeclaration();
   if (provisional) {
     const declarerId = String(provisional.payload?.declaringPlayerId || provisional.actorPlayerId || "");
@@ -32321,12 +32318,6 @@ async function handleLiveTableClick(event) {
   if (honeySkip) {
     event.preventDefault();
     skipHoneyEndOfActionProcedure(honeySkip.dataset.honeyProcedureSkip || "");
-    return;
-  }
-  const honeyChoice = liveClosestEventTarget(event, "[data-honey-result-choice]");
-  if (honeyChoice) {
-    event.preventDefault();
-    resolveHoneyEndOfActionProcedure(honeyChoice.dataset.activityId || "", honeyChoice.dataset.honeyResultChoice || "");
     return;
   }
   const smokescreenSpin = liveClosestEventTarget(event, "[data-smokescreen-spin]");
@@ -41176,20 +41167,6 @@ async function createRandomPokemonSession({ sourceType, sourceLabel, player, tie
   return session;
 }
 
-function augmentHoneyCausalUndoAfterAcquisition(randomSession, causalBeforeAcquisition) {
-  if (!randomSession?.copiedFromRandomPokemonSessionId || !causalBeforeAcquisition) return;
-  const historyLog = (state.log || []).find((entry) => !entry.undone
-    && entry.undoData?.tokenDefinitionId === "honey-token"
-    && entry.copiedRandomPokemonSessionId === randomSession.id);
-  if (!historyLog?.undoData) return;
-  const later = buildCausalTokenEffectUndo(causalBeforeAcquisition, {
-    id: historyLog.linkedEventId || historyLog.undoData.effectId || "",
-    payload: { tokenName: "Honey" }
-  }, { id: "honey-token", name: "Honey" });
-  historyLog.undoData = mergeCausalTokenUndoData(historyLog.undoData, later);
-  historyLog.honeyAcquisitionCompleted = true;
-  historyLog.acquiredPokemonId = randomSession.rosterPokemonId || "";
-}
 
 function useGameCornerToken(tier) {
   const player = activePlayer();
@@ -41231,7 +41208,6 @@ async function confirmRandomPokemonSession(sessionId = state.selectedRandomPokem
   if (!skipPendingGuard && !guardPendingEventBeforeAction("Confirm Pokemon Result", () => confirmRandomPokemonSession(sessionId, { skipPendingGuard: true }))) return;
   const randomSession = (state.randomPokemonSessions || []).find((entry) => entry.id === sessionId);
   if (!randomSession || randomSession.status !== "pending") return;
-  const honeyAcquisitionSnapshot = randomSession.copiedFromRandomPokemonSessionId ? tokenUseRollbackSnapshot() : null;
   const player = state.players.find((entry) => entry.id === (randomSession.resultOwnerPlayerId || randomSession.ownerPlayerId || randomSession.playerId));
   if (!player) return;
   if (!requirePrivatePrepAccess(player, "random Pokemon result")) return;
@@ -41270,7 +41246,6 @@ async function confirmRandomPokemonSession(sessionId = state.selectedRandomPokem
   randomSession.confirmedAt = new Date().toISOString();
   randomSession.rosterPokemonId = pokemon.id;
   resolvePokemonResultTimingWindow(randomSession, "resolved");
-  augmentHoneyCausalUndoAfterAcquisition(randomSession, honeyAcquisitionSnapshot);
   if (randomSession.sourceType !== "game-corner-token" || !session || !token) {
     saveState();
     render();
@@ -48864,73 +48839,9 @@ function phaseAdvanceBlockedByActionOperation(target = nextPhaseTarget()) {
   return `${trainer} is still resolving ${location}. Finish or undo that Action before advancing phases.`;
 }
 
-function honeyEligibleEncounterResults() {
-  return (state.randomPokemonSessions || []).filter((session) => {
-    if (session.sourceType !== "encounter" || session.status !== "confirmed") return false;
-    if (session.copiedFromRandomPokemonSessionId || session.sourceLabel === "Honey copied Encounter") return false;
-    return String(session.series || state.series) === String(state.series)
-      && Number(session.gym || state.gym) === Number(state.gym);
-  });
-}
 
-function ensureHoneyEndOfActionProcedures() {
-  state.endOfActionProcedures ||= [];
-  const eligible = honeyEligibleEncounterResults();
-  if (!eligible.length) return [];
-  const created = [];
-  state.players.forEach((player) => {
-    (player.inventory || []).forEach((item) => {
-      const definition = globalThis.rivalSagaTokenEffectContract?.inventoryDefinitionFor?.(item);
-      if (definition?.id !== "honey-token") return;
-      const id = `end-action-honey:${state.series}:${state.gym}:${player.id}:${item.id}`;
-      let procedure = state.endOfActionProcedures.find((entry) => entry.id === id);
-      if (procedure && ["resolved", "skipped"].includes(procedure.status)) return;
-      if (!procedure) {
-        procedure = {
-          id, type: "honey", status: "awaitingChoice", sourcePlayerId: player.id,
-          tokenInventoryRecordId: item.id, eligibleRandomPokemonSessionIds: eligible.map((session) => session.id),
-          series: state.series, gym: Number(state.gym), createdAt: new Date().toISOString()
-        };
-        state.endOfActionProcedures.push(procedure);
-      }
-      let activity = (state.interactionEvents || []).find((entry) => entry.payload?.procedureId === id && entry.status === "open");
-      if (!activity) {
-        activity = createInteractionEvent({
-          type: "phase-boundary-procedure", title: `${player.name} may use Honey.`,
-          message: `${player.name} may copy one completed Encounter from this Action Phase.`,
-          actorPlayerId: player.id, targetPlayerId: player.id, sourceType: "honey-end-action",
-          sourceId: id, responseTypes: [], eligiblePlayerIds: [],
-          payload: { procedureId: id, tokenName: "Honey", requiresRequiredChoice: true, requiredChoicePlayerId: player.id, responsesAllowed: false, transactionsAllowed: false }
-        });
-      }
-      created.push({ procedure, activity });
-    });
-  });
-  return created;
-}
 
-function honeyProcedureForActivity(activity) {
-  return activity?.sourceType === "honey-end-action"
-    ? (state.endOfActionProcedures || []).find((entry) => entry.id === activity.payload?.procedureId)
-    : null;
-}
 
-function liveRefereeHoneyProcedureScreenMarkup(prompt, activity) {
-  const procedure = honeyProcedureForActivity(activity);
-  const choices = (procedure?.eligibleRandomPokemonSessionIds || []).map((id) => (state.randomPokemonSessions || []).find((entry) => entry.id === id)).filter((entry) => entry?.status === "confirmed");
-  return liveRefereeGameScreenMarkup({
-    className: "live-referee-honey-screen",
-    situation: "Which completed encounter will Honey copy?",
-    body: liveRefereePickerScrollMarkup(choices.map((session) => liveRefereeChoiceButtonMarkup({
-      label: `${livePlayerName(session.resultOwnerPlayerId || session.ownerPlayerId || session.playerId, "Player")} - ${session.resultDisplayName}`,
-      attrs: `data-honey-result-choice="${escapeHtml(session.id)}" data-activity-id="${escapeHtml(activity.id)}"`,
-      variant: "ghost"
-    })).join("") || `<p class="empty-state compact">No eligible completed encounter remains.</p>`, "Completed encounters"),
-    choices: liveRefereeNavActionsMarkup([
-      liveRefereeChoiceButtonMarkup({ label: "Skip Honey", attrs: `data-honey-procedure-skip="${escapeHtml(activity.id)}"` })
-    ])
-  });
-}
 
 function skipHoneyEndOfActionProcedure(activityId) {
   const activity = liveActivityById(activityId);
@@ -48945,69 +48856,6 @@ function skipHoneyEndOfActionProcedure(activityId) {
   return true;
 }
 
-function resolveHoneyEndOfActionProcedure(activityId, sourceRandomPokemonSessionId) {
-  const activity = liveActivityById(activityId);
-  const procedure = honeyProcedureForActivity(activity);
-  const player = state.players.find((entry) => entry.id === procedure?.sourcePlayerId);
-  const tokenIndex = (player?.inventory || []).findIndex((item) => item.id === procedure?.tokenInventoryRecordId);
-  if (!procedure || !player || tokenIndex < 0 || !procedure.eligibleRandomPokemonSessionIds.includes(sourceRandomPokemonSessionId)) {
-    alert("Honey's exact Token or Encounter selection is no longer available.");
-    return false;
-  }
-  const causalBeforeHoney = tokenUseRollbackSnapshot();
-  const savedPlayers = structuredClone(state.players);
-  const savedRandom = structuredClone(state.randomPokemonSessions || []);
-  const savedCopies = structuredClone(state.encounterCopyRecords || []);
-  const token = player.inventory.splice(tokenIndex, 1)[0];
-  const result = controlTokenEffects.resolveHoneyEncounterCopy(state, {
-    sourceEffectId: activity.id,
-    ownerPlayerId: player.id,
-    sourceRandomPokemonSessionId
-  }, controlTokenEffectOptions());
-  if (result.result !== "resolved") {
-    state.players = savedPlayers;
-    state.randomPokemonSessions = savedRandom;
-    state.encounterCopyRecords = savedCopies;
-    alert(result.reason);
-    return false;
-  }
-  procedure.status = "resolved";
-  procedure.selectedRandomPokemonSessionId = sourceRandomPokemonSessionId;
-  procedure.copiedRandomPokemonSessionId = result.randomSession?.id || "";
-  procedure.consumedTokenId = token.id;
-  procedure.resolvedAt = new Date().toISOString();
-  activity.status = "resolved";
-  activity.resolution = "honey-encounter-copied";
-  state.selectedRandomPokemonSessionId = result.randomSession?.id || "";
-  state.randomPokemonDrawerOpen = Boolean(result.randomSession);
-  const consumption = addTokenConsumptionRecord({
-    player,
-    token,
-    tokenName: "Honey",
-    metadata: tokenEffectMetadataByName("Honey"),
-    linkedEventId: activity.id,
-    source: "honey-end-of-action"
-  });
-  const causalUndo = buildCausalTokenEffectUndo(causalBeforeHoney, activity, { id: "honey-token", name: "Honey" });
-  causalUndo.procedureId = procedure.id;
-  causalUndo.copiedRandomPokemonSessionId = result.randomSession?.id || "";
-  addLogEntry({
-    action: "token", category: "pokemon", player: player.name,
-    item: result.reason, title: `${player.name} used Honey`, summary: result.reason,
-    type: "honey-encounter-copy", categories: ["tokens", "pokemon", "encounter"],
-    tags: ["honey", "encounter-copy", "end-of-action"], playerIds: [player.id], tokenNames: ["Honey"],
-    linkedEventId: activity.id,
-    tokenConsumptionId: consumption?.id || "",
-    encounterCopyRecordId: result.record?.id || "",
-    copiedRandomPokemonSessionId: result.randomSession?.id || "",
-    undoable: true,
-    undone: false,
-    undoData: causalUndo
-  });
-  saveState({ immediate: true });
-  render();
-  return true;
-}
 
 function renderPhaseSeriesChoice(target = pendingPhaseAdvance) {
   const show = Boolean(target?.requiresSeriesChoice || target?.phase === "chooseStartSeries");
@@ -49129,12 +48977,6 @@ async function performPhaseAdvance(target = nextPhaseTarget()) {
   const now = new Date().toISOString();
   const previousPhase = phaseState.currentPhase;
   if (!target.flowOnly && previousPhase === "action" && target.phase === "battle") {
-    const honeyProcedures = ensureHoneyEndOfActionProcedures();
-    if (honeyProcedures.length) {
-      render();
-      await saveState({ immediate: true, immediateBackend: true });
-      return;
-    }
   }
   if (target.flowOnly) {
     if (target.requiresTeamsLocked && !phaseTeamsLocked()) {
