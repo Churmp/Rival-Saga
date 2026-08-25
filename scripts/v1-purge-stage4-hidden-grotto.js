@@ -20,9 +20,13 @@ function git(args, options = {}) {
 
 function ensureSafeBranch() {
   const branch = git(["branch", "--show-current"]);
-  if (branch !== EXPECTED_BRANCH) throw new Error(`Refusing to run on ${branch || "detached HEAD"}. Switch to ${EXPECTED_BRANCH} first.`);
+  if (branch !== EXPECTED_BRANCH) {
+    throw new Error(`Refusing to run on ${branch || "detached HEAD"}. Switch to ${EXPECTED_BRANCH} first.`);
+  }
   const status = git(["status", "--porcelain"]);
-  if (status) throw new Error(`Working tree must be clean before Stage 4. Current changes:\n${status}`);
+  if (status) {
+    throw new Error(`Working tree must be clean before Stage 4. Current changes:\n${status}`);
+  }
 }
 
 function count(text, needle) {
@@ -31,7 +35,9 @@ function count(text, needle) {
 
 function requireCount(text, needle, expected, label = needle) {
   const actual = count(text, needle);
-  if (actual !== expected) throw new Error(`Expected ${expected} occurrence(s) of ${label}; found ${actual}. Refusing to guess.`);
+  if (actual !== expected) {
+    throw new Error(`Expected ${expected} occurrence(s) of ${label}; found ${actual}. Refusing to guess.`);
+  }
 }
 
 function replaceExactOnce(text, oldValue, newValue = "", label = oldValue) {
@@ -39,18 +45,37 @@ function replaceExactOnce(text, oldValue, newValue = "", label = oldValue) {
   return text.replace(oldValue, newValue);
 }
 
-function findMatchingDelimiter(text, openIndex, openChar, closeChar) {
-  let depth = 0;
+function removeBetween(text, startMarker, endMarker, label) {
+  requireCount(text, startMarker, 1, `${label} start marker`);
+  requireCount(text, endMarker, 1, `${label} end marker`);
+  const start = text.indexOf(startMarker);
+  const end = text.indexOf(endMarker);
+  if (end <= start) {
+    throw new Error(`${label} end marker appears before its start marker.`);
+  }
+  return text.slice(0, start) + text.slice(end);
+}
+
+function findStatementSemicolon(text, startIndex) {
   let mode = "code";
-  for (let i = openIndex; i < text.length; i += 1) {
+  let paren = 0;
+  let bracket = 0;
+  let brace = 0;
+  let templateExprDepth = 0;
+
+  for (let i = startIndex; i < text.length; i += 1) {
     const ch = text[i];
     const next = text[i + 1];
+
     if (mode === "line-comment") {
       if (ch === "\n") mode = "code";
       continue;
     }
     if (mode === "block-comment") {
-      if (ch === "*" && next === "/") { mode = "code"; i += 1; }
+      if (ch === "*" && next === "/") {
+        mode = "code";
+        i += 1;
+      }
       continue;
     }
     if (mode === "single") {
@@ -64,72 +89,52 @@ function findMatchingDelimiter(text, openIndex, openChar, closeChar) {
       continue;
     }
     if (mode === "template") {
-      if (ch === "\\") i += 1;
-      else if (ch === "`") mode = "code";
+      if (ch === "\\") {
+        i += 1;
+        continue;
+      }
+      if (ch === "`" && templateExprDepth === 0) {
+        mode = "code";
+        continue;
+      }
+      if (ch === "$" && next === "{") {
+        templateExprDepth += 1;
+        brace += 1;
+        i += 1;
+        continue;
+      }
+      if (ch === "}" && templateExprDepth > 0) {
+        templateExprDepth -= 1;
+        brace -= 1;
+        continue;
+      }
       continue;
     }
-    if (ch === "/" && next === "/") { mode = "line-comment"; i += 1; continue; }
-    if (ch === "/" && next === "*") { mode = "block-comment"; i += 1; continue; }
-    if (ch === "'") { mode = "single"; continue; }
-    if (ch === '"') { mode = "double"; continue; }
-    if (ch === "`") { mode = "template"; continue; }
-    if (ch === openChar) depth += 1;
-    else if (ch === closeChar) {
-      depth -= 1;
-      if (depth === 0) return i;
-      if (depth < 0) break;
-    }
-  }
-  throw new Error(`Could not find matching ${closeChar} for ${openChar} at ${openIndex}.`);
-}
 
-function findMatchingBrace(text, openIndex) {
-  let depth = 0;
-  let mode = "code";
-  let templateExprDepth = 0;
-  for (let i = openIndex; i < text.length; i += 1) {
-    const ch = text[i];
-    const next = text[i + 1];
-    if (mode === "line-comment") { if (ch === "\n") mode = "code"; continue; }
-    if (mode === "block-comment") { if (ch === "*" && next === "/") { mode = "code"; i += 1; } continue; }
-    if (mode === "single") { if (ch === "\\") i += 1; else if (ch === "'") mode = "code"; continue; }
-    if (mode === "double") { if (ch === "\\") i += 1; else if (ch === '"') mode = "code"; continue; }
-    if (mode === "template") {
-      if (ch === "\\") { i += 1; continue; }
-      if (ch === "`" && templateExprDepth === 0) { mode = "code"; continue; }
-      if (ch === "$" && next === "{") { templateExprDepth += 1; depth += 1; i += 1; continue; }
-      if (ch === "}" && templateExprDepth > 0) { templateExprDepth -= 1; depth -= 1; continue; }
+    if (ch === "/" && next === "/") {
+      mode = "line-comment";
+      i += 1;
       continue;
     }
-    if (ch === "/" && next === "/") { mode = "line-comment"; i += 1; continue; }
-    if (ch === "/" && next === "*") { mode = "block-comment"; i += 1; continue; }
-    if (ch === "'") { mode = "single"; continue; }
-    if (ch === '"') { mode = "double"; continue; }
-    if (ch === "`") { mode = "template"; templateExprDepth = 0; continue; }
-    if (ch === "{") depth += 1;
-    else if (ch === "}") {
-      depth -= 1;
-      if (depth === 0) return i;
-      if (depth < 0) break;
+    if (ch === "/" && next === "*") {
+      mode = "block-comment";
+      i += 1;
+      continue;
     }
-  }
-  throw new Error("Could not find matching function/object brace.");
-}
+    if (ch === "'") {
+      mode = "single";
+      continue;
+    }
+    if (ch === '"') {
+      mode = "double";
+      continue;
+    }
+    if (ch === "`") {
+      mode = "template";
+      templateExprDepth = 0;
+      continue;
+    }
 
-function findStatementSemicolon(text, startIndex) {
-  let mode = "code", paren = 0, bracket = 0, brace = 0;
-  for (let i = startIndex; i < text.length; i += 1) {
-    const ch = text[i], next = text[i + 1];
-    if (mode === "line-comment") { if (ch === "\n") mode = "code"; continue; }
-    if (mode === "block-comment") { if (ch === "*" && next === "/") { mode = "code"; i += 1; } continue; }
-    if (mode === "single") { if (ch === "\\") i += 1; else if (ch === "'") mode = "code"; continue; }
-    if (mode === "double") { if (ch === "\\") i += 1; else if (ch === '"') mode = "code"; continue; }
-    if (mode === "template") { if (ch === "\\") i += 1; else if (ch === "`") mode = "code"; continue; }
-    if (ch === "/" && next === "/") { mode = "line-comment"; i += 1; continue; }
-    if (ch === "/" && next === "*") { mode = "block-comment"; i += 1; continue; }
-    if (ch === "'") { mode = "single"; continue; }
-    if (ch === '"') { mode = "double"; continue; }
-    if (ch === "`") { mode = "template"; continue; }
     if (ch === "(") paren += 1;
     else if (ch === ")") paren -= 1;
     else if (ch === "[") bracket += 1;
@@ -138,79 +143,27 @@ function findStatementSemicolon(text, startIndex) {
     else if (ch === "}") brace -= 1;
     else if (ch === ";" && paren === 0 && bracket === 0 && brace === 0) return i;
   }
+
   throw new Error("Could not find declaration semicolon.");
 }
 
-function removeRanges(text, ranges) {
-  for (const range of [...ranges].sort((a, b) => b.start - a.start)) text = text.slice(0, range.start) + text.slice(range.end);
-  return text;
-}
-
-function removeHiddenGrottoLocation(text) {
-  const marker = '    {\n      id: "hidden-grotto",';
-  requireCount(text, marker, 1, "Hidden Grotto Action location object");
-  const start = text.indexOf(marker);
-  const openBrace = start + 4;
-  const closeBrace = findMatchingBrace(text, openBrace);
-  let end = closeBrace + 1;
-  while (text[end] === " " || text[end] === "\t") end += 1;
-  if (text[end] !== ",") throw new Error("Hidden Grotto location object is not followed by the expected comma.");
-  end += 1;
+function removeDeclarationByName(text, name) {
+  const candidates = ["const", "let", "var"]
+    .map((kind) => `${kind} ${name} =`)
+    .filter((marker) => text.includes(marker));
+  if (candidates.length !== 1) {
+    throw new Error(`Expected exactly one declaration for ${name}; found ${candidates.length}.`);
+  }
+  const marker = candidates[0];
+  requireCount(text, marker, 1, `${name} declaration`);
+  let start = text.indexOf(marker);
+  const lineStart = text.lastIndexOf("\n", start - 1) + 1;
+  if (!text.slice(lineStart, start).trim()) start = lineStart;
+  const semicolon = findStatementSemicolon(text, start);
+  let end = semicolon + 1;
   if (text[end] === "\r") end += 1;
   if (text[end] === "\n") end += 1;
   return text.slice(0, start) + text.slice(end);
-}
-
-function functionRangesMatching(text, predicate) {
-  const ranges = [];
-  const regex = /(?:async\s+)?function\s+([A-Za-z_$][\w$]*)\s*\(/g;
-  let match;
-  while ((match = regex.exec(text))) {
-    const name = match[1];
-    if (!predicate(name)) continue;
-    const parenOpen = text.indexOf("(", match.index);
-    const parenClose = findMatchingDelimiter(text, parenOpen, "(", ")");
-    let bodyOpen = parenClose + 1;
-    while (/\s/.test(text[bodyOpen] || "")) bodyOpen += 1;
-    if (text[bodyOpen] !== "{") throw new Error(`Could not identify the body opening brace for ${name}.`);
-    const bodyClose = findMatchingBrace(text, bodyOpen);
-    let start = match.index;
-    const previousLineStart = start > 0 ? text.lastIndexOf("\n", start - 1) + 1 : 0;
-    if (text.slice(previousLineStart, start).trim() === "") start = previousLineStart;
-    let end = bodyClose + 1;
-    if (text[end] === "\r") end += 1;
-    if (text[end] === "\n") end += 1;
-    ranges.push({ name, start, end });
-    regex.lastIndex = bodyClose + 1;
-  }
-  return ranges;
-}
-
-function removeGrottoVariableDeclarations(text) {
-  const regex = /(^|\n)([ \t]*)(const|let|var)\s+([A-Za-z_$][\w$]*)\s*=/g;
-  const ranges = [];
-  let match;
-  while ((match = regex.exec(text))) {
-    const name = match[4];
-    if (!/(?:HiddenGrotto|hiddenGrotto|HIDDEN_GROTTO)/.test(name)) continue;
-    const start = match.index + (match[1] ? 1 : 0);
-    const semicolon = findStatementSemicolon(text, start);
-    let end = semicolon + 1;
-    if (text[end] === "\r") end += 1;
-    if (text[end] === "\n") end += 1;
-    ranges.push({ name, start, end });
-    regex.lastIndex = semicolon + 1;
-  }
-  return { text: removeRanges(text, ranges), names: ranges.map((range) => range.name) };
-}
-
-function removeUndoBranch(text) {
-  const marker = 'else if (undoData.actionType === "undoHiddenGrottoAction") {';
-  requireCount(text, marker, 1, "Hidden Grotto undo branch");
-  const start = text.indexOf(marker);
-  const openBrace = text.indexOf("{", start + marker.length - 1);
-  const closeBrace = findMatchingBrace(text, openBrace);
-  return text.slice(0, start) + text.slice(closeBrace + 1);
 }
 
 function runChecks() {
@@ -225,70 +178,176 @@ function main() {
   let app = original;
   let wrote = false;
   let committed = false;
+
+  const removedFunctions = [
+    "getHiddenGrottoTierCap",
+    "renderHiddenGrottoDetails",
+    "startHiddenGrottoSession",
+    "chooseHiddenGrottoType",
+    "chooseHiddenGrottoPokemon",
+    "getHiddenGrottoEligiblePokemonByType",
+    "isHiddenGrottoEncounterEligible",
+    "hiddenGrottoLowTierNfeCutoffIndex",
+    "hiddenGrottoEntryHasNoEvolutionNote",
+    "hiddenGrottoFinalEvolutionSpeciesIds",
+    "hiddenGrottoSpeciesForEntry",
+    "isHiddenGrottoFullyEvolvedEntry",
+    "hiddenGrottoExcludesLowTierNfe",
+    "getHiddenGrottoPool",
+    "hiddenGrottoAvailableTypes",
+    "activeHiddenGrottoSession",
+  ];
+
   try {
-    if (app.includes("ACTION_PHASE_VERSION_V1")) throw new Error("Stage 1 invariant failed: ACTION_PHASE_VERSION_V1 still exists.");
+    if (app.includes("ACTION_PHASE_VERSION_V1")) {
+      throw new Error("Stage 1 invariant failed: ACTION_PHASE_VERSION_V1 still exists.");
+    }
     requireCount(app, "function renderActionPhase() {\n  renderV2RouteActionPhase();\n}", 1, "current-only renderActionPhase");
     requireCount(app, "function renderV2RouteActionPhase()", 1, "current Route renderer");
     requireCount(app, "const V2_ROUTE_TOKEN_IDS", 1, "current Route token IDs");
 
-    app = removeHiddenGrottoLocation(app);
-    app = replaceExactOnce(app, "    hiddenGrottoSessions: [],\n", "", "default hiddenGrottoSessions state");
-    app = replaceExactOnce(app, [
-      "  nextState.hiddenGrottoSessions ||= [];",
-      "  nextState.hiddenGrottoSessions.forEach((session) => {",
-      '    session.status = ["type-choice", "pokemon-choice", "completed", "undone"].includes(session.status) ? session.status : "type-choice";',
-      "    session.rolledTypes ||= [];",
-      "    session.rolledPokemon ||= [];",
-      "  });",
+    app = removeBetween(
+      app,
+      '    {\n      id: "hidden-grotto",',
+      '    {\n      id: "dragons-den",',
+      "Hidden Grotto Action location"
+    );
+
+    app = replaceExactOnce(
+      app,
+      "    hiddenGrottoSessions: [],\n",
       "",
-    ].join("\n"), "", "Hidden Grotto state normalization");
-    app = replaceExactOnce(app, '    "hidden-grotto": state.hiddenGrottoSessions,\n', "", "Hidden Grotto operation collection");
-    app = removeUndoBranch(app);
+      "default hiddenGrottoSessions state"
+    );
 
-    const functionRanges = functionRangesMatching(app, (name) => /(?:HiddenGrotto|hiddenGrotto)/.test(name));
-    const removedFunctions = functionRanges.map((entry) => entry.name);
-    const requiredFunctions = [
-      "getHiddenGrottoTierCap", "renderHiddenGrottoDetails", "startHiddenGrottoSession",
-      "chooseHiddenGrottoType", "chooseHiddenGrottoPokemon", "getHiddenGrottoEligiblePokemonByType",
-      "isHiddenGrottoEncounterEligible", "hiddenGrottoLowTierNfeCutoffIndex", "hiddenGrottoEntryHasNoEvolutionNote",
-      "hiddenGrottoFinalEvolutionSpeciesIds", "hiddenGrottoSpeciesForEntry", "isHiddenGrottoFullyEvolvedEntry",
-      "hiddenGrottoExcludesLowTierNfe", "getHiddenGrottoPool", "hiddenGrottoAvailableTypes", "activeHiddenGrottoSession",
-    ];
-    const missing = requiredFunctions.filter((name) => !removedFunctions.includes(name));
-    if (missing.length) throw new Error(`Expected Hidden Grotto functions were not found: ${missing.join(", ")}`);
-    app = removeRanges(app, functionRanges);
+    app = replaceExactOnce(
+      app,
+      [
+        "  nextState.hiddenGrottoSessions ||= [];",
+        "  nextState.hiddenGrottoSessions.forEach((session) => {",
+        '    session.status = ["type-choice", "pokemon-choice", "completed", "undone"].includes(session.status) ? session.status : "type-choice";',
+        "    session.rolledTypes ||= [];",
+        "    session.rolledPokemon ||= [];",
+        "  });",
+        "",
+      ].join("\n"),
+      "",
+      "Hidden Grotto state normalization"
+    );
 
-    const variableResult = removeGrottoVariableDeclarations(app);
-    app = variableResult.text;
-    for (const name of ["HIDDEN_GROTTO_TIER_STEP_BONUS", "hiddenGrottoTypes"]) {
-      if (!variableResult.names.includes(name)) throw new Error(`Expected ${name} declaration was not found.`);
-    }
+    app = replaceExactOnce(
+      app,
+      '    "hidden-grotto": state.hiddenGrottoSessions,\n',
+      "",
+      "Hidden Grotto action-operation collection"
+    );
+
+    app = removeBetween(
+      app,
+      ' else if (undoData.actionType === "undoHiddenGrottoAction") {',
+      ' else if (undoData.actionType === "undoEncounterAction") {',
+      "Hidden Grotto undo branch"
+    );
+
+    app = replaceExactOnce(
+      app,
+      [
+        "function getHiddenGrottoTierCap(gymNumber = state.gym) {",
+        "  const naturalTier = getNaturalGymTier(gymNumber);",
+        "  const naturalTierIndex = getTierIndex(naturalTier);",
+        "  if (naturalTierIndex < 0) return naturalTier;",
+        "  return getTierNameByIndex(naturalTierIndex + HIDDEN_GROTTO_TIER_STEP_BONUS);",
+        "}",
+        "",
+      ].join("\n"),
+      "",
+      "getHiddenGrottoTierCap"
+    );
+
+    app = removeBetween(
+      app,
+      "function renderHiddenGrottoDetails(",
+      "function renderRangerBaseDetails(",
+      "Hidden Grotto detail renderer"
+    );
+
+    app = removeBetween(
+      app,
+      "async function startHiddenGrottoSession(",
+      "function renderBulletinBoardDetails(",
+      "Hidden Grotto session runtime"
+    );
+
+    app = removeBetween(
+      app,
+      "function getHiddenGrottoEligiblePokemonByType(",
+      "function pendingSilphCoSession(",
+      "Hidden Grotto pool helpers"
+    );
+
+    app = removeBetween(
+      app,
+      "function activeHiddenGrottoSession(",
+      "function encounterWheelKey(",
+      "Hidden Grotto active-session helper"
+    );
+
+    app = removeDeclarationByName(app, "HIDDEN_GROTTO_TIER_STEP_BONUS");
+    app = removeDeclarationByName(app, "hiddenGrottoTypes");
 
     const forbiddenRuntimeMarkers = [
-      "state.hiddenGrottoSessions", "nextState.hiddenGrottoSessions", "hiddenGrottoSessions:",
-      'id: "hidden-grotto"', '"hidden-grotto": state.hiddenGrottoSessions',
-      'undoData.actionType === "undoHiddenGrottoAction"', "function renderHiddenGrottoDetails",
-      "function startHiddenGrottoSession", "function activeHiddenGrottoSession", "function getHiddenGrottoPool",
-      "function getHiddenGrottoTierCap", "HIDDEN_GROTTO_TIER_STEP_BONUS",
+      "state.hiddenGrottoSessions",
+      "nextState.hiddenGrottoSessions",
+      "hiddenGrottoSessions:",
+      'id: "hidden-grotto"',
+      '"hidden-grotto": state.hiddenGrottoSessions',
+      'undoData.actionType === "undoHiddenGrottoAction"',
+      "function renderHiddenGrottoDetails",
+      "function startHiddenGrottoSession",
+      "function chooseHiddenGrottoType",
+      "function chooseHiddenGrottoPokemon",
+      "function activeHiddenGrottoSession",
+      "function getHiddenGrottoPool",
+      "function getHiddenGrottoTierCap",
+      "function getHiddenGrottoEligiblePokemonByType",
+      "function isHiddenGrottoEncounterEligible",
+      "HIDDEN_GROTTO_TIER_STEP_BONUS",
+      "hiddenGrottoTypes",
     ];
     const leftovers = forbiddenRuntimeMarkers.filter((marker) => app.includes(marker));
-    if (leftovers.length) throw new Error(`Hidden Grotto runtime markers remain: ${leftovers.join(", ")}`);
+    if (leftovers.length) {
+      throw new Error(`Hidden Grotto runtime markers remain: ${leftovers.join(", ")}`);
+    }
 
-    for (const marker of ["function renderV2RouteActionPhase()", "const V2_ROUTE_TOKEN_IDS", "function useV2RouteActionToken"]) {
-      if (!app.includes(marker)) throw new Error(`Current Route invariant disappeared: ${marker}`);
+    for (const marker of [
+      "function renderV2RouteActionPhase()",
+      "const V2_ROUTE_TOKEN_IDS",
+      "function useV2RouteActionToken",
+      "function renderRangerBaseDetails(",
+      "function renderBulletinBoardDetails(",
+      "function pendingSilphCoSession(",
+      "function encounterWheelKey(",
+    ]) {
+      if (!app.includes(marker)) {
+        throw new Error(`Current/neighbor invariant disappeared: ${marker}`);
+      }
     }
 
     fs.writeFileSync(APP_PATH, app, "utf8");
     wrote = true;
+
     runChecks();
+
     git(["add", "app.js"]);
     execFileSync("git", ["diff", "--cached", "--check"], { cwd: ROOT, stdio: "inherit" });
     const staged = git(["diff", "--cached", "--stat"]);
     if (!staged) throw new Error("Stage 4 produced no staged changes.");
+
     console.log(`\n${staged}`);
-    console.log(`Removed Hidden Grotto functions: ${removedFunctions.sort().join(", ")}`);
-    console.log(`Removed Hidden Grotto declarations: ${variableResult.names.sort().join(", ")}`);
+    console.log(`Removed Hidden Grotto functions: ${removedFunctions.join(", ")}`);
+    console.log("Removed Hidden Grotto declarations: HIDDEN_GROTTO_TIER_STEP_BONUS, hiddenGrottoTypes");
     console.log("Preserved perk/bulletin descriptive data for later dedicated rules review.");
+
     git(["commit", "-m", "Remove retired Hidden Grotto runtime"], { inherit: true });
     committed = true;
     git(["push", "origin", EXPECTED_BRANCH], { inherit: true });
@@ -296,8 +355,10 @@ function main() {
   } catch (error) {
     if (wrote && !committed) {
       try {
-        fs.writeFileSync(APP_PATH, original, "utf8");
         git(["reset", "HEAD", "--", "app.js"]);
+      } catch (_) {}
+      try {
+        fs.writeFileSync(APP_PATH, original, "utf8");
       } catch (_) {}
     }
     const suffix = committed
