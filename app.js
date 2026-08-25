@@ -524,7 +524,6 @@ const ITEM_SHOP_FOLDERS = Object.freeze({
   }
 });
 const SAGA_TIERS = Object.freeze(["LC", "LC Elite", "Safari", "Safari Elite", "Poke", "Poke Elite", "Great", "Great Elite", "Ultra", "Ultra Elite", "Master", "Master Elite"]);
-const HIDDEN_GROTTO_TIER_STEP_BONUS = 2;
 const ACQUISITION_TIER_FAMILIES = Object.freeze([
   { id: "lc", label: "LC", battleTierIds: ["lc", "lc-elite"], rank: 1 },
   { id: "safari", label: "Safari", battleTierIds: ["safari", "safari-elite"], rank: 2 },
@@ -2330,15 +2329,6 @@ const actionPhaseRules = Object.freeze({
       ]
     },
     {
-      id: "hidden-grotto",
-      name: "Hidden Grotto",
-      category: "pokemon",
-      actionCost: 1,
-      cost: 1500,
-      summary: "Roll 3 types, choose one, then roll 3 Pokemon of that type from up to 2 Battle Tiers above the current Gym tier and choose one. LC/LC Elite Pokemon that can still evolve are excluded.",
-      effects: [{ type: "typed-tier-random-pokemon", typeRolls: 3, pokemonRolls: 3, usesNaturalTierCap: true, tierStepsAboveNaturalCap: HIDDEN_GROTTO_TIER_STEP_BONUS }]
-    },
-    {
       id: "dragons-den",
       name: "Dragon's Den",
       category: "pokemon",
@@ -2609,7 +2599,6 @@ function createCleanInitialState() {
     gameCornerUnlocks: [],
     breederDeposits: [],
     dragonsDenSessions: [],
-    hiddenGrottoSessions: [],
     silphCoSessions: [],
     bulletinBoardSessions: [],
     graveyardSessions: [],
@@ -16910,7 +16899,6 @@ const pokemonTypeLookupAliasMap = Object.freeze({
   "rotom-wash": "rotom-wash-rotom"
 });
 
-const hiddenGrottoTypes = Object.freeze(["Normal", "Fire", "Water", "Electric", "Grass", "Ice", "Fighting", "Poison", "Ground", "Flying", "Psychic", "Bug", "Rock", "Ghost", "Dragon", "Dark", "Steel", "Fairy"]);
 
 const tierCostScale = Object.freeze({
   lc: 1000,
@@ -17733,12 +17721,6 @@ function getNaturalGymTier(gymNumber) {
   return NATURAL_GYM_TIER_CAPS[Number(gymNumber)] || "Ultra";
 }
 
-function getHiddenGrottoTierCap(gymNumber = state.gym) {
-  const naturalTier = getNaturalGymTier(gymNumber);
-  const naturalTierIndex = getTierIndex(naturalTier);
-  if (naturalTierIndex < 0) return naturalTier;
-  return getTierNameByIndex(naturalTierIndex + HIDDEN_GROTTO_TIER_STEP_BONUS);
-}
 
 function isTierAtOrBelow(candidateTier, allowedTier) {
   const candidateIndex = getTierIndex(candidateTier);
@@ -22206,12 +22188,6 @@ function normalizeState(nextState) {
   nextState.gameCornerSessions ||= [];
   nextState.gameCornerUnlocks ||= [];
   nextState.dragonsDenSessions ||= [];
-  nextState.hiddenGrottoSessions ||= [];
-  nextState.hiddenGrottoSessions.forEach((session) => {
-    session.status = ["type-choice", "pokemon-choice", "completed", "undone"].includes(session.status) ? session.status : "type-choice";
-    session.rolledTypes ||= [];
-    session.rolledPokemon ||= [];
-  });
   nextState.silphCoSessions ||= [];
   nextState.silphCoSessions.forEach((session) => {
     session.status = ["pending-choice", "completed", "undone"].includes(session.status) ? session.status : "pending-choice";
@@ -34896,7 +34872,6 @@ function linkedActionOperationSession(operation) {
   const collections = {
     wheel: state.wheelSessions,
     encounter: state.encounterSessions,
-    "hidden-grotto": state.hiddenGrottoSessions,
     "silph-co": state.silphCoSessions,
     "bulletin-board": state.bulletinBoardSessions,
     breeder: null,
@@ -39397,103 +39372,6 @@ function renderSilphCoDetails(location, player) {
   `;
 }
 
-function renderHiddenGrottoDetails(location, player) {
-  if (!pokemonBuildDataReady()) ensurePokemonBuildDataLoaded();
-  const cost = Number(location?.cost || 1500);
-  const naturalTier = getNaturalGymTier(state.gym);
-  const grottoTierCap = getHiddenGrottoTierCap(state.gym);
-  const session = activeHiddenGrottoSession(player.id);
-  const sessionTierCap = getHiddenGrottoTierCap(session?.gym || state.gym);
-  if (session?.status === "type-choice") {
-    return `
-      <div><span>Balance</span><strong>${formatMoney(player.balance || 0)}</strong></div>
-      <div><span>Cost Paid</span><strong>${formatMoney(session.cost || cost)}</strong></div>
-      <div><span>Hidden Grotto Tier Cap</span><strong>${escapeHtml(formatPokemonBalanceTierLabel(sessionTierCap))}</strong></div>
-      <p class="gc-rule-note">Choose one rolled type. Hidden Grotto then rolls 3 Pokemon of that type from up to 2 Battle Tier steps above this Gym's normal tier. LC/LC Elite Pokemon that can still evolve are excluded.</p>
-      <section class="location-services">
-        ${session.rolledTypes.map((type) => {
-          const eligible = getHiddenGrottoPool(session.gym || state.gym, type);
-          return `
-            <article class="location-service-card">
-              <div>
-                <strong>${escapeHtml(type)}</strong>
-                <p>${eligible.length ? `${eligible.length} eligible Pokemon` : "No eligible Pokemon"}</p>
-              </div>
-              <button class="buy-button" type="button" data-grotto-type="${escapeHtml(type)}"${eligible.length ? "" : " disabled"}>Choose ${escapeHtml(type)}</button>
-            </article>
-          `;
-        }).join("")}
-      </section>
-    `;
-  }
-  if (session?.status === "pokemon-choice") {
-    return `
-      <div><span>Cost Paid</span><strong>${formatMoney(session.cost || cost)}</strong></div>
-      <div><span>Chosen Type</span><strong>${escapeHtml(session.chosenType || "Unknown")}</strong></div>
-      <div><span>Hidden Grotto Tier Cap</span><strong>${escapeHtml(formatPokemonBalanceTierLabel(sessionTierCap))}</strong></div>
-      <p class="gc-rule-note">Choose 1 of the 3 rolled Pokemon. The pool includes tiers up to 2 Battle Tier steps above this Gym's normal tier and excludes LC/LC Elite Pokemon that can still evolve.</p>
-      <section class="location-services">
-        ${(session.rolledPokemon || []).map((choice) => {
-          const name = choice.displayName || choice.pokemonName || "Unknown";
-          return `
-            <article class="location-service-card">
-              <div>
-                <strong>${escapeHtml(name)}</strong>
-                <p>${escapeHtml((choice.types || []).join(" / ") || "Unknown Type")} - ${escapeHtml(formatPokemonBalanceTierLabel(choice.tier || "Unassigned"))}</p>
-              </div>
-              <button class="buy-button" type="button" data-grotto-pokemon="${escapeHtml(name)}">Choose ${escapeHtml(name)}</button>
-            </article>
-          `;
-        }).join("")}
-      </section>
-    `;
-  }
-  const pool = getHiddenGrottoPool(state.gym);
-  const availableTypes = hiddenGrottoAvailableTypes(state.gym);
-  const typeChoiceCards = hiddenGrottoTypes.map((type) => {
-    const eligible = getHiddenGrottoPool(state.gym, type);
-    return `
-      <button class="ghost-button grotto-type-direct-button" type="button" data-grotto-start-type="${escapeHtml(type)}"${eligible.length ? "" : " disabled"}>
-        ${escapeHtml(type)} <span>${eligible.length}</span>
-      </button>
-    `;
-  }).join("");
-  const recentSession = (state.hiddenGrottoSessions || []).find((entry) => entry.playerId === player.id
-    && entry.series === state.series
-    && Number(entry.gym) === Number(state.gym)
-    && entry.status === "completed"
-    && !entry.undone);
-  const recentPokemon = recentSession?.rosterPokemonId ? findPokemonRecord(recentSession.rosterPokemonId) : null;
-  return `
-    <div><span>Balance</span><strong>${formatMoney(player.balance || 0)}</strong></div>
-    <div><span>Cost</span><strong>${formatMoney(cost)}</strong></div>
-    <div><span>Current Gym Battle Tier</span><strong>${escapeHtml(formatPokemonBalanceTierLabel(naturalTier))}</strong></div>
-    <div><span>Hidden Grotto Tier Cap</span><strong>${escapeHtml(formatPokemonBalanceTierLabel(grottoTierCap))}</strong></div>
-    <div><span>Available Pokemon in Pool</span><strong>${pool.length}</strong></div>
-    <div><span>Available Types</span><strong>${availableTypes.length}</strong></div>
-    <p class="gc-rule-note">Spend 1 Action and ${formatMoney(cost)} to roll 3 types, choose one, then roll 3 Pokemon of that type and choose one. The pool reaches 2 Battle Tier steps above this Gym's normal tier. LC/LC Elite Pokemon that can still evolve remain excluded.</p>
-    ${recentSession ? `
-      <article class="location-service-card">
-        <div class="pokemon-result-inline">
-          <div class="pokemon-avatar${pokemonSpriteClassSuffix(recentPokemon)}">
-            ${recentPokemon ? renderPokemonSpriteContent(recentPokemon) : `<span>${escapeHtml((recentSession.chosenPokemon || "?").slice(0, 1))}</span>`}
-          </div>
-          <div>
-            <strong>Latest Find: ${escapeHtml(recentSession.chosenPokemon || "Unknown")}</strong>
-            <p>${escapeHtml(recentSession.chosenType || "Unknown Type")} - ${escapeHtml(pokemonBattleTierSummary(recentSession.chosenPokemon || "", "Unassigned"))}</p>
-          </div>
-        </div>
-      </article>
-    ` : ""}
-    <button class="buy-button" type="button" data-grotto-start="true"${availableTypes.length ? "" : " disabled"}>Explore Hidden Grotto</button>
-    <section class="gc-token-use-panel grotto-type-direct-panel">
-      <h3>Choose Type</h3>
-      <p>Use this when a trainer class or effect lets you pick the Hidden Grotto type directly.</p>
-      <div class="grotto-type-direct-grid">${typeChoiceCards}</div>
-    </section>
-  `;
-}
-
 function renderRangerBaseDetails(location, player, tracker) {
   const visits = Number(tracker.rangerVisits || 0);
   const credits = Number(tracker.rangerCredits || 0);
@@ -40149,221 +40027,6 @@ function renderSilphCoDetails(location, player) {
     <label>Pokémon (Ctrl/Cmd-click for multiple)<select id="silphPokemonSelect" multiple size="${Math.min(8, Math.max(3, eligible.length))}">${eligible.map((pokemon) => { const tier = pokemonConsolidatedBattleTier(pokemon); const cost = globalThis.rivalSagaActionPhaseBalance.SILPH_COSTS[tier] || 0; return `<option value="${escapeHtml(pokemon.id)}">${escapeHtml(pokemon.name)} - ${escapeHtml(globalThis.rivalSagaActionPhaseBalance.tierLabel(tier) || "Tier required")} - ${cost ? formatMoney(cost) : "Unavailable"}</option>`; }).join("")}</select></label>
     <div class="breeder-select-panel" data-silph-preview><span>Select one to three Pokémon.</span></div>
     <button class="buy-button" type="button" data-silph-start ${eligible.length ? "" : "disabled"}>Start Silph Co. R&D</button>`;
-}
-
-async function startHiddenGrottoSession({ chosenType = "" } = {}) {
-  const player = activePlayer();
-  const location = actionLocationById("hidden-grotto");
-  const cost = Number(location?.cost || 1500);
-  if (Number(player.balance || 0) < cost) {
-    alert(`Hidden Grotto costs ${formatMoney(cost)}. You do not have enough money.`);
-    return;
-  }
-  await ensurePokemonBuildDataLoaded({ renderOnLoad: false });
-  const naturalTier = getNaturalGymTier(state.gym);
-  const targetTier = getHiddenGrottoTierCap(state.gym);
-  const pool = getHiddenGrottoPool(state.gym);
-  const availableTypes = hiddenGrottoAvailableTypes(state.gym);
-  if (!pool.length || !availableTypes.length) {
-    alert(`No eligible Pokemon are currently available for Hidden Grotto at ${formatPokemonBalanceTierLabel(targetTier)} or lower.`);
-    return;
-  }
-  const directType = hiddenGrottoTypes.find((type) => normalizePokemonName(type) === normalizePokemonName(chosenType)) || "";
-  if (chosenType && !directType) {
-    alert("Choose a valid Hidden Grotto type.");
-    return;
-  }
-  if (directType && !availableTypes.includes(directType)) {
-    alert(`No eligible ${directType} Pokemon are currently available for this Hidden Grotto tier pool.`);
-    return;
-  }
-  const directTypeOptions = directType ? getHiddenGrottoPool(state.gym, directType) : [];
-  const directTypeChoices = directType ? randomUniqueSample(directTypeOptions, Math.min(3, directTypeOptions.length)) : [];
-  if (directType && !directTypeChoices.length) {
-    alert(`No eligible ${directType} Pokemon are available for this Hidden Grotto tier pool after low-tier evolution filtering.`);
-    return;
-  }
-  const check = actionLocationCanConfirm(location, player.id, 1);
-  if (!check.ok) {
-    alert(check.reason);
-    return;
-  }
-  const previousVisits = structuredClone(actionVisitsForPlayer(player.id));
-  const previousBalance = Number(player.balance || 0);
-  const previousMoneyLedger = structuredClone(state.moneyLedger || []);
-  const previousPokemonRecords = structuredClone(state.pokemonRecords || []);
-  const previousHiddenGrottoSessions = structuredClone(state.hiddenGrottoSessions || []);
-  const visit = {
-    id: `action-visit-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-    playerId: player.id,
-    locationId: "hidden-grotto",
-    locationName: "Hidden Grotto",
-    serviceId: "hidden-grotto-start",
-    serviceLabel: "Explore Hidden Grotto",
-    actionCost: 1,
-    series: state.series,
-    gym: Number(state.gym),
-    phase: currentPhase(),
-    createdAt: new Date().toISOString(),
-    placeholder: false
-  };
-  commitActionVisit(visit);
-  player.balance = previousBalance - cost;
-  const ledgerEntry = addMoneyLedgerEntry(player, {
-    amount: -cost,
-    direction: "spend",
-    sourceType: "hidden-grotto",
-    sourceLabel: "Hidden Grotto",
-    note: "Hidden Grotto exploration",
-    balanceBefore: previousBalance,
-    balanceAfter: player.balance,
-    actionVisitId: visit.id,
-    sourceVisitId: visit.id
-  });
-  const rolledTypes = directType ? [directType] : randomUniqueSample(availableTypes, Math.min(3, availableTypes.length));
-  const session = {
-    id: `grotto-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-    playerId: player.id,
-    series: state.series,
-    gym: Number(state.gym),
-    actionVisitId: visit.id,
-    locationId: "hidden-grotto",
-    cost,
-    ledgerEntryId: ledgerEntry.id,
-    naturalTier,
-    targetTier,
-    tierStepBonus: HIDDEN_GROTTO_TIER_STEP_BONUS,
-    poolCount: pool.length,
-    rolledTypes,
-    chosenType: directType || null,
-    rolledPokemon: directType ? directTypeChoices : [],
-    chosenPokemon: null,
-    rosterPokemonId: "",
-    status: directType ? "pokemon-choice" : "type-choice",
-    createdAt: new Date().toISOString()
-  };
-  state.hiddenGrottoSessions ||= [];
-  state.hiddenGrottoSessions.unshift(session);
-  linkActionOperation(visit.id, { featureType: "hidden-grotto", featureSessionId: session.id });
-  addLogEntry({
-    action: "phase",
-    category: "action",
-    player: player.name,
-    item: `${player.name} explored Hidden Grotto`,
-    title: `${player.name} explored Hidden Grotto`,
-    summary: directType
-      ? `Spent 1 Action at Hidden Grotto\nSpent ${formatMoney(cost)}\nGrotto Tier Cap: ${formatPokemonBalanceTierLabel(targetTier)}\nChose ${directType}\nChoose 1 Pokemon`
-      : `Spent 1 Action at Hidden Grotto\nSpent ${formatMoney(cost)}\nGrotto Tier Cap: ${formatPokemonBalanceTierLabel(targetTier)}\nChoose a type`,
-    details: [
-      `Current Gym Battle Tier: ${formatPokemonBalanceTierLabel(naturalTier)}`,
-      `Hidden Grotto Tier Cap: ${formatPokemonBalanceTierLabel(targetTier)}`,
-      `Available Pokemon in Pool: ${pool.length}`,
-      directType ? `Direct Type Choice: ${directType}` : `Rolled Types: ${rolledTypes.join(", ")}`,
-      directType ? `Eligible ${directType} Pool: ${directTypeOptions.length}` : "",
-      directType ? `Pokemon Choices: ${directTypeChoices.map((choice) => choice.displayName || choice.pokemonName).join(", ")}` : ""
-    ].filter(Boolean),
-    type: "hidden-grotto-action",
-    categories: ["action", "money", "pokemon"],
-    tags: ["hidden-grotto", "money"],
-    playerIds: [player.id],
-    moneyChanges: [{ amount: -cost, direction: "spend", ledgerEntryId: ledgerEntry.id, sourceType: "hidden-grotto" }],
-    actionVisitId: visit.id,
-    visitId: visit.id,
-    hiddenGrottoSessionId: session.id,
-    ledgerEntryIds: [ledgerEntry.id],
-    undoable: true,
-    undone: false,
-    undoData: {
-      actionType: "undoHiddenGrottoAction",
-      visitId: visit.id,
-      playerId: player.id,
-      hiddenGrottoSessionId: session.id,
-      series: state.series,
-      gym: Number(state.gym),
-      previousVisits,
-      previousBalance,
-      previousMoneyLedger,
-      previousPokemonRecords,
-      previousHiddenGrottoSessions
-    }
-  });
-  saveState();
-  render();
-}
-
-async function chooseHiddenGrottoType(type) {
-  const session = activeHiddenGrottoSession(activePlayer().id);
-  if (!session || session.status !== "type-choice" || !session.rolledTypes.includes(type)) return;
-  await ensurePokemonBuildDataLoaded({ renderOnLoad: false });
-  const options = getHiddenGrottoPool(session.gym || state.gym, type);
-  const choices = randomUniqueSample(options, Math.min(3, options.length));
-  if (!choices.length) {
-    alert(`No eligible ${type} Pokemon are available for this Hidden Grotto tier pool after low-tier evolution filtering. Choose another rolled type.`);
-    return;
-  }
-  session.chosenType = type;
-  session.rolledPokemon = choices;
-  session.status = "pokemon-choice";
-  session.naturalTier = getNaturalGymTier(session.gym || state.gym);
-  session.targetTier = getHiddenGrottoTierCap(session.gym || state.gym);
-  session.tierStepBonus = HIDDEN_GROTTO_TIER_STEP_BONUS;
-  const entry = (state.log || []).find((logEntry) => logEntry.hiddenGrottoSessionId === session.id);
-  if (entry) {
-    entry.summary = `Spent 1 Action at Hidden Grotto\nSpent ${formatMoney(session.cost)}\nGrotto Tier Cap: ${formatPokemonBalanceTierLabel(session.targetTier)}\nChose ${type}\nChoose 1 Pokemon`;
-    entry.details = [
-      `Current Gym Battle Tier: ${formatPokemonBalanceTierLabel(session.naturalTier)}`,
-      `Hidden Grotto Tier Cap: ${formatPokemonBalanceTierLabel(session.targetTier)}`,
-      `Rolled Types: ${session.rolledTypes.join(", ")}`,
-      `Chosen Type: ${type}`,
-      `Eligible ${type} Pool: ${options.length}`,
-      `Pokemon Choices: ${choices.map((choice) => choice.displayName || choice.pokemonName).join(", ")}`
-    ];
-    appendUniqueLogValue(entry, "tags", "hidden-grotto-pokemon-choice");
-  }
-  saveState();
-  render();
-}
-
-async function chooseHiddenGrottoPokemon(name) {
-  const player = activePlayer();
-  const session = activeHiddenGrottoSession(player.id);
-  if (!session || session.status !== "pokemon-choice") return;
-  const choice = (session.rolledPokemon || []).find((pokemon) => pokemon.displayName === name || pokemon.pokemonName === name);
-  if (!choice) return;
-  await ensurePokemonBuildDataLoaded({ renderOnLoad: false });
-  const acquisition = resolvePokemonAcquisitionSpecies(choice.displayName || choice.pokemonName);
-  const sprite = await fetchStablePokemonSprite(acquisition.receivedSpecies || choice.displayName || choice.pokemonName);
-  const pokemon = createPokemonRecord(player, choice.displayName || choice.pokemonName, "Hidden Grotto", {
-    rosterType: "Active",
-    receivedSpriteUrl: sprite.spriteUrl || "",
-    receivedSpriteKey: sprite.spriteKey || "",
-    sourceTier: getPokemonAcquisitionTier(choice.displayName || choice.pokemonName),
-    acquisitionTier: getPokemonAcquisitionTier(choice.displayName || choice.pokemonName),
-    gameCornerMetadata: getPokemonGameCornerMetadata(choice.displayName || choice.pokemonName)
-  });
-  session.chosenPokemon = choice.displayName || choice.pokemonName;
-  session.rosterPokemonId = pokemon.id;
-  session.status = "completed";
-  session.completedAt = new Date().toISOString();
-  const entry = (state.log || []).find((logEntry) => logEntry.hiddenGrottoSessionId === session.id);
-  if (entry) {
-    entry.summary = `Spent 1 Action at Hidden Grotto\nSpent ${formatMoney(session.cost)}\nChose ${session.chosenType} Type\nCaught ${session.chosenPokemon}`;
-    entry.details = [
-      `Current Gym Battle Tier: ${formatPokemonBalanceTierLabel(session.naturalTier || getNaturalGymTier(session.gym))}`,
-      `Hidden Grotto Tier Cap: ${formatPokemonBalanceTierLabel(session.targetTier || getHiddenGrottoTierCap(session.gym))}`,
-      `Rolled Types: ${session.rolledTypes.join(", ")}`,
-      `Chosen Type: ${session.chosenType}`,
-      `Pokemon Choices: ${(session.rolledPokemon || []).map((pokemon) => pokemon.displayName).join(", ")}`,
-      `Chosen Pokemon: ${session.chosenPokemon}`,
-      `Battle Tier: ${pokemonBattleTierSummary(session.chosenPokemon, "Unassigned").replace(/^Battle:\s*/, "")}`,
-      `Types: ${(choice.types || []).join(" / ") || "Unknown"}`
-    ];
-    appendUniqueLogValue(entry, "pokemonNames", session.chosenPokemon);
-    appendUniqueLogValue(entry, "tags", "hidden-grotto-result");
-  }
-  completeActionOperationForVisit(session.actionVisitId, "hidden-grotto-choice-complete");
-  saveState();
-  render();
 }
 
 function renderBulletinBoardDetails(location, player) {
@@ -41602,140 +41265,8 @@ function getPokemonByType(type) {
   return sourceEntries.filter((entry) => (entry.types || []).some((candidate) => String(candidate).toLowerCase() === target));
 }
 
-function getHiddenGrottoEligiblePokemonByType(type) {
-  const seen = new Set();
-  return Object.entries(rivalSagaPokemonTierMap)
-    .map(([key, metadata]) => ({
-      pokemonName: key,
-      displayName: metadata.displayName || key,
-      types: getPokemonTypes(metadata.displayName || key),
-      tier: metadata.tier,
-      metadata
-    }))
-    .filter((entry) => {
-      const groupKey = pokemonRollGroupKey({ key: entry.pokemonName, displayName: entry.displayName, rollGroup: entry.metadata?.rollGroup });
-      if (seen.has(groupKey)) return false;
-      seen.add(groupKey);
-      return (entry.types || []).some((candidate) => String(candidate).toLowerCase() === String(type || "").toLowerCase())
-        && currentPokemonRuleStatusByName(entry.displayName) !== "Banned";
-    });
-}
-
-function isHiddenGrottoEncounterEligible(entry) {
-  const key = entry?.indexKey || normalizePokemonName(entry?.displayName || "");
-  const name = entry?.displayName || key;
-  if (!key || !name) return false;
-  if (entry?.encounterEligible === false) return false;
-  if (/(^|-)(mega|gmax|gigantamax|primal)(-|$)/i.test(key)) return false;
-  if (currentPokemonRuleStatusByName(name) === "Banned") return false;
-  return true;
-}
-
-let hiddenGrottoFinalEvolutionSpeciesIdsCache = null;
-
-function hiddenGrottoLowTierNfeCutoffIndex() {
-  return getTierIndex("LC Elite");
-}
-
-function hiddenGrottoEntryHasNoEvolutionNote(entry = {}) {
-  const notes = [
-    entry.note,
-    entry.metadata?.note,
-    ...(Array.isArray(entry.notes) ? entry.notes : []),
-    entry.displayName,
-    entry.metadata?.displayName
-  ];
-  return notes.some((note) => /(?:no\s*evo|doesn['’]?t\s+evolve|does\s+not\s+evolve)/i.test(String(note || "")));
-}
-
-function hiddenGrottoFinalEvolutionSpeciesIds() {
-  if (!pokemonBuildDataReady()) {
-    ensurePokemonBuildDataLoaded();
-    return null;
-  }
-  if (hiddenGrottoFinalEvolutionSpeciesIdsCache) return hiddenGrottoFinalEvolutionSpeciesIdsCache;
-  const childrenByParent = teambuilderEvolutionChildrenByParent({ requestLoad: false });
-  hiddenGrottoFinalEvolutionSpeciesIdsCache = new Set(teambuilderSpeciesEntries({ requestLoad: false })
-    .map((species) => String(species.speciesId || ""))
-    .filter((speciesId) => speciesId && !childrenByParent.has(speciesId)));
-  return hiddenGrottoFinalEvolutionSpeciesIdsCache;
-}
-
-function hiddenGrottoSpeciesForEntry(entry = {}) {
-  const candidates = [
-    entry.indexKey,
-    entry.displayName,
-    entry.metadata?.displayName,
-    entry.metadata?.pokemonName,
-    entry.metadata?.pokeapiKey
-  ].map((value) => String(value || "").trim()).filter(Boolean);
-  for (const candidate of candidates) {
-    const pokemon = teambuilderPokemonData(candidate);
-    const speciesId = String(pokemon?.speciesKey || pokemon?.speciesId || "");
-    if (speciesId) {
-      const species = teambuilderSpeciesById(speciesId, { requestLoad: false });
-      if (species) return species;
-    }
-  }
-  for (const candidate of candidates) {
-    const species = teambuilderSpeciesByName(candidate, { requestLoad: false });
-    if (species) return species;
-  }
-  return null;
-}
-
-function isHiddenGrottoFullyEvolvedEntry(entry = {}) {
-  if (hiddenGrottoEntryHasNoEvolutionNote(entry)) return true;
-  const finalSpeciesIds = hiddenGrottoFinalEvolutionSpeciesIds();
-  if (!finalSpeciesIds) return true;
-  const species = hiddenGrottoSpeciesForEntry(entry);
-  if (!species?.speciesId) return true;
-  return finalSpeciesIds.has(String(species.speciesId));
-}
-
-function hiddenGrottoExcludesLowTierNfe(entry = {}, tier = "") {
-  const tierIndex = getTierIndex(tier);
-  const cutoffIndex = hiddenGrottoLowTierNfeCutoffIndex();
-  if (tierIndex < 0 || cutoffIndex < 0 || tierIndex > cutoffIndex) return false;
-  return !isHiddenGrottoFullyEvolvedEntry(entry);
-}
-
-function getHiddenGrottoPool(gymNumber = state.gym, type = "") {
-  const targetTier = getHiddenGrottoTierCap(gymNumber);
-  const seen = new Set();
-  return buildPokemonIndexEntries()
-    .filter((entry) => {
-      if (!isHiddenGrottoEncounterEligible(entry)) return false;
-      const tier = entry.balanceTierLabel || getPokemonBalanceTierLabel(entry.balanceTier);
-      const tierIndex = getTierIndex(tier);
-      if (tierIndex < 0) return false;
-      if (!isTierAtOrBelow(tier, targetTier)) return false;
-      if (hiddenGrottoExcludesLowTierNfe(entry, tier)) return false;
-      if (type && !(entry.types || []).some((candidate) => String(candidate).toLowerCase() === String(type).toLowerCase())) return false;
-      const groupKey = pokemonRollGroupKey({ key: entry.indexKey, displayName: entry.displayName, rollGroup: entry.policy?.rollGroup });
-      if (seen.has(groupKey)) return false;
-      seen.add(groupKey);
-      return true;
-    })
-    .map((entry) => ({
-      pokemonName: entry.indexKey,
-      displayName: entry.displayName,
-      types: entry.types || [],
-      tier: entry.balanceTierLabel || getPokemonBalanceTierLabel(entry.balanceTier),
-      metadata: entry
-    }));
-}
-
-function hiddenGrottoAvailableTypes(gymNumber = state.gym) {
-  return hiddenGrottoTypes.filter((type) => getHiddenGrottoPool(gymNumber, type).length > 0);
-}
-
 function pendingSilphCoSession(playerId = activePlayer().id) {
   return (state.silphCoSessions || []).find((session) => session.playerId === playerId && session.status === "pending-choice") || null;
-}
-
-function activeHiddenGrottoSession(playerId = activePlayer().id) {
-  return (state.hiddenGrottoSessions || []).find((session) => session.playerId === playerId && ["type-choice", "pokemon-choice"].includes(session.status)) || null;
 }
 
 function encounterWheelKey(series = state.series, gym = state.gym) {
@@ -61410,18 +60941,6 @@ function undoLogEntry(logId) {
     if (undoData.previousPokemonRecords) state.pokemonRecords = structuredClone(undoData.previousPokemonRecords).map(normalizePokemonRecord);
     if (undoData.previousSilphCoSessions) state.silphCoSessions = structuredClone(undoData.previousSilphCoSessions);
     if (player && undoData.previousMoveAccessGrants) player.moveAccessGrants = structuredClone(undoData.previousMoveAccessGrants);
-    syncPlayerPokemonLists();
-  } else if (undoData.actionType === "undoHiddenGrottoAction") {
-    const key = actionPhaseKey(undoData.series, undoData.gym);
-    state.actionPhaseState ||= { selections: {}, seriesTrackers: {} };
-    state.actionPhaseState.selections ||= {};
-    state.actionPhaseState.selections[key] ||= { series: undoData.series, gym: undoData.gym, playerVisits: {} };
-    state.actionPhaseState.selections[key].playerVisits[undoData.playerId] = structuredClone(undoData.previousVisits || []);
-    const player = state.players.find((candidate) => candidate.id === undoData.playerId);
-    if (player) player.balance = Number(undoData.previousBalance ?? player.balance ?? 0);
-    if (undoData.previousMoneyLedger) state.moneyLedger = structuredClone(undoData.previousMoneyLedger);
-    if (undoData.previousPokemonRecords) state.pokemonRecords = structuredClone(undoData.previousPokemonRecords).map(normalizePokemonRecord);
-    if (undoData.previousHiddenGrottoSessions) state.hiddenGrottoSessions = structuredClone(undoData.previousHiddenGrottoSessions);
     syncPlayerPokemonLists();
   } else if (undoData.actionType === "undoEncounterAction") {
     const key = actionPhaseKey(undoData.series, undoData.gym);
