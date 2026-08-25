@@ -2222,14 +2222,6 @@ const actionPhaseRules = Object.freeze({
   maxSeriesDiscountStacks: 5,
   locations: [
     {
-      id: "encounter",
-      name: "Encounter",
-      category: "pokemon",
-      actionCost: 1,
-      summary: "Roll the Encounter Wheel for the current gym twice.",
-      effects: [{ type: "roll-wheel", wheel: "encounter", rolls: 2 }]
-    },
-    {
       id: "department-store",
       name: "Department Store",
       category: "shop",
@@ -38376,23 +38368,6 @@ function actionLocationServices(location, player = activePlayer(), tracker = ens
   if (location.id === "pokemon-breeder") return [];
   if (location.id === "ranger-base") return [];
   if (location.id === "pokemon-center") return [];
-  if (location.id === "encounter") {
-    const wheel = encounterWheelDefinition();
-    return [{
-      id: "encounter-wheel",
-      label: "Open Encounter Wheel",
-      buttonLabel: "Spend 1 Action",
-      description: wheel
-        ? `Spend 1 Action to roll ${wheel.name} twice. Encounter results can be confirmed as Pokemon Results.`
-        : "No encounter wheel is defined for the current gym yet.",
-      actionCost: 1,
-      maxUsesPerAction: wheel?.rollsPerAction || 2,
-      allowsMultipleUses: false,
-      disabled: !wheel,
-      disabledReason: wheel ? "" : "No Encounter Wheel is defined for this Series/Gym.",
-      implementationStatus: "Implemented MVP"
-    }];
-  }
   if (location.id === "gamecorner") {
     const gcTokens = gameCornerTokensForPlayer(player);
     const tokenCount = gcTokens.length;
@@ -41550,13 +41525,6 @@ async function confirmActionVisit(serviceId = "", { skipPendingGuard = false } =
     destinationCommit = await reserveAuthoritativeActionDestination({ player, location, service });
     if (location?.id === "gamecorner") {
       confirmGameCornerService(service, location, player);
-      await persistStartedActionDestination();
-      return;
-    }
-    if (location?.id === "encounter") {
-      if (!startEncounterSession({ skipConfirmCheck: true })) {
-        throw new Error("The Encounter location could not start.");
-      }
       await persistStartedActionDestination();
       return;
     }
