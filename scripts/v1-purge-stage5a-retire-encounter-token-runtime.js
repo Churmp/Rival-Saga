@@ -41,103 +41,6 @@ function requireMarkers(text, markers, label) {
   if (missing.length) throw new Error(`${label}: ${missing.join(", ")}`);
 }
 
-function findMatchingBrace(text, openIndex) {
-  let depth = 0;
-  let mode = "code";
-  let templateExprDepth = 0;
-  for (let i = openIndex; i < text.length; i += 1) {
-    const ch = text[i];
-    const next = text[i + 1];
-    if (mode === "line-comment") {
-      if (ch === "\n") mode = "code";
-      continue;
-    }
-    if (mode === "block-comment") {
-      if (ch === "*" && next === "/") {
-        mode = "code";
-        i += 1;
-      }
-      continue;
-    }
-    if (mode === "single") {
-      if (ch === "\\") i += 1;
-      else if (ch === "'") mode = "code";
-      continue;
-    }
-    if (mode === "double") {
-      if (ch === "\\") i += 1;
-      else if (ch === '"') mode = "code";
-      continue;
-    }
-    if (mode === "template") {
-      if (ch === "\\") {
-        i += 1;
-        continue;
-      }
-      if (ch === "`" && templateExprDepth === 0) {
-        mode = "code";
-        continue;
-      }
-      if (ch === "$" && next === "{") {
-        templateExprDepth += 1;
-        depth += 1;
-        i += 1;
-        continue;
-      }
-      if (ch === "}" && templateExprDepth > 0) {
-        templateExprDepth -= 1;
-        depth -= 1;
-        continue;
-      }
-      continue;
-    }
-    if (ch === "/" && next === "/") {
-      mode = "line-comment";
-      i += 1;
-      continue;
-    }
-    if (ch === "/" && next === "*") {
-      mode = "block-comment";
-      i += 1;
-      continue;
-    }
-    if (ch === "'") {
-      mode = "single";
-      continue;
-    }
-    if (ch === '"') {
-      mode = "double";
-      continue;
-    }
-    if (ch === "`") {
-      mode = "template";
-      templateExprDepth = 0;
-      continue;
-    }
-    if (ch === "{") depth += 1;
-    else if (ch === "}") {
-      depth -= 1;
-      if (depth === 0) return i;
-      if (depth < 0) break;
-    }
-  }
-  throw new Error("Could not find matching brace while removing the legacy Extra Encounter branch.");
-}
-
-function removeExtraEncounterGrantBranch(text) {
-  const marker = '  if (metadata.resolverId === "extraEncounter") {';
-  requireCount(text, marker, 1, "legacy Extra Encounter resolution branch after validation removal");
-  const start = text.indexOf(marker);
-  const openBrace = text.indexOf("{", start + marker.length - 1);
-  const closeBrace = findMatchingBrace(text, openBrace);
-  const suffix = text.slice(closeBrace + 1);
-  if (!suffix.startsWith(' else if (metadata.resolverId === "safeguard") {')) {
-    throw new Error("Legacy Extra Encounter branch is not followed by the expected Safeguard branch.");
-  }
-  const afterElse = closeBrace + 1 + " else ".length;
-  return text.slice(0, start) + "  " + text.slice(afterElse);
-}
-
 function ensureSafeBranch() {
   const branch = git(["branch", "--show-current"]);
   if (branch !== EXPECTED_BRANCH) {
@@ -147,26 +50,59 @@ function ensureSafeBranch() {
   if (status) throw new Error(`Working tree must be clean before Stage 5A.\n${status}`);
 }
 
+function removeLegacyGrantBranch(app) {
+  const startMarker = [
+    '  if (metadata.resolverId === "extraEncounter") {',
+    '    const grant = encounterTokenRuntime.grantExtraEncounter(state, {',
+  ].join("\n");
+  const endMarker = '  } else if (metadata.resolverId === "safeguard") {';
+  requireCount(app, startMarker, 1, "legacy Extra Encounter grant branch start");
+  requireCount(app, endMarker, 1, "Safeguard branch following legacy Extra Encounter grant");
+  const start = app.indexOf(startMarker);
+  const end = app.indexOf(endMarker, start);
+  if (end <= start) throw new Error("Safeguard branch did not follow the legacy Extra Encounter grant branch.");
+  return app.slice(0, start) + '  if (metadata.resolverId === "safeguard") {' + app.slice(end + endMarker.length);
+}
+
 function runChecks() {
   execFileSync(process.execPath, ["--check", "app.js"], { cwd: ROOT, stdio: "inherit" });
   execFileSync(process.execPath, ["--test", "scripts/test-v2-route-runtime-sequences.js"], { cwd: ROOT, stdio: "inherit" });
   execFileSync(process.execPath, ["--test", "versions/next-action-phase/tests/test-route-encounter-engine.js"], { cwd: ROOT, stdio: "inherit" });
 }
 
-function productionRuntimeRefs() {
-  const output = git([
-    "grep", "-n", "-E",
-    "encounterTokenRuntime|rivalSagaEncounterTokenRuntime|encounter-token-runtime\\.js",
-    "--",
-    "app.js", "index.html", "server.js", "package.json", "*.js", "scripts/*.js", "versions/*.js", "versions/**/*.js"
-  ]);
-  if (!output) return [];
-  return output.split("\n").filter((line) => !line.includes("scripts/v1-purge-") && !line.includes("V1_PURGE_"));
+function legacyRuntimeReferences() {
+  const markers = [
+    "encounterTokenRuntime",
+    "rivalSagaEncounterTokenRuntime",
+    "encounter-token-runtime.js",
+  ];
+  const allowedExtensions = new Set([".js", ".html", ".json"]);
+  const refs = [];
+  const files = git(["ls-files"]).split("\n").filter(Boolean);
+  for (const rel of files) {
+    if (rel === "encounter-token-runtime.js") continue;
+    if (rel.startsWith("scripts/v1-purge-")) continue;
+    if (rel.startsWith("V1_PURGE_")) continue;
+    if (!allowedExtensions.has(path.extname(rel).toLowerCase())) continue;
+    const full = path.join(ROOT, rel);
+    if (!fs.existsSync(full)) continue;
+    let source = "";
+    try {
+      source = fs.readFileSync(full, "utf8");
+    } catch (_) {
+      continue;
+    }
+    const hit = markers.find((marker) => source.includes(marker));
+    if (hit) refs.push(`${rel}: ${hit}`);
+  }
+  return refs;
 }
 
 function main() {
   ensureSafeBranch();
-  if (!fs.existsSync(RUNTIME_PATH)) throw new Error("encounter-token-runtime.js is already missing; refusing to infer partial Stage 5A state.");
+  if (!fs.existsSync(RUNTIME_PATH)) {
+    throw new Error("encounter-token-runtime.js is already missing; refusing to infer partial Stage 5A state.");
+  }
 
   const originalApp = fs.readFileSync(APP_PATH, "utf8");
   const originalIndex = fs.readFileSync(INDEX_PATH, "utf8");
@@ -205,20 +141,6 @@ function main() {
 
     app = replaceExactOnce(
       app,
-      '  const metadata = tokenEffectMetadataByName(draft.tokenName);\n',
-      [
-        '  const metadata = tokenEffectMetadataByName(draft.tokenName);',
-        '  if (metadata.resolverId === "extraEncounter") {',
-        '    alert("Extra Encounter is used from the current Route action. Open Routes and use the Token on the Route you want to explore.");',
-        '    return null;',
-        '  }',
-        "",
-      ].join("\n"),
-      "resolveImmediateTokenUse metadata line"
-    );
-
-    app = replaceExactOnce(
-      app,
       [
         '  let extraEncounterValidation = null;',
         '  if (metadata.resolverId === "extraEncounter") {',
@@ -237,8 +159,14 @@ function main() {
       "legacy Extra Encounter pre-consumption validation"
     );
 
-    app = removeExtraEncounterGrantBranch(app);
-    app = replaceExactOnce(app, '  let encounterSessionId = "";\n', "", "legacy Encounter session result variable");
+    app = removeLegacyGrantBranch(app);
+
+    app = replaceExactOnce(
+      app,
+      '  let encounterSessionId = "";\n',
+      "",
+      "legacy Encounter session result variable"
+    );
 
     app = replaceExactOnce(
       app,
@@ -264,6 +192,23 @@ function main() {
       "legacy Extra Encounter result-summary operation"
     );
 
+    app = replaceExactOnce(
+      app,
+      [
+        'async function resolveImmediateTokenUse(draft, { context = {} } = {}) {',
+        '  const metadata = tokenEffectMetadataByName(draft.tokenName);',
+      ].join("\n") + "\n",
+      [
+        'async function resolveImmediateTokenUse(draft, { context = {} } = {}) {',
+        '  const metadata = tokenEffectMetadataByName(draft.tokenName);',
+        '  if (metadata.resolverId === "extraEncounter") {',
+        '    alert("Extra Encounter is used from the current Route action. Open Routes and use the Token on the Route you want to explore.");',
+        '    return null;',
+        '  }',
+      ].join("\n") + "\n",
+      "resolveImmediateTokenUse Extra Encounter Route guard"
+    );
+
     index = replaceExactOnce(
       index,
       '    <script defer src="encounter-token-runtime.js?v=1"></script>\n',
@@ -271,17 +216,15 @@ function main() {
       "legacy Encounter Token runtime script include"
     );
 
-    const forbiddenAppMarkers = [
+    for (const marker of [
       "encounterTokenRuntime",
       "rivalSagaEncounterTokenRuntime",
       "extraEncounterValidation",
-      "encounterSessionId",
       "extra-encounter-created",
       "gained one Encounter Wheel roll",
-      "Extra Encounter Ready",
-    ];
-    const leftovers = forbiddenAppMarkers.filter((marker) => app.includes(marker));
-    if (leftovers.length) throw new Error(`Legacy generic Extra Encounter markers remain: ${leftovers.join(", ")}`);
+    ]) {
+      if (app.includes(marker)) throw new Error(`Legacy generic Extra Encounter marker remains: ${marker}`);
+    }
     requireCount(app, 'metadata.resolverId === "extraEncounter"', 1, "Route-only generic Extra Encounter guard");
     requireCount(app, "Extra Encounter is used from the current Route action.", 1, "Route-only Extra Encounter guidance");
     requireMarkers(app, currentRouteMarkers, "Current Route invariant disappeared");
@@ -293,15 +236,16 @@ function main() {
 
     runChecks();
 
-    const unexpectedRefs = productionRuntimeRefs();
-    if (unexpectedRefs.length) {
-      throw new Error(`Legacy Encounter Token runtime references remain in production/runtime files:\n${unexpectedRefs.join("\n")}`);
+    const refs = legacyRuntimeReferences();
+    if (refs.length) {
+      throw new Error(`Legacy Encounter Token runtime references remain in tracked runtime/test files:\n${refs.join("\n")}`);
     }
 
     git(["add", "app.js", "index.html", "encounter-token-runtime.js"]);
     execFileSync("git", ["diff", "--cached", "--check"], { cwd: ROOT, stdio: "inherit" });
     const staged = git(["diff", "--cached", "--stat"]);
     if (!staged) throw new Error("Stage 5A produced no staged changes.");
+
     console.log(`\n${staged}`);
     console.log("Legacy Encounter Token runtime dependency removed.");
     console.log("Generic Extra Encounter activation now redirects to the current Route action before consumption.");
