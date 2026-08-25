@@ -1,6 +1,6 @@
 # V1 Purge Runtime Context
 
-Generated from `20c1b65377de2b4eea5d0287f6f79fcdcb5e1d80` on `audit/purge-v1-runtime`.
+Generated from `78999ef8fb73d45165b4f2a86f218241a995af6b` on `audit/purge-v1-runtime`.
 
 This report is temporary purge tooling. It records exact current code boundaries so V1 can be removed surgically without relying on stale line numbers or keyword-wide deletion.
 
