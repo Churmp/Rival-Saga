@@ -24,8 +24,6 @@ const interactionSituationLifecycle = globalThis.rivalSagaInteractionSituationLi
 if (!interactionSituationLifecycle) throw new Error("Interaction situation lifecycle failed to load.");
 const provisionalDeclarationRuntime = globalThis.rivalSagaProvisionalDeclarationRuntime;
 if (!provisionalDeclarationRuntime) throw new Error("Provisional declaration runtime failed to load.");
-const encounterTokenRuntime = globalThis.rivalSagaEncounterTokenRuntime;
-if (!encounterTokenRuntime) throw new Error("Encounter Token runtime failed to load.");
 const API_ORIGIN = gameShellContract.resolveApiOrigin(window.location, globalThis.RIVAL_SAGA_CONFIG?.apiOrigin || "");
 const DEVELOPMENT_DIAGNOSTICS = ["127.0.0.1", "localhost", "::1"].includes(window.location.hostname);
 const POKEMON_BUILD_DATA_SCRIPT_SRC = "pokemon-build-data.js?v=7";
@@ -3906,22 +3904,14 @@ function tokenEffectAuditRecord({
 
 async function resolveImmediateTokenUse(draft, { context = {} } = {}) {
   const metadata = tokenEffectMetadataByName(draft.tokenName);
+  if (metadata.resolverId === "extraEncounter") {
+    alert("Extra Encounter is used from the current Route action. Open Routes and use the Token on the Route you want to explore.");
+    return null;
+  }
   const timingCheck = tokenUseTimingCheck({ player: draft.actor, tokenName: draft.tokenName, metadata, context });
   if (!timingCheck.ok) {
     alert(timingCheck.reason);
     return null;
-  }
-  let extraEncounterValidation = null;
-  if (metadata.resolverId === "extraEncounter") {
-    extraEncounterValidation = encounterTokenRuntime.validateExtraEncounter(state, {
-      playerId: draft.targetPlayerId
-    }, {
-      wheelDefinition: encounterWheelDefinition(state.series, state.gym)
-    });
-    if (!extraEncounterValidation.ok) {
-      alert(extraEncounterValidation.reason);
-      return null;
-    }
   }
   if (metadata.id === "substitute") {
     const legality = controlTokenDraftLegality(draft, metadata);
@@ -3965,44 +3955,8 @@ async function resolveImmediateTokenUse(draft, { context = {} } = {}) {
     `Pattern: ${metadata.activationPattern || "manual"}`
   ];
   const statusIds = [];
-  let encounterSessionId = "";
   let result = "resolved";
-  if (metadata.resolverId === "extraEncounter") {
-    const grant = encounterTokenRuntime.grantExtraEncounter(state, {
-      playerId: extraEncounterValidation.player.id,
-      sourceTokenId: consumedToken.id || "",
-      sourceActivationId: consumedToken.id || ""
-    }, {
-      wheelDefinition: extraEncounterValidation.wheel,
-      now
-    });
-    if (!grant.ok || !grant.session) {
-      restoreTokenEffectContractUndoData(rollbackSnapshot);
-      alert(grant.reason || "The extra Encounter session could not be created. The Token was not consumed.");
-      return null;
-    }
-    encounterSessionId = grant.session.id;
-    state.selectedEncounterSessionId = grant.session.id;
-    state.encounterModalOpen = true;
-    result = "extra-encounter-created";
-    details.push(`${extraEncounterValidation.player.name} gained one Encounter Wheel roll.`);
-    details.push(grant.created ? "Created a one-roll Encounter session." : "Added one roll to the player's open Encounter session.");
-    createPlayerNotification(extraEncounterValidation.player.id, {
-      type: "token",
-      title: "Extra Encounter Ready",
-      message: `${draft.actor.name} used ${consumedToken.name || draft.tokenName}. ${extraEncounterValidation.player.name} may roll one extra encounter now.`,
-      sourceType: "token-engine-v1",
-      sourceId: consumedToken.id || metadata.id,
-      priority: 1,
-      requiresAction: false,
-      payload: {
-        tokenName: consumedToken.name || draft.tokenName,
-        resolverId: metadata.resolverId,
-        encounterSessionId,
-        extraEncounterGrantId: grant.grant.id
-      }
-    });
-  } else if (metadata.resolverId === "safeguard") {
+  if (metadata.resolverId === "safeguard") {
     const expires = statusExpiresAt(1);
     const status = applyLingeringEffect({
       type: "safeguard",
@@ -4105,9 +4059,7 @@ async function resolveImmediateTokenUse(draft, { context = {} } = {}) {
     }
   });
   resolutionAudit.undoLogId = resolutionLog?.id || "";
-  const outcomeTitle = metadata.resolverId === "extraEncounter"
-      ? `Extra Encounter ready for ${extraEncounterValidation?.player?.name || "the chosen player"}.`
-    : metadata.resolverId === "safeguard"
+  const outcomeTitle = metadata.resolverId === "safeguard"
       ? "Safeguard active."
       : metadata.resolverId === "substituteAttach"
         ? "Substitute attached."
@@ -4137,11 +4089,7 @@ async function resolveImmediateTokenUse(draft, { context = {} } = {}) {
       createdStatusIds: statusIds,
       affectedRosterInstanceIds: [draft.targetPokemonId].filter(Boolean),
       consumedTokenRecords: consumed?.consumption ? [consumed.consumption] : [],
-      operations: encounterSessionId ? [{
-        type: "extraEncounterGrant",
-        targetPlayerId: extraEncounterValidation?.player?.id || "",
-        encounterSessionId
-      }] : []
+      operations: []
     },
     continuation: details.slice(-2).join(" ")
   });

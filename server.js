@@ -30,7 +30,6 @@ const STATIC_FILES = new Set([
   "/game-shell-contract.js",
   "/interaction-situation-lifecycle.js",
   "/provisional-declaration-runtime.js",
-  "/encounter-token-runtime.js",
   "/token-effect-contract.js",
   "/token-control-effects.js",
   "/token-control-controller.js",
