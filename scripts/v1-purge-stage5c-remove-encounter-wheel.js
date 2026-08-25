@@ -40,6 +40,10 @@ function replaceExactOnce(text, oldValue, newValue = "", label = oldValue) {
   return text.replace(oldValue, newValue);
 }
 
+function escapeRegExp(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 function skipQuotedOrComment(text, i, state) {
   const ch = text[i];
   const next = text[i + 1];
@@ -107,17 +111,14 @@ function matchingDelimiter(text, openIndex, openChar, closeChar) {
 }
 
 function functionRange(text, name) {
-  const asyncMarker = `async function ${name}`;
-  const syncMarker = `function ${name}`;
-  const asyncCount = count(text, asyncMarker);
-  const syncCount = count(text, syncMarker);
-  if (asyncCount + syncCount !== 1) {
-    throw new Error(`Expected exactly one function declaration for ${name}; found ${asyncCount + syncCount}.`);
+  const pattern = new RegExp(`(^|\\n)(?:async\\s+)?function\\s+${escapeRegExp(name)}\\s*\\(`, "g");
+  const matches = [...text.matchAll(pattern)];
+  if (matches.length !== 1) {
+    throw new Error(`Expected exactly one function declaration for ${name}; found ${matches.length}.`);
   }
-  let start = text.indexOf(asyncMarker);
-  if (start < 0) start = text.indexOf(syncMarker);
-  const nameStart = text.indexOf(name, start);
-  const paramsOpen = text.indexOf("(", nameStart + name.length);
+  const prefixLength = matches[0][1] ? matches[0][1].length : 0;
+  const start = matches[0].index + prefixLength;
+  const paramsOpen = text.indexOf("(", start);
   if (paramsOpen < 0) throw new Error(`Missing parameter list for ${name}.`);
   const paramsClose = matchingDelimiter(text, paramsOpen, "(", ")");
   const bodyOpen = text.indexOf("{", paramsClose + 1);
@@ -230,7 +231,10 @@ function removeStatementByAnchor(text, anchor, label = anchor) {
 function removeIfBlockFromSource(source, marker, label = marker) {
   requireCount(source, marker, 1, label);
   const start = source.indexOf(marker);
-  const braceOpen = source.indexOf("{", start + marker.length);
+  const markerBraceOffset = marker.lastIndexOf("{");
+  const braceOpen = markerBraceOffset >= 0
+    ? start + markerBraceOffset
+    : source.indexOf("{", start + marker.length);
   if (braceOpen < 0) throw new Error(`Could not find opening brace for ${label}.`);
   const braceClose = matchingDelimiter(source, braceOpen, "{", "}");
   let end = braceClose + 1;
