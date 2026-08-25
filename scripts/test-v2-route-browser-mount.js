@@ -34,6 +34,16 @@ function functionBody(name) {
   throw new Error(`${name} body was not closed`);
 }
 
+function cssRule(selector) {
+  const start = cssSource.indexOf(selector);
+  assert.notEqual(start, -1, `${selector} should exist`);
+  const bodyStart = cssSource.indexOf("{", start);
+  const bodyEnd = cssSource.indexOf("}", bodyStart);
+  assert.notEqual(bodyStart, -1, `${selector} should have a body`);
+  assert.notEqual(bodyEnd, -1, `${selector} body should close`);
+  return cssSource.slice(bodyStart + 1, bodyEnd);
+}
+
 test("new game UI defaults to V2 without exposing legacy V1 prominently", () => {
   const createCard = indexHtml.match(/<section class="site-shell-card site-create-game-card">[\s\S]*?<\/section>/)?.[0] || "";
   const createBody = functionBody("createSiteGame");
@@ -87,16 +97,18 @@ test("visible V2 route render path exposes public discoveries but not hidden pop
   assert.match(browserBody, /data-v2-route-browser/);
   assert.match(browserBody, /data-v2-route-select/);
   assert.match(browserBody, /data-v2-route-preview-target/);
-  assert.match(previewBody, /v2RoutePublicPreview/);
+  assert.match(previewBody, /v2RouteResidentFieldPreview/);
   assert.match(previewBody, /unknown: true/);
-  assert.match(previewBody, /v2-route-preview-premium-band/);
+  assert.match(previewBody, /data-v2-route-resident-field/);
+  assert.match(previewBody, /v2-route-premium-marker/);
+  assert.match(previewBody, /data-v2-duplicate-toggle/);
   assert.doesNotMatch(previewBody, /revealName:\s*true/);
   assert.match(commandsBody, /data-v2-route-confirm/);
   assert.match(revealBody, /data-v2-route-acquire/);
   assert.doesNotMatch(revealBody, /v2-route-diagnostics|opportunityId|residentId/);
   assert.doesNotMatch(body, /residents/);
   assert.doesNotMatch(browserBody, /\.residents|residentId|privateKnowledgeByPlayerId|temporaryResidents|regionalIdentity|generationProvenance/);
-  assert.doesNotMatch(previewBody, /\.residents|residentId|privateKnowledgeByPlayerId|temporaryResidents|regionalIdentity|generationProvenance/);
+  assert.doesNotMatch(previewBody, /\.residents|privateKnowledgeByPlayerId|temporaryResidents|regionalIdentity|generationProvenance/);
   assert.doesNotMatch(commandsBody, /<option value="\$\{escapeHtml\(resident\.residentId\)\}/);
   assert.doesNotMatch(body, /routeQuality|quality/i);
 });
@@ -130,10 +142,10 @@ test("fresh V2 routes append hidden fixed Premium Resident slots", () => {
   assert.match(createBody, /premiumResidentIds/);
   assert.match(premiumBody, /slotKind: "premium"/);
   assert.match(premiumBody, /encounterWeight: V2_ROUTE_PREMIUM_ENCOUNTER_WEIGHT/);
-  assert.match(previewBody, /premiumSlots/);
-  assert.match(slotsBody, /Premium Residents/);
+  assert.match(previewBody, /premiumSlotCount/);
+  assert.match(slotsBody, /v2-route-premium-marker/);
   assert.match(slotsBody, /slot\.premium/);
-  assert.doesNotMatch(slotsBody, /residentId|privateKnowledgeByPlayerId|routeQuality/);
+  assert.doesNotMatch(slotsBody, /privateKnowledgeByPlayerId|routeQuality/);
 });
 
 test("route browser exposes only the intentional public slot-count selector", () => {
@@ -143,7 +155,7 @@ test("route browser exposes only the intentional public slot-count selector", ()
   assert.match(countBody, /route\?\.residents/);
   assert.doesNotMatch(countBody, /displayName|residentId|routeQuality|weight|privateKnowledgeByPlayerId/);
   assert.match(previewBody, /slotCount/);
-  assert.match(previewBody, /v2RoutePublicPreviewSlots/);
+  assert.match(previewBody, /slots/);
   assert.match(previewBody, /unknownCount/);
   assert.match(browserBody, /preview\.slotCount/);
   assert.doesNotMatch(browserBody, /routeQuality|weight|seed|privateKnowledgeByPlayerId|residentId|regionalIdentity|generationProvenance/);
@@ -202,17 +214,18 @@ test("mounted V2 route runtime exposes selectors and encounter capabilities", ()
 test("mounted V2 duplicate preferences are authoritative player-scoped controls", () => {
   const eligibilityBody = functionBody("v2EligibleResidents");
   const setterBody = functionBody("v2SetRouteDuplicatePreference");
-  const controlsBody = functionBody("renderV2RouteDuplicatePreferenceControls");
+  const previewSlotsBody = functionBody("renderV2RoutePreviewSlots");
   assert.match(appJs, /duplicatePreferencesByPlayerId/);
   assert.match(eligibilityBody, /v2ResidentDuplicatePreferenceFilters/);
   assert.match(eligibilityBody, /options\.playerId/);
   assert.match(setterBody, /v2PlayerOwnsRouteResident/);
   assert.match(setterBody, /privateKnowledgeByPlayerId/);
   assert.match(setterBody, /resident\.permanent === false/);
-  assert.match(controlsBody, /getRouteDuplicatePreferenceControlsForPlayer/);
-  assert.match(controlsBody, /data-v2-duplicate-toggle/);
-  assert.match(controlsBody, /Duplicate \$\{control\.duplicateEnabled \? "ON" : "OFF"\}/);
-  assert.doesNotMatch(controlsBody, /route\.residents|privateKnowledgeByPlayerId|temporaryResidents/);
+  assert.match(functionBody("v2RouteResidentFieldPreview"), /getRouteDuplicatePreferenceControlsForPlayer/);
+  assert.match(previewSlotsBody, /data-v2-duplicate-toggle/);
+  assert.match(previewSlotsBody, /control\.duplicateEnabled \? "ON" : "OFF"/);
+  assert.doesNotMatch(appJs, /function renderV2RouteDuplicatePreferenceControls/);
+  assert.doesNotMatch(previewSlotsBody, /route\.residents|privateKnowledgeByPlayerId|temporaryResidents/);
   assert.match(appJs, /v2SetRouteDuplicatePreference\(\{/);
 });
 
@@ -230,9 +243,11 @@ test("mounted V2 route effect runtime exposes source-agnostic capabilities witho
   assert.match(functionBody("v2ApplyRouteRevealEffect"), /visibility === "table"/);
   assert.match(functionBody("v2ApplyRouteRevealEffect"), /privateKnowledgeByPlayerId/);
   assert.match(functionBody("v2RouteResidentMatchesFilter"), /excludeResidentIds/);
-  assert.match(functionBody("v2ApplyTemporaryPrimaryTypeInjection"), /count !== 4/);
+  assert.match(functionBody("v2ApplyTemporaryPrimaryTypeInjection"), /count !== V2_TYPE_INJECTION_COUNT/);
   assert.match(functionBody("getTemporaryPrimaryTypeInjectionCapabilities"), /primaryType/);
-  assert.match(functionBody("getTemporaryPrimaryTypeInjectionCapabilities"), /battleTierIds/);
+  assert.match(functionBody("v2SelectTypeInjectionCandidate"), /v2InjectionTierRollForRoute/);
+  assert.match(functionBody("v2InjectionTierRollForRoute"), /V2_TYPE_INJECTION_TIER_ROLLS/);
+  assert.match(functionBody("v2TypeInjectionCandidates"), /!== "master-elite"/);
   assert.match(functionBody("v2ApplyTemporaryPrimaryTypeInjection"), /temporaryResidents/);
   assert.match(functionBody("v2EligibleResidents"), /temporaryResidents/);
   assert.doesNotMatch(functionBody("renderV2RouteBrowser"), /temporaryResidents|privateKnowledgeByPlayerId|routeEffectOperationsBySeriesId|regionalIdentity|generationProvenance/);
@@ -259,22 +274,96 @@ test("mounted V2 route runtime wires approved token mechanics through exact inve
   assert.match(functionBody("v2ApplyRepelToRoute"), /V2_REPEL_SUPPRESSION_COUNT/);
   assert.match(functionBody("v2ApplyRepelToRoute"), /candidates\.length < V2_REPEL_SUPPRESSION_COUNT/);
   assert.doesNotMatch(functionBody("renderV2RouteBrowserTools"), /tierOptions = \["lc", "lc-elite", "safari", "poke", "great", "ultra", "master"\]/);
-  assert.match(functionBody("renderV2RouteBrowserTools"), /getRouteRepelCapabilitiesForPlayer/);
+  assert.match(functionBody("renderV2RouteBrowserTools"), /renderV2RouteEncounterRail/);
+  assert.match(functionBody("getRouteEncounterRailCapabilitiesForPlayer"), /getRouteEffectCapabilitiesForPlayer/);
+  assert.match(functionBody("getRouteEffectCapabilitiesForPlayer"), /getRouteRepelCapabilitiesForPlayer/);
   assert.match(functionBody("v2UseMasterBallOnOpportunity"), /opportunity\.status = "consumed"/);
   assert.match(functionBody("v2UseMasterBallOnOpportunity"), /sourceAction\.resultId = resultId/);
   assert.match(functionBody("drawV2PendingRouteOpportunity"), /v2DrawRouteActionEncounter|v2DrawRouteOpportunityEncounter/);
 });
 
-test("mounted V2 route UI has minimal mechanics controls without reading hidden residents", () => {
-  assert.match(appJs, /data-v2-extra-buy/);
-  assert.match(appJs, /data-v2-extra-use/);
-  assert.match(appJs, /data-v2-repel-apply/);
+test("mounted V2 route UI has an Encounter Rail plus floating conditional effects surface", () => {
+  const railBody = functionBody("renderV2RouteEncounterRail");
+  const effectCapabilitiesBody = functionBody("getRouteEffectCapabilitiesForPlayer");
+  assert.match(appJs, /data-v2-route-effects-toggle/);
+  assert.match(appJs, /data-v2-route-effects-window/);
+  assert.match(appJs, /data-v2-route-effects-drag-handle/);
+  assert.match(appJs, /data-v2-route-effect-list/);
+  assert.match(appJs, /data-v2-route-encounter-rail/);
+  assert.match(appJs, /data-v2-rail-extra-buy/);
+  assert.match(appJs, /data-v2-rail-extra-use/);
+  assert.match(appJs, /data-v2-route-rail-injection/);
+  assert.match(appJs, /data-v2-rail-injection-primary/);
+  assert.match(appJs, /data-v2-rail-injection-apply/);
+  assert.match(appJs, /data-v2-rail-injection-activation/);
+  assert.match(appJs, /v2RouteInjectionActivationId/);
+  assert.match(railBody, /v2-route-rail-section injection/);
+  assert.match(railBody, /v2-route-rail-zero/);
+  assert.match(railBody, /injection\.canInject \? "" : " disabled"/);
+  assert.match(functionBody("applyV2TemporaryTypeInjectionEffect"), /activationKey/);
+  assert.match(functionBody("applyV2TemporaryTypeInjectionEffect"), /sourceEffectId:\s*activationKey/);
+  assert.match(functionBody("applyV2TemporaryTypeInjectionEffect"), /route-rail-type-injection:\$\{state\.series\}:\$\{opportunityId\}:\$\{activationKey\}/);
+  assert.doesNotMatch(functionBody("applyV2TemporaryTypeInjectionEffect"), /route-rail-type-injection:\$\{state\.series\}:\$\{opportunityId\}:\$\{primaryType\}/);
+  assert.match(appJs, /data-v2-route-effect-apply="repel"/);
   assert.match(appJs, /data-v2-route-reroll-token/);
   assert.match(appJs, /data-v2-opportunity-draw/);
-  assert.match(appJs, /data-v2-master-ball-use/);
-  assert.match(appJs, /data-v2-master-ball-resident/);
+  assert.match(appJs, /data-v2-route-effect-apply="master-ball"/);
+  assert.doesNotMatch(effectCapabilitiesBody, /extra-purchase|extra-use|type-injection|v2TemporaryInjectionOptionsForOpportunity/);
+  assert.doesNotMatch(railBody, /data-v2-route-effect-apply/);
+  assert.doesNotMatch(railBody, /repelTier|masterResident/);
+  assert.doesNotMatch(railBody, /battleTier|Tier Scope|data-v2-route-effect-field="injectionOption"/);
+  assert.doesNotMatch(appJs, /data-v2-extra-buy|data-v2-extra-use|data-v2-repel-apply|data-v2-master-ball-use|data-v2-master-ball-resident/);
   assert.doesNotMatch(functionBody("renderV2RouteBrowserCommands"), /residentIds|resident\.residentId/);
   assert.doesNotMatch(functionBody("renderV2RouteBrowser"), /routeQuality|seed|regionalIdentity|generationProvenance/);
+});
+
+test("mounted V2 route browser keeps rail and navigation geometry stable", () => {
+  assert.match(functionBody("renderV2RoutePreviewSlots"), /v2-route-slot-meta/);
+  assert.match(functionBody("renderV2RoutePreviewSlots"), /renderDuplicateToggle\(slot\.duplicateControl\)/);
+  assert.match(cssSource, /\.v2-route-slot-meta\s*\{[\s\S]*display:\s*inline-flex/);
+  assert.match(cssSource, /\.v2-route-slot-meta\s*\{[\s\S]*flex-wrap:\s*wrap/);
+  assert.doesNotMatch(cssRule(".v2-route-slot-duplicate-toggle"), /position:\s*absolute/);
+  assert.doesNotMatch(cssRule(".v2-route-slot-tier"), /position:\s*absolute/);
+  assert.match(cssSource, /\.v2-route-browser-menu\s*\{[\s\S]*overflow-anchor:\s*none/);
+  assert.match(cssSource, /\.v2-route-menu-item\s*\{[\s\S]*box-sizing:\s*border-box/);
+  assert.match(cssSource, /\.v2-route-menu-item\s*\{[\s\S]*width:\s*100%/);
+  assert.match(cssSource, /\.v2-route-browser-previews\s*\{[\s\S]*display:\s*grid/);
+  const previewRule = cssSource.match(/\.v2-route-browser-preview\s*\{[\s\S]*?\n\}/)?.[0] || "";
+  assert.doesNotMatch(previewRule, /animation|transform|translate|scale/);
+  assert.match(previewRule, /grid-area:\s*1 \/ 1/);
+  assert.match(cssSource, /\.v2-route-browser-preview\[aria-hidden="true"\]\s*\{[\s\S]*visibility:\s*hidden/);
+  assert.doesNotMatch(cssSource, /@keyframes v2RouteBrowserPreview/);
+  assert.match(appJs, /data-v2-route-browser-preview/);
+  assert.match(functionBody("renderV2RouteBrowser"), /aria-hidden="\$\{selected \? "false" : "true"\}"/);
+  assert.match(functionBody("setV2RouteBrowserPreview"), /if \(normalized === current\) return false/);
+  assert.match(functionBody("setV2RouteBrowserPreview"), /dataset\.v2RouteBrowserPreview = normalized/);
+  assert.match(functionBody("setV2RouteBrowserPreview"), /setAttribute\("aria-hidden", active \? "false" : "true"\)/);
+  assert.doesNotMatch(functionBody("setV2RouteBrowserPreview"), /panel\.hidden/);
+  assert.match(appJs, /addEventListener\("mouseout"/);
+  assert.match(appJs, /resetV2RouteBrowserPreview\(\)/);
+  assert.match(appJs, /routeButton\.contains\(event\.relatedTarget\)/);
+  const selectedRule = cssRule(".v2-route-menu-item.selected");
+  const hoverRule = cssSource.match(/\.v2-route-menu-item:hover,[\s\S]*?\.v2-route-menu-item\.previewed\s*\{[\s\S]*?\n\}/)?.[0] || "";
+  assert.doesNotMatch(selectedRule, /transform|translate|scale|padding|margin|border-width|min-height|height|width/);
+  assert.doesNotMatch(hoverRule, /transform|translate|scale|padding|margin|border-width|min-height|height|width/);
+});
+
+test("floating V2 route effects are client-local and scale through capability lists", () => {
+  const defaultUiBody = functionBody("createDefaultRouteUiState");
+  const normalizeUiBody = functionBody("normalizeRouteUiState");
+  const persistBody = functionBody("createPersistableStateSnapshot");
+  const listBody = functionBody("renderV2RouteEffectList");
+  const capabilitiesBody = functionBody("getRouteEffectCapabilitiesForPlayer");
+  assert.match(defaultUiBody, /routeEffectsOpen/);
+  assert.match(defaultUiBody, /routeEffectsX/);
+  assert.match(defaultUiBody, /routeEffectsY/);
+  assert.match(defaultUiBody, /routeEffectsExpandedId/);
+  assert.match(normalizeUiBody, /routeEffectsExpandedId/);
+  assert.match(persistBody, /delete snapshot\.routeUiState/);
+  assert.match(listBody, /capabilities\.map/);
+  assert.match(capabilitiesBody, /options\.extraCapabilities/);
+  assert.match(functionBody("renderV2RouteBrowserTools"), /renderV2RouteEncounterRail/);
+  assert.doesNotMatch(functionBody("renderV2RouteBrowserTools"), /extraTokens|repelCapabilities|masterBallCapabilities|v2TemporaryInjectionOptionsForOpportunity/);
 });
 
 test("package exposes the browser mount regression test", () => {

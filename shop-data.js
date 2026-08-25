@@ -830,7 +830,7 @@ const rawItemShopData = [
         "name":  "Kommonium Z",
         "tier":  "Level 5",
         "level":  5,
-        "price":  10000,
+        "price":  7500,
         "category":  "General",
         "description":  ""
     },
@@ -898,6 +898,73 @@ const rawItemShopData = [
         "description":  ""
     }
 ];
+
+const itemShopMechanicEligibilityByName = Object.freeze({
+  "Abomasite": { pokemonSpecies: ["Abomasnow"] },
+  "Absolite": { pokemonSpecies: ["Absol"] },
+  "Aerodactylite": { pokemonSpecies: ["Aerodactyl"] },
+  "Aggronite": { pokemonSpecies: ["Aggron"] },
+  "Alakazite": { pokemonSpecies: ["Alakazam"] },
+  "Altarianite": { pokemonSpecies: ["Altaria"] },
+  "Ampharosite": { pokemonSpecies: ["Ampharos"] },
+  "Audinite": { pokemonSpecies: ["Audino"] },
+  "Banettite": { pokemonSpecies: ["Banette"] },
+  "Beedrillite": { pokemonSpecies: ["Beedrill"] },
+  "Blastoisinite": { pokemonSpecies: ["Blastoise"] },
+  "Blazikenite": { pokemonSpecies: ["Blaziken"] },
+  "Cameruptite": { pokemonSpecies: ["Camerupt"] },
+  "Charizardite X": { pokemonSpecies: ["Charizard"] },
+  "Charizardite Y": { pokemonSpecies: ["Charizard"] },
+  "Diancite": { pokemonSpecies: ["Diancie"] },
+  "Galladite": { pokemonSpecies: ["Gallade"] },
+  "Garchompite": { pokemonSpecies: ["Garchomp"] },
+  "Gardevoirite": { pokemonSpecies: ["Gardevoir"] },
+  "Gengarite": { pokemonSpecies: ["Gengar"] },
+  "Glalitite": { pokemonSpecies: ["Glalie"] },
+  "Gyaradosite": { pokemonSpecies: ["Gyarados"] },
+  "Heracronite": { pokemonSpecies: ["Heracross"] },
+  "Houndoominite": { pokemonSpecies: ["Houndoom"] },
+  "Kangaskhanite": { pokemonSpecies: ["Kangaskhan"] },
+  "Latiasite": { pokemonSpecies: ["Latias"] },
+  "Latiosite": { pokemonSpecies: ["Latios"] },
+  "Lopunnite": { pokemonSpecies: ["Lopunny"] },
+  "Lucarionite": { pokemonSpecies: ["Lucario"] },
+  "Manectite": { pokemonSpecies: ["Manectric"] },
+  "Mawilite": { pokemonSpecies: ["Mawile"] },
+  "Medichamite": { pokemonSpecies: ["Medicham"] },
+  "Metagrossite": { pokemonSpecies: ["Metagross"] },
+  "Mewtwonite X": { pokemonSpecies: ["Mewtwo"] },
+  "Mewtwonite Y": { pokemonSpecies: ["Mewtwo"] },
+  "Pidgeotite": { pokemonSpecies: ["Pidgeot"] },
+  "Pinsirite": { pokemonSpecies: ["Pinsir"] },
+  "Sablenite": { pokemonSpecies: ["Sableye"] },
+  "Salamencite": { pokemonSpecies: ["Salamence"] },
+  "Sceptilite": { pokemonSpecies: ["Sceptile"] },
+  "Scizorite": { pokemonSpecies: ["Scizor"] },
+  "Sharpedonite": { pokemonSpecies: ["Sharpedo"] },
+  "Slowbronite": { pokemonSpecies: ["Slowbro"] },
+  "Steelixite": { pokemonSpecies: ["Steelix"] },
+  "Swampertite": { pokemonSpecies: ["Swampert"] },
+  "Tyranitarite": { pokemonSpecies: ["Tyranitar"] },
+  "Venusaurite": { pokemonSpecies: ["Venusaur"] },
+  "Aloraichium Z": { pokemonSpecies: ["Raichu-Alola", "Alolan Raichu"] },
+  "Decidium Z": { pokemonSpecies: ["Decidueye"] },
+  "Eevium Z": { pokemonSpecies: ["Eevee"] },
+  "Incinium Z": { pokemonSpecies: ["Incineroar"] },
+  "Kommonium Z": { pokemonSpecies: ["Kommo-o"] },
+  "Lunalium Z": { pokemonSpecies: ["Lunala", "Necrozma-Dawn-Wings"] },
+  "Lycanium Z": { pokemonSpecies: ["Lycanroc"] },
+  "Marshadium Z": { pokemonSpecies: ["Marshadow"] },
+  "Mewnium Z": { pokemonSpecies: ["Mew"] },
+  "Mimikium Z": { pokemonSpecies: ["Mimikyu"] },
+  "Pikanium Z": { pokemonSpecies: ["Pikachu"] },
+  "Pikashunium Z": { pokemonSpecies: ["Pikachu-Cap"] },
+  "Primarium Z": { pokemonSpecies: ["Primarina"] },
+  "Snorlium Z": { pokemonSpecies: ["Snorlax"] },
+  "Solganium Z": { pokemonSpecies: ["Solgaleo", "Necrozma-Dusk-Mane"] },
+  "Tapunium Z": { pokemonSpecies: ["Tapu Koko", "Tapu Lele", "Tapu Bulu", "Tapu Fini"] },
+  "Ultranecrozium Z": { pokemonSpecies: ["Necrozma"] }
+});
 
 const itemShopMetadataById = Object.freeze({
   "item-berries-not-in-pokeball": { shopGroup: "berry", roles: ["utility", "recovery"], tags: ["status"] },
@@ -1029,11 +1096,14 @@ function shopDataSlug(value) {
 
 function itemShopMetadataFor(item) {
   const metadata = itemShopMetadataById[item.id] || {};
+  const eligibility = itemShopMechanicEligibilityByName[item.name] || metadata.eligibility || null;
   return {
     shopGroup: metadata.shopGroup || "held",
     roles: metadata.roles || [],
     tags: metadata.tags || [],
-    mechanicFamily: metadata.mechanicFamily || ""
+    mechanicFamily: metadata.mechanicFamily || "",
+    eligibility,
+    recommendOnOwnership: Boolean(eligibility && metadata.recommendOnOwnership !== false)
   };
 }
 
@@ -1047,8 +1117,10 @@ function createDerivedItemShopEntry(parentName, choiceName, overrides = {}) {
   const parent = itemShopParentByName.get(parentName);
   if (!parent) return null;
   const id = overrides.id || `${parent.id}--${shopDataSlug(choiceName)}`;
+  const choiceEligibility = itemShopMechanicEligibilityByName[choiceName] || null;
   const metadata = {
     ...itemShopMetadataFor(parent),
+    ...(choiceEligibility ? { eligibility: choiceEligibility, recommendOnOwnership: true } : {}),
     ...(overrides.metadata || {})
   };
   return {
@@ -1063,7 +1135,9 @@ function createDerivedItemShopEntry(parentName, choiceName, overrides = {}) {
     shopGroup: metadata.shopGroup || "held",
     roles: metadata.roles || [],
     tags: metadata.tags || [],
-    mechanicFamily: metadata.mechanicFamily || ""
+    mechanicFamily: metadata.mechanicFamily || "",
+    eligibility: metadata.eligibility || null,
+    recommendOnOwnership: Boolean(metadata.recommendOnOwnership)
   };
 }
 
@@ -1072,6 +1146,24 @@ function createDerivedItemShopEntries(parentName, overrides = {}) {
     .map((choiceName) => createDerivedItemShopEntry(parentName, choiceName, overrides))
     .filter(Boolean);
 }
+
+const speciesSpecificZCrystalCatalogData = Object.freeze(Object.entries(itemShopMechanicEligibilityByName)
+  .filter(([name]) => /\bZ$/.test(name) && !rawItemShopData.some((item) => item.name === name))
+  .map(([name, eligibility]) => ({
+    id: `item-${shopDataSlug(name)}`,
+    name,
+    tier: "Level 5",
+    level: 5,
+    price: 7500,
+    category: "General",
+    description: "Species-specific Z-Crystal priced at the standard Rival Saga Z-Crystal mechanic rate.",
+    shopGroup: "battle-mechanics",
+    roles: ["offense"],
+    tags: ["z-move"],
+    mechanicFamily: "z-move",
+    eligibility,
+    recommendOnOwnership: true
+  })));
 
 const derivedItemShopData = [
   ...createDerivedItemShopEntries("Berries", {
@@ -1126,6 +1218,7 @@ const itemShopData = [
       ...item,
       ...itemShopMetadataFor(item)
     })),
+  ...speciesSpecificZCrystalCatalogData,
   ...derivedItemShopData
 ];
 

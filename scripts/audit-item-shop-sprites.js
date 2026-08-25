@@ -15,6 +15,24 @@ const shopSpriteData = fs.existsSync(spriteDataPath)
 const repoItemSpriteBase = "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/";
 const showdownTypeBase = "https://play.pokemonshowdown.com/sprites/types/";
 const fallbackLabel = "initials";
+const customShopSpriteAuditProducts = Object.freeze([
+  {
+    id: "utility-badge-point",
+    name: "Badge Point",
+    shopGroup: "held",
+    disableExternalSpriteLookup: true
+  },
+  {
+    id: "legacy-ticket",
+    name: "Legacy Ticket",
+    shopGroup: "held",
+    disableExternalSpriteLookup: true
+  }
+]);
+
+function auditProducts() {
+  return [...itemShopData, ...customShopSpriteAuditProducts];
+}
 
 function spriteSlug(value) {
   return String(value || "")
@@ -165,6 +183,32 @@ function restorationPlanForProduct(item) {
       renderMode: "smooth"
     };
   }
+  if (item.name === "Badge Point") {
+    return {
+      name: item.name,
+      id: item.id,
+      productType: item.shopGroup || "held",
+      localSprite: "assets/shop/custom/badge-point.svg",
+      sourceProvider: "Rival Saga Custom",
+      providerKey: "badge-point",
+      originalSourceUrl: "",
+      restoreMethod: "custom-badge-point",
+      renderMode: "smooth"
+    };
+  }
+  if (item.name === "Legacy Ticket") {
+    return {
+      name: item.name,
+      id: item.id,
+      productType: item.shopGroup || "held",
+      localSprite: "assets/shop/custom/legacy-ticket.svg",
+      sourceProvider: "Rival Saga Custom",
+      providerKey: "legacy-ticket",
+      originalSourceUrl: "",
+      restoreMethod: "custom-legacy-ticket",
+      renderMode: "smooth"
+    };
+  }
   return {
     name: item.name,
     id: item.id,
@@ -179,7 +223,7 @@ function restorationPlanForProduct(item) {
 }
 
 function restorationPlan() {
-  return itemShopData.map(restorationPlanForProduct);
+  return auditProducts().map(restorationPlanForProduct);
 }
 
 function classifyProduct(item) {
@@ -219,7 +263,7 @@ function classifyProduct(item) {
 }
 
 function auditItemShopSprites() {
-  return itemShopData.map(classifyProduct);
+  return auditProducts().map(classifyProduct);
 }
 
 function summaryFor(records) {

@@ -13,6 +13,7 @@ const {
   stopTemporaryServer
 } = require("./token-controller-test-fixture.js");
 
+const rootDir = path.resolve(__dirname, "..");
 let server;
 let browserProcess;
 let browserProfile;
@@ -20,6 +21,14 @@ let cdp;
 const browserDiagnostics = [];
 const browserErrors = [];
 const externalRequests = [];
+
+function actionableBrowserErrors() {
+  return browserErrors.filter((message) => !/beforeunload.*confirmation panel/.test(message));
+}
+
+function actionableExternalRequests() {
+  return externalRequests.filter((url) => !/chromestatus\.com\/feature\/5082396709879808/.test(url));
+}
 
 function delay(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -147,6 +156,22 @@ async function waitUntil(expression, timeoutMs = 10000) {
   throw new Error(`Timed out waiting for browser condition: ${expression}`);
 }
 
+async function captureShopHudScreenshot(name, height = 250) {
+  const outputDir = process.env.RIVAL_SAGA_SHOP_SCREENSHOT_DIR || path.join(rootDir, "artifacts", "item-shop-front-page");
+  fs.mkdirSync(outputDir, { recursive: true });
+  const metrics = await evaluate(`(() => ({ width: window.innerWidth, height: window.innerHeight }))()`);
+  const width = Math.min(Number(metrics.width) || 1280, 1280);
+  const captureHeight = Math.min(Number(height) || 250, Number(metrics.height) || height || 250);
+  const result = await cdp.send("Page.captureScreenshot", {
+    format: "png",
+    clip: { x: 0, y: 0, width, height: captureHeight, scale: 1 },
+    captureBeyondViewport: true
+  }, 10000);
+  const filePath = path.join(outputDir, name);
+  fs.writeFileSync(filePath, Buffer.from(result.data, "base64"));
+  return filePath;
+}
+
 before(async () => {
   server = await startTemporaryServer("item-shop-sprite-browser");
   const fixtureState = controlStateFixture("item-shop-sprite-browser");
@@ -202,11 +227,12 @@ before(async () => {
   });
   cdp.on("Runtime.exceptionThrown", (params) => browserErrors.push(params.exceptionDetails?.exception?.description || params.exceptionDetails?.text || "Uncaught exception"));
   cdp.on("Runtime.consoleAPICalled", (params) => {
-    if (params.type === "error") browserErrors.push(params.args.map((arg) => arg.value || arg.description || "").join(" "));
+    const message = params.args.map((arg) => arg.value || arg.description || "").join(" ");
+    if (params.type === "error" && !/beforeunload.*confirmation panel/.test(message)) browserErrors.push(message);
   });
   cdp.on("Log.entryAdded", ({ entry }) => {
     const message = `${entry?.text || "Browser log error"}${entry?.url ? ` (${entry.url})` : ""}`;
-    if (entry?.level === "error" && !/favicon\.ico|\/api\/games\/default\/state/.test(message)) browserErrors.push(message);
+    if (entry?.level === "error" && !/favicon\.ico|\/api\/games\/default\/state|beforeunload.*confirmation panel/.test(message)) browserErrors.push(message);
   });
 });
 
@@ -241,22 +267,56 @@ test("[ITEM-SPRITE-BROWSER-001] restored Item Shop products render local sprites
     return {
       spriteBeforeApp: spriteIndex >= 0 && appIndex >= 0 && spriteIndex < appIndex,
       mappingCount: Object.keys(window.rivalSagaShopSpriteData?.items || {}).length,
-      requestedKeys: Object.fromEntries(['covert-cloak', 'booster-energy', 'loaded-dice', 'heavy-duty-boots'].map((key) => [key, Boolean(window.rivalSagaShopSpriteData.items[key])]))
+      requestedKeys: Object.fromEntries(['covert-cloak', 'booster-energy', 'loaded-dice', 'heavy-duty-boots', 'ability-shield', 'room-service', 'badge-point', 'legacy-ticket', 'kommonium-z', 'aloraichium-z', 'decidium-z', 'eevium-z', 'incinium-z', 'lunalium-z', 'lycanium-z', 'marshadium-z', 'mewnium-z', 'mimikium-z', 'pikanium-z', 'pikashunium-z', 'primarium-z', 'snorlium-z', 'solganium-z', 'tapunium-z', 'ultranecrozium-z'].map((key) => [key, Boolean(window.rivalSagaShopSpriteData.items[key])]))
     };
   })()`);
   assert.equal(runtime.spriteBeforeApp, true);
-  assert.equal(runtime.mappingCount, 270);
+  assert.equal(runtime.mappingCount, 288);
   assert.deepEqual(runtime.requestedKeys, {
     "covert-cloak": true,
     "booster-energy": true,
     "loaded-dice": true,
-    "heavy-duty-boots": true
+    "heavy-duty-boots": true,
+    "ability-shield": true,
+    "room-service": true,
+    "badge-point": true,
+    "legacy-ticket": true,
+    "kommonium-z": true,
+    "aloraichium-z": true,
+    "decidium-z": true,
+    "eevium-z": true,
+    "incinium-z": true,
+    "lunalium-z": true,
+    "lycanium-z": true,
+    "marshadium-z": true,
+    "mewnium-z": true,
+    "mimikium-z": true,
+    "pikanium-z": true,
+    "pikashunium-z": true,
+    "primarium-z": true,
+    "snorlium-z": true,
+    "solganium-z": true,
+    "tapunium-z": true,
+    "ultranecrozium-z": true
   });
 
   await evaluate("document.querySelector('[data-view=\"shop\"]')?.click()");
   await waitUntil("Boolean(document.querySelector('#searchInput'))");
+  await waitUntil("typeof state !== 'undefined' && typeof render === 'function' && typeof phaseStateKey === 'function'");
   const reports = await evaluate(`(async () => {
-    const names = ['Covert Cloak', 'Booster Energy', 'Loaded Dice', 'Heavy-Duty Boots'];
+    const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    state.activePlayerId = 'gold';
+    const player = state.players.find((entry) => entry.id === 'gold');
+    if (player) player.balance = 10000;
+    state.currentPhase = 'shop';
+    state.phase = 'shop';
+    state.phaseState ||= {};
+    const phaseKey = phaseStateKey(state.series, state.gym);
+    state.phaseState[phaseKey] ||= {};
+    state.phaseState[phaseKey].currentPhase = 'shop';
+    render();
+    await sleep(150);
+    const names = ['Covert Cloak', 'Booster Energy', 'Loaded Dice', 'Heavy-Duty Boots', 'Ability Shield', 'Room Service', 'Badge Point', 'Legacy Ticket', 'Kommonium Z', 'Aloraichium Z', 'Decidium Z', 'Eevium Z', 'Incinium Z', 'Lunalium Z', 'Lycanium Z', 'Marshadium Z', 'Mewnium Z', 'Mimikium Z', 'Pikanium Z', 'Pikashunium Z', 'Primarium Z', 'Snorlium Z', 'Solganium Z', 'Tapunium Z', 'Ultranecrozium Z'];
     const output = [];
     for (const name of names) {
       const input = document.querySelector('#searchInput');
@@ -292,6 +352,11 @@ test("[ITEM-SPRITE-BROWSER-001] restored Item Shop products render local sprites
         localSprite,
         localStatus: response?.status || 0,
         labelOpacity: card ? getComputedStyle(card.querySelector('.shop-entry-visual b')).opacity : '',
+        buttonText: card?.querySelector('.shop-buy-button')?.textContent?.trim() || '',
+        buttonDisabled: Boolean(card?.querySelector('.shop-buy-button')?.disabled),
+        buyNowText: card?.querySelector('.shop-buy-now-button')?.textContent?.trim() || '',
+        buyNowDisabled: Boolean(card?.querySelector('.shop-buy-now-button')?.disabled),
+        priceText: card?.querySelector('.price')?.textContent?.replace(/\\s+/g, ' ').trim() || '',
         diagnostics: card ? null : {
           bodyClasses: document.body.className,
           activeViewButton: document.querySelector('.app-tab.active')?.textContent?.trim() || '',
@@ -307,33 +372,248 @@ test("[ITEM-SPRITE-BROWSER-001] restored Item Shop products render local sprites
     assert.equal(report.found, true, `${report.name} card should render: ${JSON.stringify(report.diagnostics)}`);
     assert.equal(report.imgExists, true, `${report.name} should render an image element`);
     assert.equal(report.currentSrc, `${server.baseUrl}/${report.localSprite}`, `${report.name} should use its local shop sprite`);
-    assert.ok(report.currentSrc.includes("/assets/shop/items/"), `${report.name} should point into assets/shop/items`);
+    assert.ok(report.currentSrc.includes("/assets/shop/items/") || report.currentSrc.includes("/assets/shop/custom/"), `${report.name} should point into local shop assets`);
     assert.ok(report.naturalWidth > 0, `${report.name} sprite should load`);
     assert.equal(report.localStatus, 200, `${report.name} local sprite should return HTTP 200`);
     assert.equal(report.labelOpacity, "0", `${report.name} initials label should be hidden behind the image`);
   }
-  assert.deepEqual(browserErrors, []);
-  assert.deepEqual(externalRequests, []);
+  reports.filter((report) => report.name.endsWith("ium Z")).forEach((report) => {
+    assert.equal(report.buttonText, "Add", `${report.name} should be addable after standard pricing`);
+    assert.equal(report.buttonDisabled, false, `${report.name} add button should be enabled`);
+    assert.equal(report.buyNowText, "Buy Now", `${report.name} should expose Buy Now`);
+    assert.equal(report.buyNowDisabled, false, `${report.name} Buy Now should be enabled with enough funds`);
+    assert.match(report.priceText, /7,500/, `${report.name} should show the standard Z-Crystal price`);
+  });
+  const kommoniumReport = reports.find((report) => report.name === "Kommonium Z");
+  assert.equal(kommoniumReport?.buttonText, "Add");
+  assert.match(kommoniumReport?.priceText || "", /7,500/);
+  assert.deepEqual(actionableBrowserErrors(), []);
+  assert.deepEqual(actionableExternalRequests(), []);
+});
+
+test("[ITEM-SHOP-RECOMMENDATIONS-001] Item Shop root personalizes species mechanic shortcuts from metadata", async () => {
+  await cdp.send("Page.navigate", { url: `${server.baseUrl}/?view=game&game=default&page=playerHub&panel=shop&item-shop-recommendations=${Date.now()}` });
+  await waitUntil("document.readyState === 'complete' || document.readyState === 'interactive'");
+  await waitUntil("document.querySelector('.item-shop-browse-copy h3')?.textContent?.trim() === 'Items'");
+
+  const report = await evaluate(`(async () => {
+    const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    const allNames = () => [...document.querySelectorAll('#shopGrid .shop-name-cell strong')].map((node) => node.textContent.trim());
+    const recommendationNames = () => [...document.querySelectorAll('.item-shop-recommendation-section .shop-name-cell strong')].map((node) => node.textContent.trim());
+    const sectionTitles = () => [...document.querySelectorAll('#shopGrid > .shop-tier-section .shop-tier-header h3')].map((node) => node.textContent.trim());
+    const resetRoot = async () => {
+      state.activePlayerId = 'gold';
+      state.activeShop = 'items';
+      state.itemShopFolderPath = [];
+      state.itemShopFilters = { group: 'all', roles: [], tags: [], canAfford: false, expanded: false };
+      document.querySelector('#searchInput').value = '';
+      render();
+      saveClientUiState({ immediate: true });
+      await sleep(150);
+    };
+    const pokemonRecord = (trainerId, name, rosterType = 'Active') => ({
+      id: \`\${trainerId}-\${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}\`,
+      trainerId,
+      ownerId: trainerId,
+      name,
+      currentSpecies: name,
+      baseSpecies: name,
+      rosterSpeciesName: name,
+      acquiredSpeciesName: name,
+      status: 'Active',
+      rosterType
+    });
+    const setPokemon = async (records) => {
+      state.pokemonRecords = records;
+      syncPlayerPokemonLists(state);
+      await resetRoot();
+    };
+    const clickFolder = async (name) => {
+      const card = [...document.querySelectorAll('#shopGrid [data-item-shop-folder]')]
+        .find((row) => row.querySelector('.shop-name-cell strong')?.textContent?.trim() === name);
+      card?.click();
+      await sleep(150);
+    };
+    const setSearch = async (term) => {
+      const input = document.querySelector('#searchInput');
+      input.value = term;
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      await sleep(150);
+    };
+
+    await setPokemon([]);
+    const defaultRootNames = allNames();
+    const defaultRecommendations = recommendationNames();
+    const defaultSections = sectionTitles();
+    const kangaskhaniteMetadata = itemShopData.find((item) => item.name === 'Kangaskhanite')?.eligibility || null;
+    const metagrossiteMetadata = itemShopData.find((item) => item.name === 'Metagrossite')?.eligibility || null;
+    const kommoniumMetadata = itemShopData.find((item) => item.name === 'Kommonium Z')?.eligibility || null;
+    const mimikiumMetadata = itemShopData.find((item) => item.name === 'Mimikium Z')?.eligibility || null;
+    const snorliumMetadata = itemShopData.find((item) => item.name === 'Snorlium Z')?.eligibility || null;
+
+    await setPokemon([pokemonRecord('gold', 'Kangaskhan')]);
+    const kangaskhanRecommendations = recommendationNames();
+
+    await setPokemon([]);
+    const removedRecommendations = recommendationNames();
+
+    const otherPlayerId = state.players.find((player) => player.id !== 'gold')?.id || 'steevee';
+    await setPokemon([pokemonRecord(otherPlayerId, 'Kangaskhan')]);
+    const unrelatedRecommendations = recommendationNames();
+
+    await setPokemon([pokemonRecord('gold', 'Kangaskhan', 'Legacy')]);
+    const legacyRecommendations = recommendationNames();
+
+    await setPokemon([pokemonRecord('gold', 'Kommo-o')]);
+    const zRecommendations = recommendationNames();
+
+    await setPokemon([pokemonRecord('gold', 'Kangaskhan'), pokemonRecord('gold', 'Metagross'), pokemonRecord('gold', 'Kommo-o'), pokemonRecord('gold', 'Mimikyu'), pokemonRecord('gold', 'Snorlax')]);
+    const teamRecommendations = recommendationNames();
+    const teamSections = sectionTitles();
+
+    await setPokemon([pokemonRecord('gold', 'Mimikyu')]);
+    const mimikyuRecommendations = recommendationNames();
+    const affordInput = document.querySelector('#itemShopCanAffordFilter');
+    if (affordInput && !affordInput.checked) affordInput.click();
+    await sleep(150);
+    const affordableMimikyuRecommendations = recommendationNames();
+    if (affordInput?.checked) affordInput.click();
+    await sleep(150);
+    const goldPlayer = state.players.find((player) => player.id === 'gold');
+    const originalGoldBalance = goldPlayer?.balance || 0;
+    if (goldPlayer) goldPlayer.balance = 10000;
+    render();
+    await sleep(150);
+    const pricedAffordInput = document.querySelector('#itemShopCanAffordFilter');
+    if (pricedAffordInput && !pricedAffordInput.checked) pricedAffordInput.click();
+    await sleep(150);
+    const affordablePricedMimikyuRecommendations = recommendationNames();
+    if (pricedAffordInput?.checked) pricedAffordInput.click();
+    if (goldPlayer) goldPlayer.balance = originalGoldBalance;
+    render();
+    await sleep(150);
+
+    const searchReports = {};
+    for (const term of ['Kangaskhanite', 'Badge Point', 'Legacy Ticket', 'Mimikium Z']) {
+      await setSearch(term);
+      searchReports[term] = {
+        title: document.querySelector('.item-shop-browse-copy h3')?.textContent?.trim() || '',
+        names: allNames()
+      };
+    }
+    await setSearch('');
+
+    await setPokemon([pokemonRecord('gold', 'Kangaskhan')]);
+    await clickFolder('Battle Mechanics');
+    await clickFolder('Mega Shop');
+    const megaTitle = document.querySelector('.item-shop-browse-copy h3')?.textContent?.trim() || '';
+    const megaNames = allNames();
+    await resetRoot();
+    await clickFolder('Battle Mechanics');
+    await clickFolder('Z Shop');
+    const zTitle = document.querySelector('.item-shop-browse-copy h3')?.textContent?.trim() || '';
+    const zNames = allNames();
+    await resetRoot();
+
+    return {
+      defaultRootNames,
+      defaultRecommendations,
+      defaultSections,
+      kangaskhaniteMetadata,
+      metagrossiteMetadata,
+      kommoniumMetadata,
+      mimikiumMetadata,
+      snorliumMetadata,
+      kangaskhanRecommendations,
+      removedRecommendations,
+      unrelatedRecommendations,
+      legacyRecommendations,
+      zRecommendations,
+      teamRecommendations,
+      teamSections,
+      mimikyuRecommendations,
+      affordableMimikyuRecommendations,
+      affordablePricedMimikyuRecommendations,
+      searchReports,
+      megaTitle,
+      megaNames,
+      zTitle,
+      zNames
+    };
+  })()`, 20000);
+
+  ["Normalium Z", "Kommonium Z", "Kangaskhanite", "Metagrossite"].forEach((name) => {
+    assert.equal(report.defaultRootNames.includes(name), false, `${name} should not be on the default root`);
+  });
+  assert.deepEqual(report.defaultRecommendations, []);
+  assert.deepEqual(report.defaultSections, ["Main Shop", "Collections"]);
+  assert.deepEqual(report.kangaskhaniteMetadata, { pokemonSpecies: ["Kangaskhan"] });
+  assert.deepEqual(report.metagrossiteMetadata, { pokemonSpecies: ["Metagross"] });
+  assert.deepEqual(report.kommoniumMetadata, { pokemonSpecies: ["Kommo-o"] });
+  assert.deepEqual(report.mimikiumMetadata, { pokemonSpecies: ["Mimikyu"] });
+  assert.deepEqual(report.snorliumMetadata, { pokemonSpecies: ["Snorlax"] });
+  assert.ok(report.kangaskhanRecommendations.includes("Kangaskhanite"));
+  assert.equal(report.removedRecommendations.includes("Kangaskhanite"), false);
+  assert.equal(report.unrelatedRecommendations.includes("Kangaskhanite"), false);
+  assert.equal(report.legacyRecommendations.includes("Kangaskhanite"), false);
+  assert.ok(report.zRecommendations.includes("Kommonium Z"));
+  assert.equal(report.zRecommendations.includes("Normalium Z"), false);
+  assert.deepEqual(report.teamSections, ["For Your Team", "Main Shop", "Collections"]);
+  ["Kangaskhanite", "Metagrossite", "Kommonium Z", "Mimikium Z", "Snorlium Z"].forEach((name) => {
+    assert.ok(report.teamRecommendations.includes(name), `${name} should recommend from active ownership metadata`);
+  });
+  assert.ok(report.mimikyuRecommendations.includes("Mimikium Z"));
+  assert.equal(report.affordableMimikyuRecommendations.includes("Mimikium Z"), false, "Can Afford should hide recommendation shortcuts the player cannot afford");
+  assert.ok(report.affordablePricedMimikyuRecommendations.includes("Mimikium Z"), "Can Afford should keep priced Z recommendations when the player has enough funds");
+  Object.entries(report.searchReports).forEach(([term, searchReport]) => {
+    assert.equal(searchReport.title, "Filtered Results", `${term} search should flatten to results`);
+    assert.ok(searchReport.names.includes(term), `${term} search should show the concrete product`);
+  });
+  assert.equal(report.megaTitle, "Mega Shop");
+  assert.ok(report.megaNames.includes("Kangaskhanite"), "recommendation should not remove Kangaskhanite from Mega Shop");
+  assert.equal(report.zTitle, "Z Shop");
+  assert.ok(report.zNames.includes("Mimikium Z"), "species-specific Z-Crystals should remain in Z Shop");
+  await captureShopHudScreenshot("shop-root-with-recommendations.png", 720);
+  assert.deepEqual(actionableBrowserErrors(), []);
+  assert.deepEqual(actionableExternalRequests(), []);
 });
 
 test("[ITEM-SHOP-BROWSE-001] Item Shop browse chrome stays compact and filters flatten intentionally", async () => {
+  await evaluate(`(() => localStorage.removeItem('rival-saga-client-ui-v1'))()`);
   await cdp.send("Page.navigate", { url: `${server.baseUrl}/?view=game&game=default&page=playerHub&panel=shop&item-shop-browse-browser=${Date.now()}` });
   await waitUntil("document.readyState === 'complete' || document.readyState === 'interactive'");
   await waitUntil("Boolean(document.querySelector('#shopGrid'))");
   await waitUntil("document.body.classList.contains('site-game-active')");
-  await waitUntil("document.querySelector('.item-shop-browse-copy h3')?.textContent?.trim() === 'Item Shop'");
+  await evaluate(`(() => {
+    state.activePlayerId = 'gold';
+    state.activeShop = 'items';
+    state.itemShopFolderPath = [];
+    state.itemShopFilters = { group: 'all', roles: [], tags: [], canAfford: false, expanded: false };
+    state.pokemonRecords = [];
+    syncPlayerPokemonLists(state);
+    document.querySelector('#searchInput').value = '';
+    render();
+  })()`);
+  await waitUntil("document.querySelector('.item-shop-browse-copy h3')?.textContent?.trim() === 'Items'");
 
   const initialChrome = await evaluate(`(() => ({
     localPlayerTabsGone: !document.querySelector('.app-tabs'),
     productTypeNavGone: !document.querySelector('#itemShopGroupNav'),
     priceControlsGone: !document.querySelector('#minPriceFilter') && !document.querySelector('#maxPriceFilter') && !document.querySelector('.shop-filter-price'),
     sortControlsGone: !document.querySelector('#shopSortSelect') && !document.querySelector('.shop-filter-sort'),
-    shopTabs: [...document.querySelectorAll('.shop-mode-tabs [data-shop]')].map((button) => button.textContent.trim()),
+    shopTabs: [...document.querySelectorAll('.shop-mode-tabs [data-shop] .shop-department-copy strong')].map((node) => node.textContent.trim()),
+    departmentTitle: document.querySelector('#shopDepartmentTitle')?.textContent?.trim() || '',
+    departmentSubtitle: document.querySelector('#shopDepartmentSubtitle')?.textContent?.trim() || '',
+    rivalMartGone: !document.body.textContent.includes('Rival Mart'),
+    oldSideTabsGone: !document.querySelector('#activityResponseTab') && !document.querySelector('#opponentDrawerTab'),
+    liveRefClosedHidden: Boolean(document.querySelector('#liveRefereeColumn')?.hidden),
+    liveRefLauncherVisible: Boolean(document.querySelector('#liveRefereeLauncher')?.offsetParent),
     filtersButtonVisible: !document.querySelector('#itemShopFiltersToggle')?.classList.contains('hidden'),
     canAffordVisible: !document.querySelector('#itemShopAffordFilterGroup')?.classList.contains('hidden'),
     rootBackVisible: Boolean(document.querySelector('.item-shop-browse-nav:not(.hidden) button')),
     rootTitle: document.querySelector('.item-shop-browse-copy h3')?.textContent?.trim(),
     rootSummary: document.querySelector('.item-shop-browse-topline span')?.textContent?.trim() || '',
+    sectionTitles: [...document.querySelectorAll('#shopGrid > .shop-tier-section .shop-tier-header h3')].map((node) => node.textContent.trim()),
     rootNames: [...document.querySelectorAll('#shopGrid .shop-name-cell strong')].map((node) => node.textContent.trim())
   }))()`);
   assert.equal(initialChrome.localPlayerTabsGone, true);
@@ -344,13 +624,127 @@ test("[ITEM-SHOP-BROWSE-001] Item Shop browse chrome stays compact and filters f
   assert.equal(initialChrome.filtersButtonVisible, true);
   assert.equal(initialChrome.canAffordVisible, true);
   assert.equal(initialChrome.rootBackVisible, false);
-  assert.equal(initialChrome.rootTitle, "Item Shop");
-  assert.match(initialChrome.rootSummary, /11 collections/);
-  assert.match(initialChrome.rootSummary, /21 items/);
-  assert.ok(initialChrome.rootNames.includes("Trainer Resources"), "Trainer Resources should be visible at the Items root");
-  ["Light Clay", "Eviolite", "Assault Vest", "Heavy-Duty Boots"].forEach((name) => {
+  assert.equal(initialChrome.departmentTitle, "Items");
+  assert.match(initialChrome.departmentSubtitle, /Held items/);
+  assert.equal(initialChrome.rivalMartGone, true);
+  assert.equal(initialChrome.oldSideTabsGone, true);
+  assert.equal(initialChrome.liveRefClosedHidden, true);
+  assert.equal(initialChrome.liveRefLauncherVisible, true);
+  assert.equal(initialChrome.rootTitle, "Items");
+  assert.match(initialChrome.rootSummary, /18 main items/);
+  assert.match(initialChrome.rootSummary, /10 collections/);
+  assert.deepEqual(initialChrome.sectionTitles, ["Main Shop", "Collections"]);
+  assert.equal(initialChrome.rootNames.includes("Trainer Resources"), false, "Trainer Resources should be removed from the Items root");
+  assert.deepEqual(initialChrome.rootNames.slice(0, 2), ["Badge Point", "Legacy Ticket"]);
+  assert.ok(initialChrome.rootNames.includes("Badge Point"));
+  assert.ok(initialChrome.rootNames.includes("Legacy Ticket"));
+  ["Sitrus Berry", "Light Clay", "Eviolite", "Assault Vest", "Heavy-Duty Boots"].forEach((name) => {
     assert.ok(initialChrome.rootNames.includes(name), `${name} should be visible on the root storefront`);
   });
+  ["Berry Juice", "Booster Energy", "Normalium Z", "Kommonium Z", "Kangaskhanite", "Metagrossite"].forEach((name) => {
+    assert.equal(initialChrome.rootNames.includes(name), false, `${name} should not appear in the default root storefront`);
+  });
+  await captureShopHudScreenshot("shop-hud-desktop-top-250.png");
+  await captureShopHudScreenshot("shop-root-without-recommendations.png", 720);
+
+  const productVisuals = await evaluate(`(async () => {
+    const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    const player = state.players.find((entry) => entry.id === 'gold');
+    player.balance = 10000;
+    state.currentPhase = 'shop';
+    state.phase = 'shop';
+    state.phaseState ||= {};
+    const key = phaseStateKey(state.series, state.gym);
+    state.phaseState[key] ||= {};
+    state.phaseState[key].currentPhase = 'shop';
+    state.activeShop = 'items';
+    state.itemShopFolderPath = [];
+    state.itemShopFilters = { group: 'all', roles: [], tags: [], canAfford: false, expanded: false };
+    document.querySelector('#searchInput').value = '';
+    render();
+    await sleep(150);
+    const reports = [];
+    for (const name of ['Badge Point', 'Legacy Ticket']) {
+      const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+      const card = [...document.querySelectorAll('#shopGrid .item-shop-main-section .shop-row:not([data-item-shop-folder])')]
+        .find((row) => row.querySelector('.shop-name-cell strong')?.textContent?.trim() === name);
+      const img = card?.querySelector('img[data-shop-sprite]');
+      if (img && !img.complete) {
+        await new Promise((resolve) => {
+          img.addEventListener('load', resolve, { once: true });
+          img.addEventListener('error', resolve, { once: true });
+          setTimeout(resolve, 1500);
+        });
+      }
+      const localSprite = window.rivalSagaShopSpriteData.items[slug]?.localSprite || '';
+      const response = localSprite ? await fetch(localSprite, { cache: 'no-store' }) : null;
+      const button = card?.querySelector('.shop-buy-button');
+      reports.push({
+        name,
+        found: Boolean(card),
+        imgExists: Boolean(img),
+        currentSrc: img?.currentSrc || '',
+        localSprite,
+        localStatus: response?.status || 0,
+        naturalWidth: img?.naturalWidth || 0,
+        labelOpacity: card ? getComputedStyle(card.querySelector('.shop-entry-visual b')).opacity : '',
+        buttonText: button?.textContent?.trim() || '',
+        buttonDisabled: Boolean(button?.disabled),
+        priceText: card?.querySelector('.price')?.textContent?.replace(/\\s+/g, ' ').trim() || ''
+      });
+    }
+    player.balance = 1000;
+    state.currentPhase = 'action';
+    state.phase = 'action';
+    state.phaseState[key].currentPhase = 'action';
+    render();
+    await sleep(150);
+    return reports;
+  })()`, 10000);
+  const badgePointVisual = productVisuals.find((report) => report.name === "Badge Point");
+  assert.equal(badgePointVisual.found, true);
+  assert.equal(badgePointVisual.imgExists, true);
+  assert.equal(badgePointVisual.currentSrc, `${server.baseUrl}/${badgePointVisual.localSprite}`);
+  assert.ok(badgePointVisual.currentSrc.includes("/assets/shop/custom/badge-point.svg"));
+  assert.equal(badgePointVisual.localStatus, 200);
+  assert.ok(badgePointVisual.naturalWidth > 0);
+  assert.equal(badgePointVisual.labelOpacity, "0");
+  assert.equal(badgePointVisual.buttonText, "Buy");
+  assert.equal(badgePointVisual.buttonDisabled, false);
+  assert.match(badgePointVisual.priceText, /5,000/);
+  const legacyTicketVisual = productVisuals.find((report) => report.name === "Legacy Ticket");
+  assert.equal(legacyTicketVisual.found, true);
+  assert.equal(legacyTicketVisual.imgExists, true);
+  assert.equal(legacyTicketVisual.currentSrc, `${server.baseUrl}/${legacyTicketVisual.localSprite}`);
+  assert.ok(legacyTicketVisual.currentSrc.includes("/assets/shop/custom/legacy-ticket.svg"));
+  assert.equal(legacyTicketVisual.localStatus, 200);
+  assert.ok(legacyTicketVisual.naturalWidth > 0);
+  assert.equal(legacyTicketVisual.labelOpacity, "0");
+  assert.equal(legacyTicketVisual.buttonText, "Add");
+  assert.equal(legacyTicketVisual.buttonDisabled, false);
+
+  const affordHierarchy = await evaluate(`(async () => {
+    const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    const input = document.querySelector('#itemShopCanAffordFilter');
+    if (input && !input.checked) input.click();
+    await sleep(150);
+    const names = [...document.querySelectorAll('#shopGrid .shop-name-cell strong')].map((node) => node.textContent.trim());
+    const report = {
+      checked: Boolean(input?.checked),
+      title: document.querySelector('.item-shop-browse-copy h3')?.textContent?.trim() || '',
+      folderCount: document.querySelectorAll('#shopGrid [data-item-shop-folder]').length,
+      hasAffordableFolder: names.includes('Berries'),
+      isFlattened: document.querySelector('.item-shop-browse-copy h3')?.textContent?.trim() === 'Filtered Results'
+    };
+    if (input?.checked) input.click();
+    await sleep(150);
+    return report;
+  })()`, 10000);
+  assert.equal(affordHierarchy.checked, true);
+  assert.equal(affordHierarchy.title, "Items");
+  assert.equal(affordHierarchy.isFlattened, false);
+  assert.ok(affordHierarchy.folderCount > 0);
+  assert.equal(affordHierarchy.hasAffordableFolder, true);
 
   const browseReport = await evaluate(`(async () => {
     const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -370,13 +764,6 @@ test("[ITEM-SHOP-BROWSE-001] Item Shop browse chrome stays compact and filters f
     };
     await clickCard('Berries');
     const berriesTitle = title();
-    document.querySelector('[data-item-shop-folder-back]')?.click();
-    await sleep(150);
-    await clickCard('Trainer Resources');
-    const trainerTitle = title();
-    const trainerSummary = document.querySelector('.item-shop-browse-topline span')?.textContent?.trim() || '';
-    const trainerNames = names();
-    const trainerBackText = document.querySelector('.item-shop-browse-nav button')?.textContent?.trim() || '';
     document.querySelector('[data-item-shop-folder-back]')?.click();
     await sleep(150);
     await clickCard('Specialist Items');
@@ -423,10 +810,6 @@ test("[ITEM-SHOP-BROWSE-001] Item Shop browse chrome stays compact and filters f
     const battleTitle = title();
     return {
       berriesTitle,
-      trainerTitle,
-      trainerSummary,
-      trainerNames,
-      trainerBackText,
       specialistTitle,
       oddballTitle,
       oddballNames,
@@ -448,11 +831,6 @@ test("[ITEM-SHOP-BROWSE-001] Item Shop browse chrome stays compact and filters f
   })()`, 20000);
 
   assert.equal(browseReport.berriesTitle, "Berries");
-  assert.equal(browseReport.trainerTitle, "Trainer Resources");
-  assert.equal(browseReport.trainerSummary, "2 items");
-  assert.ok(browseReport.trainerNames.includes("Legacy Ticket"));
-  assert.ok(browseReport.trainerNames.includes("Badge Point"));
-  assert.match(browseReport.trainerBackText, /Item Shop/);
   assert.equal(browseReport.specialistTitle, "Specialist Items");
   assert.equal(browseReport.oddballTitle, "Oddball Utility");
   ["Light Clay", "Eviolite", "Assault Vest", "Heavy-Duty Boots"].forEach((name) => {
@@ -475,12 +853,12 @@ test("[ITEM-SHOP-BROWSE-001] Item Shop browse chrome stays compact and filters f
   await evaluate(`(async () => {
     const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
     const title = () => document.querySelector('.item-shop-browse-copy h3')?.textContent?.trim() || '';
-    for (let i = 0; i < 5 && title() !== 'Item Shop'; i += 1) {
+    for (let i = 0; i < 5 && title() !== 'Items'; i += 1) {
       document.querySelector('[data-item-shop-folder-back]')?.click();
       await sleep(150);
     }
   })()`);
-  await waitUntil("document.querySelector('.item-shop-browse-copy h3')?.textContent?.trim() === 'Item Shop'");
+  await waitUntil("document.querySelector('.item-shop-browse-copy h3')?.textContent?.trim() === 'Items'");
   await delay(250);
   await evaluate(`(() => {
     const key = "rival-saga-client-ui-v1";
@@ -496,7 +874,7 @@ test("[ITEM-SHOP-BROWSE-001] Item Shop browse chrome stays compact and filters f
     mobile: true
   });
   await cdp.send("Page.navigate", { url: `${server.baseUrl}/?view=game&game=default&page=playerHub&panel=shop&item-shop-mobile-browser=${Date.now()}` });
-  await waitUntil("document.querySelector('.item-shop-browse-copy h3')?.textContent?.trim() === 'Item Shop'");
+  await waitUntil("document.querySelector('.item-shop-browse-copy h3')?.textContent?.trim() === 'Items'");
   const mobileReport = await evaluate(`(async () => {
     const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
     const rootNames = [...document.querySelectorAll('#shopGrid .shop-name-cell strong')].map((node) => node.textContent.trim());
@@ -507,10 +885,11 @@ test("[ITEM-SHOP-BROWSE-001] Item Shop browse chrome stays compact and filters f
     return {
       viewport: { width: window.innerWidth, height: window.innerHeight },
       pageOverflowX: document.documentElement.scrollWidth > window.innerWidth,
-      shopTabs: [...document.querySelectorAll('.shop-mode-tabs [data-shop]')].map((button) => button.textContent.trim()),
+      shopTabs: [...document.querySelectorAll('.shop-mode-tabs [data-shop] .shop-department-copy strong')].map((node) => node.textContent.trim()),
       rootTitle: document.querySelector('.item-shop-browse-copy h3')?.textContent?.trim() || '',
       rootSummary: document.querySelector('.item-shop-browse-topline span')?.textContent?.trim() || '',
       rootBackVisible: Boolean(document.querySelector('.item-shop-browse-nav:not(.hidden) button')),
+      sectionTitles: [...document.querySelectorAll('#shopGrid > .shop-tier-section .shop-tier-header h3')].map((node) => node.textContent.trim()),
       rootNames,
       firstCardVisible: Boolean(document.querySelector('#shopGrid .shop-row')?.getBoundingClientRect().top < window.innerHeight),
       filtersOpen: !document.querySelector('#itemShopAdvancedFilters')?.classList.contains('hidden'),
@@ -520,14 +899,21 @@ test("[ITEM-SHOP-BROWSE-001] Item Shop browse chrome stays compact and filters f
       tagOverflowX: getComputedStyle(tagRow).overflowX
     };
   })()`, 20000);
+  await captureShopHudScreenshot("shop-hud-mobile-top-250.png");
   await cdp.send("Emulation.clearDeviceMetricsOverride");
 
   assert.deepEqual(mobileReport.shopTabs, ["Items", "TMs", "Tokens"]);
   assert.ok(mobileReport.viewport.width >= 390 && mobileReport.viewport.width <= 391, JSON.stringify(mobileReport.viewport));
   assert.equal(mobileReport.pageOverflowX, false);
-  assert.equal(mobileReport.rootTitle, "Item Shop");
-  assert.match(mobileReport.rootSummary, /11 collections/);
-  assert.ok(mobileReport.rootNames.includes("Trainer Resources"));
+  assert.equal(mobileReport.rootTitle, "Items");
+  assert.match(mobileReport.rootSummary, /18 main items/);
+  assert.match(mobileReport.rootSummary, /10 collections/);
+  assert.deepEqual(mobileReport.sectionTitles, ["Main Shop", "Collections"]);
+  assert.equal(mobileReport.rootNames.includes("Trainer Resources"), false);
+  assert.deepEqual(mobileReport.rootNames.slice(0, 2), ["Badge Point", "Legacy Ticket"]);
+  assert.ok(mobileReport.rootNames.includes("Sitrus Berry"));
+  assert.equal(mobileReport.rootNames.includes("Berry Juice"), false);
+  assert.equal(mobileReport.rootNames.includes("Booster Energy"), false);
   assert.equal(mobileReport.rootBackVisible, false);
   assert.equal(mobileReport.firstCardVisible, true);
   assert.equal(mobileReport.filtersOpen, true);
@@ -535,6 +921,6 @@ test("[ITEM-SHOP-BROWSE-001] Item Shop browse chrome stays compact and filters f
   assert.notEqual(mobileReport.roleOverflowX, "auto");
   assert.equal(mobileReport.tagWrap, "wrap");
   assert.notEqual(mobileReport.tagOverflowX, "auto");
-  assert.deepEqual(browserErrors, []);
-  assert.deepEqual(externalRequests, []);
+  assert.deepEqual(actionableBrowserErrors(), []);
+  assert.deepEqual(actionableExternalRequests(), []);
 });

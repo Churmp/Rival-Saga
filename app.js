@@ -245,6 +245,23 @@ const TEAM_BUILD_MIN_SLOTS = 6;
 const TEAM_BUILD_MAX_SLOTS = 18;
 const teambuilderSpeciesBrowserByPlayerId = new Map();
 const shopLevelNames = ["Safari Zone", "Pokeball", "Great Ball", "Ultra Ball", "Master Ball"];
+const SHOP_DEPARTMENTS = Object.freeze({
+  items: {
+    title: "Items",
+    subtitle: "Held items, berries, mechanics, and trainer resources",
+    icon: "I"
+  },
+  tms: {
+    title: "TMs",
+    subtitle: "Move discs by type, category, and battle role",
+    icon: "TM"
+  },
+  tokens: {
+    title: "Tokens",
+    subtitle: "League effects, response tools, and tickets",
+    icon: "T"
+  }
+});
 const ITEM_SHOP_GROUPS = Object.freeze([
   { id: "all", label: "All" },
   { id: "held", label: "Held Items" },
@@ -277,11 +294,13 @@ const ITEM_SHOP_TAGS = Object.freeze([
 ]);
 const ITEM_SHOP_MECHANIC_FAMILIES = Object.freeze([
   { id: "tera", label: "Terastallization", description: "Choose one Tera Type." },
-  { id: "z-move", label: "Z-Moves", description: "Standard and premium Z-Crystal choices." },
+  { id: "z-move", label: "Z-Moves", description: "Standard Z-Crystal choices." },
   { id: "mega", label: "Mega Evolution", description: "Standard and premium Mega Stone choices." }
 ]);
 const ITEM_SHOP_DEFAULT_STOREFRONT_ITEM_NAMES = Object.freeze([
-  "Berry Juice",
+  "Badge Point",
+  "Legacy Ticket",
+  "Sitrus Berry",
   "Air Balloon",
   "Covert Cloak",
   "Loaded Dice",
@@ -296,12 +315,7 @@ const ITEM_SHOP_DEFAULT_STOREFRONT_ITEM_NAMES = Object.freeze([
   "Leftovers",
   "Choice Band",
   "Choice Scarf",
-  "Choice Specs",
-  "Booster Energy",
-  "Normalium Z",
-  "Kommonium Z",
-  "Kangaskhanite",
-  "Metagrossite"
+  "Choice Specs"
 ]);
 const ITEM_SHOP_FOLDERS = Object.freeze({
   root: {
@@ -309,15 +323,8 @@ const ITEM_SHOP_FOLDERS = Object.freeze({
     title: "All Items",
     eyebrow: "Item Shop",
     description: "Curated shelves for core held items, berries, Pokemon-specific tools, and battle mechanics.",
-    folders: ["berries", "type-plates", "type-boosting-items", "type-gems", "weather-terrain", "status-setup", "switching-positioning", "pokemon-specific", "battle-mechanics", "specialist-items", "trainer-resources"],
+    folders: ["berries", "type-plates", "type-boosting-items", "type-gems", "weather-terrain", "status-setup", "switching-positioning", "pokemon-specific", "battle-mechanics", "specialist-items"],
     items: ITEM_SHOP_DEFAULT_STOREFRONT_ITEM_NAMES
-  },
-  "trainer-resources": {
-    id: "trainer-resources",
-    parent: "root",
-    title: "Trainer Resources",
-    description: "Trainer progression and legacy resources.",
-    items: ["Legacy Ticket", "Badge Point"]
   },
   berries: {
     id: "berries",
@@ -448,15 +455,15 @@ const ITEM_SHOP_FOLDERS = Object.freeze({
   "z-moves": {
     id: "z-moves",
     parent: "battle-mechanics",
-    title: "Z-Moves",
-    description: "Standard Z-Crystals and premium Z-Move unlocks.",
-    items: ["Normalium Z", "Firium Z", "Waterium Z", "Electrium Z", "Grassium Z", "Icium Z", "Fightinium Z", "Poisonium Z", "Groundium Z", "Flyinium Z", "Psychium Z", "Buginium Z", "Rockium Z", "Ghostium Z", "Dragonium Z", "Darkinium Z", "Steelium Z", "Fairium Z", "Kommonium Z"]
+    title: "Z Shop",
+    description: "All currently priced Z-Crystals.",
+    items: ["Normalium Z", "Firium Z", "Waterium Z", "Electrium Z", "Grassium Z", "Icium Z", "Fightinium Z", "Poisonium Z", "Groundium Z", "Flyinium Z", "Psychium Z", "Buginium Z", "Rockium Z", "Ghostium Z", "Dragonium Z", "Darkinium Z", "Steelium Z", "Fairium Z", "Aloraichium Z", "Decidium Z", "Eevium Z", "Incinium Z", "Kommonium Z", "Lunalium Z", "Lycanium Z", "Marshadium Z", "Mewnium Z", "Mimikium Z", "Pikanium Z", "Pikashunium Z", "Primarium Z", "Snorlium Z", "Solganium Z", "Tapunium Z", "Ultranecrozium Z"]
   },
   "mega-evolution": {
     id: "mega-evolution",
     parent: "battle-mechanics",
-    title: "Mega Evolution",
-    description: "Listed and unlisted Mega Stone purchases.",
+    title: "Mega Shop",
+    description: "All currently priced Mega Stones.",
     items: ["Abomasite", "Absolite", "Aerodactylite", "Aggronite", "Alakazite", "Altarianite", "Ampharosite", "Audinite", "Banettite", "Beedrillite", "Blastoisinite", "Blazikenite", "Cameruptite", "Charizardite X", "Charizardite Y", "Diancite", "Galladite", "Garchompite", "Gardevoirite", "Gengarite", "Glalitite", "Gyaradosite", "Heracronite", "Houndoominite", "Kangaskhanite", "Latiasite", "Latiosite", "Lopunnite", "Lucarionite", "Manectite", "Mawilite", "Medichamite", "Metagrossite", "Mewtwonite X", "Mewtwonite Y", "Pidgeotite", "Pinsirite", "Sablenite", "Salamencite", "Sceptilite", "Scizorite", "Sharpedonite", "Slowbronite", "Steelixite", "Swampertite", "Tyranitarite", "Venusaurite"]
   },
   "specialist-items": {
@@ -2500,12 +2507,12 @@ function createCleanInitialState() {
       controlledPlayerId: "",
       activeScenario: null
     },
-    liveRefereeCollapsed: false,
+    liveRefereeCollapsed: true,
     liveRefereeX: "",
     liveRefereeY: "",
     liveRefereeWidth: "",
     liveRefereeHeight: "",
-    liveRefereeWindowMode: "docked",
+    liveRefereeWindowMode: "floating",
     liveRefereeDockSide: "right",
     liveRefereePaneSplit: "",
     liveRefereeLayoutPreference: "auto",
@@ -18598,6 +18605,7 @@ const els = {
   gameHeaderTrainerMenu: document.querySelector("#gameHeaderTrainerMenu"),
   gameMenuToggle: document.querySelector("#gameMenuToggle"),
   gameSaveStatus: document.querySelector("#gameSaveStatus"),
+  liveRefereeLauncher: document.querySelector("#liveRefereeLauncher"),
   gameMenuOverlay: document.querySelector("#gameMenuOverlay"),
   gameMenuDrawer: document.querySelector(".game-menu-drawer"),
   closeGameMenu: document.querySelector("#closeGameMenu"),
@@ -18734,6 +18742,8 @@ const els = {
   activityLog: document.querySelector("#activityLog"),
   shopGrid: document.querySelector("#shopGrid"),
   tokenShopHeader: document.querySelector("#tokenShopHeader"),
+  shopDepartmentTitle: document.querySelector("#shopDepartmentTitle"),
+  shopDepartmentSubtitle: document.querySelector("#shopDepartmentSubtitle"),
   shopHeaderBalance: document.querySelector("#shopHeaderBalance"),
   tokenShopBalance: document.querySelector("#tokenShopBalance"),
   tokenShopVisibleCount: document.querySelector("#tokenShopVisibleCount"),
@@ -19147,6 +19157,7 @@ let tokenScenarioClientUiBaseline = null;
 let liveRefereeDragState = null;
 let liveRefereeResizeState = null;
 let liveRefereeSplitResizeState = null;
+let routeEffectsDragState = null;
 let liveRefereeViewportResizeFrame = null;
 let liveRefereeAppearanceOpen = false;
 let liveRefereeNavigationActive = false;
@@ -19177,11 +19188,6 @@ function normalizeClientLocalStateSnapshot(snapshot = {}) {
   if (normalized.activeView !== undefined && !PLAYER_HUB_VIEW_IDS.includes(normalized.activeView)) {
     normalized.activeView = "sheet";
   }
-  const hasFloatingGeometry = ["liveRefereeX", "liveRefereeY", "liveRefereeWidth", "liveRefereeHeight"]
-    .some((key) => source[key] !== undefined && source[key] !== null && source[key] !== "");
-  if (normalized.liveRefereeWindowMode === "floating" && !hasFloatingGeometry) {
-    normalized.liveRefereeWindowMode = "docked";
-  }
   if (normalized.routeUiState !== undefined) normalized.routeUiState = normalizeRouteUiState(normalized.routeUiState);
   return normalized;
 }
@@ -19191,6 +19197,10 @@ function createDefaultRouteUiState() {
     routeWorkspaceBySeriesId: {},
     activeRouteActionIdBySeriesId: {},
     lastRouteAcquisitionMessage: "",
+    routeEffectsOpen: false,
+    routeEffectsX: 0,
+    routeEffectsY: 0,
+    routeEffectsExpandedId: "",
     publicActivityToasts: []
   };
 }
@@ -19221,6 +19231,10 @@ function normalizeRouteUiState(routeUiState = {}) {
     if (key && value) normalized.activeRouteActionIdBySeriesId[key] = value;
   });
   normalized.lastRouteAcquisitionMessage = String(source.lastRouteAcquisitionMessage || "").trim();
+  normalized.routeEffectsOpen = source.routeEffectsOpen === true;
+  normalized.routeEffectsX = Number.isFinite(Number(source.routeEffectsX)) ? Number(source.routeEffectsX) : 0;
+  normalized.routeEffectsY = Number.isFinite(Number(source.routeEffectsY)) ? Number(source.routeEffectsY) : 0;
+  normalized.routeEffectsExpandedId = String(source.routeEffectsExpandedId || "").trim();
   normalized.publicActivityToasts = (Array.isArray(source.publicActivityToasts) ? source.publicActivityToasts : [])
     .map((toast) => ({
       activityId: String(toast?.activityId || "").trim(),
@@ -19657,7 +19671,6 @@ function globalShellGameLabel() {
 const LEAGUE_DESTINATION_IDS = Object.freeze(["leaderboard", "mvpRace", "banlist", "history"]);
 
 function activeGameShellDestination() {
-  if (state.liveRefereeCollapsed === false) return "referee";
   if (state.activityLogCollapsed === false) return "history";
   if (state.activePage === "playerHub") return PLAYER_HUB_VIEW_IDS.includes(state.activeView) ? state.activeView : "sheet";
   return state.activePage;
@@ -19726,6 +19739,12 @@ function renderGlobalAppShell() {
   if (els.gameMenuGameAdmin) els.gameMenuGameAdmin.hidden = !gameAdminAccess;
   if (els.gameMenuSiteAdmin) els.gameMenuSiteAdmin.hidden = !siteAdminAccess;
   if (els.gameMenuAdminSection) els.gameMenuAdminSection.hidden = !gameAdminAccess && !siteAdminAccess;
+  if (els.liveRefereeLauncher) {
+    const liveRefereeOpen = state.liveRefereeCollapsed === false;
+    els.liveRefereeLauncher.classList.toggle("active", liveRefereeOpen);
+    els.liveRefereeLauncher.setAttribute("aria-expanded", String(liveRefereeOpen));
+    els.liveRefereeLauncher.setAttribute("aria-label", liveRefereeOpen ? "Close Live Referee" : "Open Live Referee");
+  }
   renderGameHeaderTrainerMenu(viewedPlayer);
   const activeDestination = activeGameShellDestination();
   if (inGame) ensureGameClientRouteInUrl(activeDestination);
@@ -19870,9 +19889,8 @@ function openGlobalGameDestination(page, view = "", { updateHistory = true } = {
 
 function openGameShellAction(action, { updateHistory = true } = {}) {
   if (action === "live-referee") {
-    state.liveRefereeCollapsed = false;
-    state.activityLogCollapsed = true;
-    if (updateHistory) updateGameClientRoute("referee");
+    state.liveRefereeCollapsed = state.liveRefereeCollapsed === false;
+    state.liveRefereeWindowMode = "floating";
   } else if (action === "history") {
     state.liveRefereeCollapsed = true;
     state.activityLogCollapsed = false;
@@ -19893,6 +19911,7 @@ function applyGameClientRouteFromUrl() {
   const destination = params.get("page") || "";
   if (destination === "referee") {
     state.liveRefereeCollapsed = false;
+    state.liveRefereeWindowMode = "floating";
     state.activityLogCollapsed = true;
     return true;
   }
@@ -21322,6 +21341,7 @@ async function claimProvisionalEffect({ playerId, inventoryRecordId, effectContr
   const payload = await readAuthoritativeTimingResponse(response);
   applyAuthoritativeTimingPayload(payload, { hydrateDeclaration: true });
   state.liveRefereeCollapsed = false;
+  state.liveRefereeWindowMode = "floating";
   saveClientUiState({ immediate: true });
   renderLiveRefereePanel();
   return payload.activity || currentProvisionalDeclaration();
@@ -22172,9 +22192,9 @@ function normalizeState(nextState) {
   nextState.liveRefereeY = liveRefereeNumber(nextState.liveRefereeY) ?? "";
   nextState.liveRefereeWidth = liveRefereeNumber(nextState.liveRefereeWidth) ?? "";
   nextState.liveRefereeHeight = liveRefereeNumber(nextState.liveRefereeHeight) ?? "";
-  nextState.liveRefereeWindowMode = ["floating", "docked", "expanded", "fullTable"].includes(nextState.liveRefereeWindowMode)
+  nextState.liveRefereeWindowMode = ["floating", "expanded"].includes(nextState.liveRefereeWindowMode)
     ? nextState.liveRefereeWindowMode
-    : "docked";
+    : "floating";
   nextState.liveRefereeDockSide = ["right", "left", "bottom"].includes(nextState.liveRefereeDockSide) ? nextState.liveRefereeDockSide : "right";
   nextState.liveRefereePaneSplit = liveRefereeNumber(nextState.liveRefereePaneSplit) ?? "";
   nextState.liveRefereeLayoutPreference = ["auto", "situation", "table", "manual"].includes(nextState.liveRefereeLayoutPreference)
@@ -24086,7 +24106,7 @@ function transactionFormMarkup(activity) {
 }
 
 function renderActivityResponseDrawer() {
-  if (!els.activityResponseTab || !els.activityResponseDrawer || !els.activityResponseList) return;
+  if (!els.activityResponseDrawer || !els.activityResponseList) return;
   const responder = activePlayer();
   const openActivities = openInteractionActivities("open");
   const count = openActivities.length;
@@ -24094,10 +24114,12 @@ function renderActivityResponseDrawer() {
   const open = Boolean(state.activityResponseDrawerOpen);
   els.activityResponseColumn?.classList.toggle("drawer-open", open);
   els.activityResponseDrawer.classList.toggle("open", open);
-  els.activityResponseTab.classList.toggle("has-activity", count > 0);
-  els.activityResponseTab.textContent = count ? `Windows (${count})` : "Timing";
-  els.activityResponseTab.title = responseCount ? `${responseCount} response window${responseCount === 1 ? "" : "s"} available to ${responder.name}` : "Timing windows and trades";
-  els.activityResponseTab.setAttribute("aria-expanded", String(open));
+  els.activityResponseTab?.classList.toggle("has-activity", count > 0);
+  if (els.activityResponseTab) {
+    els.activityResponseTab.textContent = count ? `Windows (${count})` : "Timing";
+    els.activityResponseTab.title = responseCount ? `${responseCount} response window${responseCount === 1 ? "" : "s"} available to ${responder.name}` : "Timing windows and trades";
+    els.activityResponseTab.setAttribute("aria-expanded", String(open));
+  }
   if (!open) return;
   const cards = openActivities.length ? openActivities.map((activity) => {
     const actor = state.players.find((player) => player.id === activity.actorPlayerId);
@@ -26820,6 +26842,7 @@ function guardPendingEventBeforeAction(actionName, callback) {
 
 function goToLiveRefereeFromGuard() {
   state.liveRefereeCollapsed = false;
+  state.liveRefereeWindowMode = "floating";
   saveClientUiState({ immediate: true });
   closePendingEventGuardModal();
   render();
@@ -30681,7 +30704,8 @@ function liveRefereeSituationPercent(surfaceType) {
 function applyLiveRefereePresentation(surfaceType = "decision") {
   const column = els.liveRefereeColumn;
   if (!column) return;
-  const mode = state.liveRefereeWindowMode || "floating";
+  const mode = ["floating", "expanded"].includes(state.liveRefereeWindowMode) ? state.liveRefereeWindowMode : "floating";
+  state.liveRefereeWindowMode = mode;
   ["floating", "docked", "expanded", "fullTable"].forEach((name) => column.classList.toggle(`mode-${name}`, mode === name));
   ["right", "left", "bottom"].forEach((side) => column.classList.toggle(`dock-${side}`, state.liveRefereeDockSide === side));
   column.classList.toggle("motion-reduced", state.liveRefereeMotionPreference === "reduced");
@@ -32093,8 +32117,7 @@ function liveRefereeAppearanceMenuMarkup() {
       <button class="icon-button" type="button" data-live-referee-appearance-toggle aria-expanded="${liveRefereeAppearanceOpen}" aria-label="Live Referee appearance" title="Appearance">&#9881;</button>
       <section class="live-referee-appearance-menu" aria-label="Live Referee appearance settings"${liveRefereeAppearanceOpen ? "" : " hidden"}>
         <header><strong>Appearance</strong><button class="icon-button" type="button" data-live-referee-appearance-toggle aria-label="Close appearance settings">&#215;</button></header>
-        <label>Window</label><div>${option("windowMode", "floating", "Floating", state.liveRefereeWindowMode)}${option("windowMode", "docked", "Docked", state.liveRefereeWindowMode)}${option("windowMode", "expanded", "Expanded", state.liveRefereeWindowMode)}${option("windowMode", "fullTable", "Full Table", state.liveRefereeWindowMode)}</div>
-        <label>Dock</label><div>${option("dockSide", "right", "Right", state.liveRefereeDockSide)}${option("dockSide", "left", "Left", state.liveRefereeDockSide)}${option("dockSide", "bottom", "Bottom", state.liveRefereeDockSide)}</div>
+        <label>Window</label><div>${option("windowMode", "floating", "Floating", state.liveRefereeWindowMode)}${option("windowMode", "expanded", "Expanded", state.liveRefereeWindowMode)}</div>
         <label>Layout</label><div>${option("layout", "auto", "Auto", state.liveRefereeLayoutPreference)}${option("layout", "situation", "Situation", state.liveRefereeLayoutPreference)}${option("layout", "table", "Table", state.liveRefereeLayoutPreference)}</div>
         <label>Density</label><div>${option("density", "comfortable", "Comfortable", state.liveRefereeDensityPreference)}${option("density", "compact", "Compact", state.liveRefereeDensityPreference)}</div>
         <label>Scale</label><div>${option("scale", "0.9", "90%", String(state.liveRefereeUiScale))}${option("scale", "1", "100%", String(state.liveRefereeUiScale))}${option("scale", "1.1", "110%", String(state.liveRefereeUiScale))}</div>
@@ -32179,21 +32202,13 @@ function renderLiveRefereePanel() {
   els.liveRefereePanel.dataset.liveRefereeSurface = surfaceType;
   applyLiveRefereePresentation(surfaceType);
   if (collapsed) {
-    els.liveRefereePanel.innerHTML = `
-      <div class="live-referee-collapsed-bar ${pending ? "pending" : "calm"}">
-        <span class="live-referee-collapsed-context" data-live-referee-drag-handle title="Drag Live Referee">
-          <b>${tokenScenarioSandboxActive() ? "TEST" : escapeHtml(liveRefereeCompactGymCode())}</b>
-          <em>${escapeHtml(compactPhaseLabel)}</em>
-        </span>
-        <strong>${escapeHtml(collapsedProgress)}</strong>
-        ${liveRefereeCollapsedPlayersMarkup(prompt)}
-        <button class="icon-button live-referee-expand-icon" type="button" data-live-referee-toggle aria-expanded="false" aria-label="Expand Live Referee" title="Expand Live Referee">&#9650;</button>
-      </div>
-    `;
+    els.liveRefereeColumn.hidden = true;
+    els.liveRefereePanel.replaceChildren();
     applyLiveRefereeSize();
     applyLiveRefereePosition();
     return;
   }
+  els.liveRefereeColumn.hidden = false;
   els.liveRefereePanel.innerHTML = `
     <header class="live-referee-header">
       <div class="live-referee-title" data-live-referee-drag-handle title="Drag Live Referee">
@@ -32295,6 +32310,85 @@ function endLiveRefereeDrag(event) {
   if (moved) saveClientUiState({ immediate: true });
 }
 
+function v2RouteEffectsUiState() {
+  state.routeUiState = normalizeRouteUiState(state.routeUiState || {});
+  return state.routeUiState;
+}
+
+function clampV2RouteEffectsPosition(x, y, panel = null) {
+  const width = Number(panel?.offsetWidth || 520);
+  const height = Number(panel?.offsetHeight || 420);
+  const margin = 12;
+  const maxX = Math.max(margin, window.innerWidth - width - margin);
+  const maxY = Math.max(margin, window.innerHeight - Math.min(height, window.innerHeight - margin * 2) - margin);
+  return {
+    x: Math.min(Math.max(Number(x) || margin, margin), maxX),
+    y: Math.min(Math.max(Number(y) || margin, margin), maxY)
+  };
+}
+
+function applyV2RouteEffectsPosition(panel = null) {
+  const target = panel || document.querySelector("[data-v2-route-effects-window]");
+  if (!target) return;
+  const uiState = v2RouteEffectsUiState();
+  const hasSavedPosition = Number(uiState.routeEffectsX || 0) > 0 || Number(uiState.routeEffectsY || 0) > 0;
+  if (!hasSavedPosition) {
+    target.style.left = "";
+    target.style.top = "";
+    return;
+  }
+  const next = clampV2RouteEffectsPosition(uiState.routeEffectsX, uiState.routeEffectsY, target);
+  uiState.routeEffectsX = next.x;
+  uiState.routeEffectsY = next.y;
+  target.style.left = `${next.x}px`;
+  target.style.top = `${next.y}px`;
+}
+
+function startV2RouteEffectsDrag(event) {
+  if (event.button !== undefined && event.button !== 0) return;
+  if (event.target?.closest?.("button, input, select, textarea, a")) return;
+  const panel = event.target?.closest?.("[data-v2-route-effects-window]");
+  if (!panel) return;
+  const rect = panel.getBoundingClientRect();
+  const uiState = v2RouteEffectsUiState();
+  uiState.routeEffectsX = rect.left;
+  uiState.routeEffectsY = rect.top;
+  routeEffectsDragState = {
+    pointerId: event.pointerId,
+    startX: event.clientX,
+    startY: event.clientY,
+    originX: rect.left,
+    originY: rect.top,
+    panel,
+    moved: false
+  };
+  panel.classList.add("dragging");
+  event.currentTarget?.setPointerCapture?.(event.pointerId);
+  event.preventDefault();
+}
+
+function updateV2RouteEffectsDrag(event) {
+  if (!routeEffectsDragState) return;
+  if (routeEffectsDragState.pointerId !== undefined && event.pointerId !== routeEffectsDragState.pointerId) return;
+  const dx = event.clientX - routeEffectsDragState.startX;
+  const dy = event.clientY - routeEffectsDragState.startY;
+  if (Math.abs(dx) + Math.abs(dy) > 3) routeEffectsDragState.moved = true;
+  const next = clampV2RouteEffectsPosition(routeEffectsDragState.originX + dx, routeEffectsDragState.originY + dy, routeEffectsDragState.panel);
+  const uiState = v2RouteEffectsUiState();
+  uiState.routeEffectsX = next.x;
+  uiState.routeEffectsY = next.y;
+  applyV2RouteEffectsPosition(routeEffectsDragState.panel);
+}
+
+function endV2RouteEffectsDrag(event) {
+  if (!routeEffectsDragState) return;
+  if (routeEffectsDragState.pointerId !== undefined && event.pointerId !== routeEffectsDragState.pointerId) return;
+  const moved = routeEffectsDragState.moved;
+  routeEffectsDragState.panel?.classList.remove("dragging");
+  routeEffectsDragState = null;
+  if (moved) saveClientUiState({ immediate: true });
+}
+
 function startLiveRefereeResize(event) {
   if (event.button !== undefined && event.button !== 0) return;
   if (state.liveRefereeCollapsed) return;
@@ -32369,7 +32463,7 @@ function endLiveRefereePaneResize(event) {
 }
 
 function setLiveRefereePreference(group, value) {
-  if (group === "windowMode" && ["floating", "docked", "expanded", "fullTable"].includes(value)) state.liveRefereeWindowMode = value;
+  if (group === "windowMode" && ["floating", "expanded"].includes(value)) state.liveRefereeWindowMode = value;
   if (group === "dockSide" && ["right", "left", "bottom"].includes(value)) state.liveRefereeDockSide = value;
   if (group === "layout" && ["auto", "situation", "table"].includes(value)) state.liveRefereeLayoutPreference = value;
   if (group === "density" && ["comfortable", "compact"].includes(value)) state.liveRefereeDensityPreference = value;
@@ -32458,6 +32552,7 @@ async function handleLiveTableClick(event) {
   if (refereeToggle) {
     event.preventDefault();
     state.liveRefereeCollapsed = !state.liveRefereeCollapsed;
+    if (state.liveRefereeCollapsed === false) state.liveRefereeWindowMode = "floating";
     saveClientUiState();
     renderLiveRefereePanel();
     return;
@@ -33794,7 +33889,7 @@ function shopPurchaseTimingMessage(shop = state.activeShop) {
 
 function shopDisplayName(shop = state.activeShop) {
   if (shop === "tms") return "TM Shop";
-  if (shop === "items") return "Item Shop";
+  if (shop === "items") return "Items";
   if (shop === "utility") return "Utility Shop";
   return "Token Shop";
 }
@@ -43825,6 +43920,13 @@ const V2_ROUTE_CURVE_SHIFTS = Object.freeze([
 const V2_ROUTE_ACTION_TYPE = "route-exploration";
 const V2_EXTRA_ENCOUNTER_PRICE = 2500;
 const V2_REPEL_SUPPRESSION_COUNT = 5;
+const V2_TYPE_INJECTION_COUNT = 4;
+const V2_TYPE_INJECTION_MAX_TIER_ID = "master";
+const V2_TYPE_INJECTION_TIER_ROLLS = Object.freeze([
+  Object.freeze({ id: "base-or-lower", label: "Route natural tier or lower", weight: 75, offset: 0, baseOrLower: true }),
+  Object.freeze({ id: "plus-1", label: "+1 tier", weight: 20, offset: 1 }),
+  Object.freeze({ id: "plus-2", label: "+2 tiers", weight: 5, offset: 2 })
+]);
 const V2_ROUTE_TOKEN_IDS = Object.freeze({
   extraEncounter: "extra-encounter-token",
   reroll: "reroll-token",
@@ -44702,35 +44804,157 @@ function v2ApplyRouteRevealEffect(request = {}) {
   return operation;
 }
 
+function v2InjectableTierIds() {
+  const maxIndex = getTierIndex(V2_TYPE_INJECTION_MAX_TIER_ID);
+  return SAGA_TIERS
+    .map(normalizeSagaTierId)
+    .filter((tierId) => tierId && tierId !== "master-elite" && getTierIndex(tierId) >= 0 && getTierIndex(tierId) <= maxIndex);
+}
+
+function v2RouteNaturalInjectionTierId(route) {
+  const routeNumber = Number(route?.routeNumber || state.gym || 1);
+  const naturalTier = getNaturalGymTier(routeNumber);
+  const naturalIndex = getTierIndex(naturalTier);
+  const maxIndex = getTierIndex(V2_TYPE_INJECTION_MAX_TIER_ID);
+  return normalizeSagaTierId(getTierNameByIndex(Math.min(maxIndex, Math.max(0, naturalIndex))));
+}
+
+function v2InjectionTierIdsAtOrBelow(tierId) {
+  const maxIndex = getTierIndex(V2_TYPE_INJECTION_MAX_TIER_ID);
+  const targetIndex = Math.min(maxIndex, getTierIndex(tierId));
+  return v2InjectableTierIds().filter((candidateTierId) => getTierIndex(candidateTierId) <= targetIndex);
+}
+
+function v2TypeInjectionCandidates({ primaryType, tierIds, existingSpecies = new Set() } = {}) {
+  const normalizedType = v2Text(primaryType).toLowerCase();
+  const legalTiers = new Set((tierIds || []).map(normalizeSagaTierId).filter(Boolean));
+  return v2BuildRoutePokemonCatalog().filter((entry) => (
+    v2Text(entry.primaryType).toLowerCase() === normalizedType
+    && legalTiers.has(normalizeSagaTierId(entry.battleTier?.id))
+    && normalizeSagaTierId(entry.battleTier?.id) !== "master-elite"
+    && !existingSpecies.has(entry.speciesId)
+  ));
+}
+
+function v2InjectionTierRollForRoute(route, rng) {
+  const roll = v2WeightedChoice(V2_TYPE_INJECTION_TIER_ROLLS, rng);
+  const naturalTierId = v2RouteNaturalInjectionTierId(route);
+  if (roll.baseOrLower) {
+    return {
+      rollId: roll.id,
+      offset: 0,
+      baseOrLower: true,
+      requestedTierId: naturalTierId,
+      candidateTierIds: v2InjectionTierIdsAtOrBelow(naturalTierId)
+    };
+  }
+  const naturalIndex = getTierIndex(naturalTierId);
+  const maxIndex = getTierIndex(V2_TYPE_INJECTION_MAX_TIER_ID);
+  const targetTierId = normalizeSagaTierId(getTierNameByIndex(Math.min(maxIndex, naturalIndex + Number(roll.offset || 0))));
+  return {
+    rollId: roll.id,
+    offset: Number(roll.offset || 0),
+    baseOrLower: false,
+    requestedTierId: targetTierId,
+    candidateTierIds: [targetTierId]
+  };
+}
+
+function v2SelectTypeInjectionCandidate({ route, primaryType, existingSpecies, rng, rollOverride = null } = {}) {
+  const roll = rollOverride || v2InjectionTierRollForRoute(route, rng);
+  if (roll.baseOrLower) {
+    const candidates = v2TypeInjectionCandidates({ primaryType, tierIds: roll.candidateTierIds, existingSpecies });
+    if (!candidates.length) {
+      throw new Error(`No legal ${primaryType} Primary Type candidates exist at ${formatPokemonBalanceTierLabel(roll.requestedTierId)} or lower.`);
+    }
+    const selected = v2Choice(candidates, rng);
+    return {
+      entry: selected,
+      roll: {
+        ...roll,
+        resolvedTierId: normalizeSagaTierId(selected.battleTier?.id),
+        fallbackTierIds: []
+      }
+    };
+  }
+  const requestedIndex = getTierIndex(roll.requestedTierId);
+  const fallbackTierIds = [];
+  for (let index = requestedIndex; index >= 0; index -= 1) {
+    const tierId = normalizeSagaTierId(getTierNameByIndex(index));
+    if (!v2InjectableTierIds().includes(tierId)) continue;
+    const candidates = v2TypeInjectionCandidates({ primaryType, tierIds: [tierId], existingSpecies });
+    if (!candidates.length) {
+      fallbackTierIds.push(tierId);
+      continue;
+    }
+    const selected = v2Choice(candidates, rng);
+    return {
+      entry: selected,
+      roll: {
+        ...roll,
+        candidateTierIds: [tierId],
+        resolvedTierId: tierId,
+        fallbackTierIds
+      }
+    };
+  }
+  throw new Error(`No legal ${primaryType} Primary Type candidates exist at ${formatPokemonBalanceTierLabel(roll.requestedTierId)} or lower.`);
+}
+
+function v2CanSelectTypeInjectionCount({ route, opportunity, primaryType, count = V2_TYPE_INJECTION_COUNT } = {}) {
+  const existingSpecies = new Set([
+    ...(route?.residents || []).map((resident) => resident.speciesId)
+  ]);
+  const naturalTierId = v2RouteNaturalInjectionTierId(route);
+  const baseCandidates = v2TypeInjectionCandidates({
+    primaryType,
+    tierIds: v2InjectionTierIdsAtOrBelow(naturalTierId),
+    existingSpecies
+  });
+  return baseCandidates.length >= count;
+}
+
 function getTemporaryPrimaryTypeInjectionCapabilities(request = {}) {
   const routeState = v2EnsureRouteSeriesState(request.seriesId || state.series);
   const { route, opportunity } = v2FindOpportunity(routeState, request.opportunityId);
   const primaryType = v2Text(request.primaryType);
-  const battleTierIds = (request.battleTierIds || []).map(normalizeBalanceTierId).filter(Boolean);
-  const count = Math.max(1, Number(request.count || 4));
+  const count = Math.max(1, Number(request.count || V2_TYPE_INJECTION_COUNT));
   if (!route || !opportunity) return { canInject: false, blockReason: "Pending Route opportunity not found.", candidatesAvailable: 0 };
   if (opportunity.status !== "pending") return { canInject: false, blockReason: "Temporary injection requires a pending opportunity.", candidatesAvailable: 0 };
   if (request.playerId && opportunity.playerId !== request.playerId) return { canInject: false, blockReason: "Opportunity belongs to another player.", candidatesAvailable: 0 };
   if (!primaryType) return { canInject: false, blockReason: "Primary Type is required.", candidatesAvailable: 0 };
-  if (!battleTierIds.length) return { canInject: false, blockReason: "Explicit legal Battle Tier scope is required.", candidatesAvailable: 0 };
   const existingSpecies = new Set([
-    ...(route.residents || []).map((resident) => resident.speciesId),
-    ...(opportunity.temporaryResidents || []).map((resident) => resident.speciesId)
+    ...(route.residents || []).map((resident) => resident.speciesId)
   ]);
-  const candidates = v2BuildRoutePokemonCatalog().filter((entry) => (
-    v2Text(entry.primaryType).toLowerCase() === primaryType.toLowerCase()
-    && battleTierIds.includes(normalizeBalanceTierId(entry.battleTier?.id))
-    && !existingSpecies.has(entry.speciesId)
-  ));
+  const naturalTierId = v2RouteNaturalInjectionTierId(route);
+  const maxTierId = normalizeSagaTierId(getTierNameByIndex(Math.min(
+    getTierIndex(V2_TYPE_INJECTION_MAX_TIER_ID),
+    getTierIndex(naturalTierId) + 2
+  )));
+  const candidates = v2TypeInjectionCandidates({
+    primaryType,
+    tierIds: v2InjectionTierIdsAtOrBelow(maxTierId),
+    existingSpecies
+  });
+  const baseCandidates = v2TypeInjectionCandidates({
+    primaryType,
+    tierIds: v2InjectionTierIdsAtOrBelow(naturalTierId),
+    existingSpecies
+  });
+  const canInject = count === V2_TYPE_INJECTION_COUNT && baseCandidates.length >= count;
   return {
-    canInject: candidates.length >= count,
-    blockReason: candidates.length >= count ? "" : `Only ${candidates.length} ${primaryType} Primary Type candidates match this tier scope.`,
+    canInject,
+    blockReason: canInject ? "" : `Only ${baseCandidates.length} ${primaryType} Primary Type candidates are available at this Route's natural tier or lower.`,
     opportunityId: opportunity.opportunityId,
     routeNumber: route.routeNumber,
     primaryType,
-    battleTierIds,
+    battleTierIds: v2InjectionTierIdsAtOrBelow(maxTierId),
+    naturalTierId,
+    maxTierId,
+    tierRolls: V2_TYPE_INJECTION_TIER_ROLLS.map((roll) => ({ ...roll })),
     requestedCount: count,
-    candidatesAvailable: candidates.length
+    candidatesAvailable: candidates.length,
+    baseCandidatesAvailable: baseCandidates.length
   };
 }
 
@@ -44741,28 +44965,30 @@ function v2ApplyTemporaryPrimaryTypeInjection(request = {}) {
   const key = v2Text(request.idempotencyKey);
   const existingRequest = key ? state.v2?.routeOperationRequests?.[key] : null;
   if (existingRequest?.operationId) return v2FindRouteEffectOperation(routeState.seriesId, existingRequest.operationId);
-  const count = Math.max(1, Number(request.count || 4));
-  if (count !== 4) throw new Error("Temporary Primary-Type injection must add exactly 4 Pokemon.");
+  const count = Math.max(1, Number(request.count || V2_TYPE_INJECTION_COUNT));
+  if (count !== V2_TYPE_INJECTION_COUNT) throw new Error("Temporary Primary-Type injection must add exactly 4 Pokemon.");
   const capabilities = getTemporaryPrimaryTypeInjectionCapabilities({ ...request, count });
   if (!capabilities.canInject) throw new Error(capabilities.blockReason || "Temporary Primary-Type injection is not available.");
   const operationId = v2NextEffectOperationId(routeState.seriesId, "v2-temp-primary-injection");
   const rng = v2CreateRng(request.seed || `${routeState.seed}:${route.routeId}:${opportunity.opportunityId}:${operationId}:temporary:${capabilities.primaryType}`);
   const existingSpecies = new Set([
-    ...(route.residents || []).map((resident) => resident.speciesId),
-    ...(opportunity.temporaryResidents || []).map((resident) => resident.speciesId)
+    ...(route.residents || []).map((resident) => resident.speciesId)
   ]);
-  const pool = v2BuildRoutePokemonCatalog().filter((entry) => (
-    v2Text(entry.primaryType).toLowerCase() === capabilities.primaryType.toLowerCase()
-    && capabilities.battleTierIds.includes(normalizeBalanceTierId(entry.battleTier?.id))
-    && !existingSpecies.has(entry.speciesId)
-  ));
   const selected = [];
+  const tierRolls = [];
   while (selected.length < count) {
-    const candidate = v2Choice(pool, rng);
-    selected.push(candidate);
-    pool.splice(pool.indexOf(candidate), 1);
+    const selectedCandidate = v2SelectTypeInjectionCandidate({
+      route,
+      primaryType: capabilities.primaryType,
+      existingSpecies,
+      rng,
+      rollOverride: Array.isArray(request.tierRollOverrides) ? request.tierRollOverrides[selected.length] : null
+    });
+    selected.push(selectedCandidate.entry);
+    tierRolls.push(selectedCandidate.roll);
+    existingSpecies.add(selectedCandidate.entry.speciesId);
   }
-  const residents = selected.map((entry) => {
+  const residents = selected.map((entry, index) => {
     const temporaryIndex = Number(routeState.counters?.temporaryResident || 0) + 1;
     const resident = v2CreateResident(route.routeId, temporaryIndex - 1, {
       ...entry,
@@ -44772,6 +44998,7 @@ function v2ApplyTemporaryPrimaryTypeInjection(request = {}) {
         sourceEffectId: v2Text(request.source?.sourceEffectId || request.sourceEffectId || operationId),
         primaryType: capabilities.primaryType,
         battleTierIds: [...capabilities.battleTierIds],
+        tierRoll: { ...tierRolls[index] },
         opportunityId: opportunity.opportunityId,
         actingPlayerId: v2Text(request.actingPlayerId || request.playerId)
       }
@@ -44797,6 +45024,9 @@ function v2ApplyTemporaryPrimaryTypeInjection(request = {}) {
     targetPlayerId: opportunity.playerId,
     primaryType: capabilities.primaryType,
     battleTierIds: [...capabilities.battleTierIds],
+    naturalTierId: capabilities.naturalTierId,
+    maxTierId: capabilities.maxTierId,
+    tierRolls,
     count: residents.length,
     temporaryResidentIds: residents.map((resident) => resident.residentId),
     residentIds: residents.map((resident) => resident.residentId),
@@ -45164,6 +45394,104 @@ function getRouteRepelCapabilitiesForPlayer(routeState, routeNumber, playerId) {
             : "No Battle Tier has 5 unsuppressed residents for Repel."
     )
   };
+}
+
+function v2TemporaryInjectionOptionsForOpportunity(routeState, opportunity, playerId) {
+  if (!opportunity || opportunity.status !== "pending" || opportunity.playerId !== playerId) return [];
+  const catalog = v2BuildRoutePokemonCatalog();
+  const primaryTypes = [...new Set(catalog.map((entry) => entry.primaryType).filter(Boolean))].sort();
+  const options = [];
+  primaryTypes.forEach((primaryType) => {
+    const capabilities = getTemporaryPrimaryTypeInjectionCapabilities({
+      opportunityId: opportunity.opportunityId,
+      playerId,
+      primaryType,
+      count: V2_TYPE_INJECTION_COUNT
+    });
+    if (!capabilities.canInject) return;
+    options.push({
+      primaryType,
+      label: primaryType,
+      value: primaryType,
+      candidatesAvailable: capabilities.candidatesAvailable,
+      baseCandidatesAvailable: capabilities.baseCandidatesAvailable,
+      naturalTierId: capabilities.naturalTierId,
+      maxTierId: capabilities.maxTierId
+    });
+  });
+  return options;
+}
+
+function v2PrimaryTypeInjectionRailOptions() {
+  return [...new Set(v2BuildRoutePokemonCatalog().map((entry) => entry.primaryType).filter(Boolean))].sort()
+    .map((primaryType) => ({
+      primaryType,
+      label: primaryType,
+      value: primaryType
+    }));
+}
+
+function v2RouteInjectionActivationId(routeState, opportunity) {
+  if (!routeState || !opportunity?.opportunityId) return "";
+  return [
+    routeState.seriesId || state.series,
+    opportunity.opportunityId,
+    Number(routeState.revision || 0),
+    (opportunity.temporaryResidents || []).length
+  ].map(v2Text).join(":");
+}
+
+function getRouteEffectCapabilitiesForPlayer(routeState, routeNumber, playerId, options = {}) {
+  const route = v2FindRoute(routeState, routeNumber);
+  const player = state.players.find((entry) => entry.id === playerId);
+  if (!route || !player) return Array.isArray(options.extraCapabilities) ? options.extraCapabilities : [];
+  const workspace = v2RouteWorkspaceState(routeState.seriesId || state.series);
+  const pendingOpportunity = v2RoutePendingOpportunityForPlayer(routeState, route.routeNumber, playerId, workspace.activeOpportunityId);
+  const capabilities = [];
+  const repelCapabilities = getRouteRepelCapabilitiesForPlayer(routeState, route.routeNumber, playerId);
+  const legalRepelTiers = repelCapabilities.tiers.filter((tier) => tier.canApplyRepel);
+  if (repelCapabilities.repelTokenInventoryIds.length && legalRepelTiers.length) {
+    capabilities.push({
+      id: "repel",
+      label: "Repel",
+      description: "Suppress exactly 5 residents of one tier.",
+      marker: "R",
+      countLabel: `x${repelCapabilities.repelTokenInventoryIds.length}`,
+      sourceLabel: "Inventory",
+      action: "repel",
+      detailHtml: `
+        <label class="v2-route-effect-field">Battle Tier
+          <select data-v2-route-effect-field="repelTier">
+            ${legalRepelTiers.map((tier) => `<option value="${escapeHtml(tier.tierId)}">${escapeHtml(tier.label)} (${escapeHtml(tier.unsuppressedEligibleCount)})</option>`).join("")}
+          </select>
+        </label>
+        <button class="v2-route-effect-apply" type="button" data-v2-route-effect-apply="repel" data-v2-route-number="${escapeHtml(route.routeNumber)}" data-v2-token-id="${escapeHtml(repelCapabilities.repelTokenInventoryIds[0] || "")}">Apply Repel</button>
+      `
+    });
+  }
+  const masterBallCapabilities = pendingOpportunity
+    ? getMasterBallOpportunityCapabilitiesForPlayer(routeState, pendingOpportunity.opportunityId, playerId)
+    : null;
+  if (masterBallCapabilities?.canUseMasterBall) {
+    capabilities.push({
+      id: "master-ball",
+      label: "Master Ball",
+      description: "Target a known permanent resident.",
+      marker: "M",
+      countLabel: `x${masterBallCapabilities.masterBallTokenInventoryIds.length}`,
+      sourceLabel: "Inventory",
+      action: "master-ball",
+      detailHtml: `
+        <label class="v2-route-effect-field">Known Resident
+          <select data-v2-route-effect-field="masterResident">
+            ${masterBallCapabilities.eligibleResidents.map((resident) => `<option value="${escapeHtml(resident.residentId)}">${escapeHtml(resident.displayName)}${resident.premium ? " (Premium)" : ""}</option>`).join("")}
+          </select>
+        </label>
+        <button class="v2-route-effect-apply" type="button" data-v2-route-effect-apply="master-ball" data-v2-opportunity-id="${escapeHtml(pendingOpportunity.opportunityId)}" data-v2-token-id="${escapeHtml(masterBallCapabilities.masterBallTokenInventoryIds[0] || "")}">Use Master Ball</button>
+      `
+    });
+  }
+  return [...capabilities, ...(Array.isArray(options.extraCapabilities) ? options.extraCapabilities : [])];
 }
 
 function v2PurchaseExtraEncounter(playerId, options = {}) {
@@ -45722,31 +46050,84 @@ function v2PublicRouteSlotCount(route) {
   return Math.max(0, Array.isArray(route?.residents) ? route.residents.length : 0);
 }
 
-function v2RoutePublicPreviewSlots(route, premium = false) {
-  const known = new Set(route?.publicDiscoveryResidentIds || []);
-  return (route?.residents || [])
-    .filter((resident) => (resident.slotKind === "premium" || resident.premium === true) === premium)
-    .map((resident) => ({
-      known: known.has(resident.residentId),
-      displayName: known.has(resident.residentId) ? resident.displayName : "",
-      premium
-    }));
-}
-
 function v2RoutePublicPreview(route) {
-  const normalSlots = v2RoutePublicPreviewSlots(route, false);
-  const premiumSlots = v2RoutePublicPreviewSlots(route, true);
-  const discoveries = [...normalSlots, ...premiumSlots].filter((slot) => slot.known).map((slot) => slot.displayName);
+  const known = new Set(route?.publicDiscoveryResidentIds || []);
+  const slots = (route?.residents || []).map((resident, index) => ({
+    slotIndex: index,
+    known: known.has(resident.residentId),
+    displayName: known.has(resident.residentId) ? resident.displayName : "",
+    premium: resident.slotKind === "premium" || resident.premium === true,
+    temporary: false
+  }));
+  const discoveries = slots.filter((slot) => slot.known).map((slot) => slot.displayName);
   const slotCount = v2PublicRouteSlotCount(route);
   return {
     routeNumber: Number(route?.routeNumber || 0),
     slotCount,
-    normalSlotCount: normalSlots.length,
-    premiumSlotCount: premiumSlots.length,
-    normalSlots,
-    premiumSlots,
+    slots,
+    normalSlotCount: slots.filter((slot) => !slot.premium).length,
+    premiumSlotCount: slots.filter((slot) => slot.premium).length,
     discoveries,
     unknownCount: Math.max(0, slotCount - discoveries.length)
+  };
+}
+
+function v2RoutePendingOpportunityForPlayer(routeState, routeNumber, playerId, activeOpportunityId = "") {
+  const route = v2FindRoute(routeState, routeNumber);
+  return (route?.pendingEncounterOpportunities || [])
+    .find((opportunity) => (
+      opportunity.status === "pending"
+      && opportunity.playerId === playerId
+      && (!activeOpportunityId || activeOpportunityId === opportunity.opportunityId)
+    )) || null;
+}
+
+function v2RouteResidentFieldPreview(routeState, route, playerId, opportunity = null) {
+  const publicKnown = new Set(route?.publicDiscoveryResidentIds || []);
+  const privateKnown = new Set(route?.privateKnowledgeByPlayerId?.[playerId] || []);
+  const knownIds = new Set([...publicKnown, ...privateKnown]);
+  const controls = new Map(getRouteDuplicatePreferenceControlsForPlayer(routeState, route?.routeNumber, playerId)
+    .map((control) => [control.residentId, control]));
+  const permanentSlots = (route?.residents || []).map((resident, index) => {
+    const known = knownIds.has(resident.residentId);
+    const control = controls.get(resident.residentId) || null;
+    return {
+      slotIndex: index,
+      residentId: known || control ? resident.residentId : "",
+      known,
+      publicKnown: publicKnown.has(resident.residentId),
+      privateKnown: privateKnown.has(resident.residentId),
+      displayName: known ? resident.displayName : "",
+      battleTier: known ? { ...(resident.battleTier || {}) } : {},
+      premium: resident.slotKind === "premium" || resident.premium === true,
+      temporary: false,
+      duplicateControl: control
+    };
+  });
+  const temporarySlots = opportunity?.playerId === playerId
+    ? (opportunity.temporaryResidents || []).map((resident, index) => ({
+        slotIndex: permanentSlots.length + index,
+        residentId: resident.residentId,
+        known: true,
+        publicKnown: false,
+        privateKnown: true,
+        displayName: resident.displayName,
+        battleTier: { ...(resident.battleTier || {}) },
+        premium: false,
+        temporary: true,
+        duplicateControl: null
+      }))
+    : [];
+  const slots = [...permanentSlots, ...temporarySlots];
+  return {
+    routeNumber: Number(route?.routeNumber || 0),
+    permanentSlotCount: permanentSlots.length,
+    temporarySlotCount: temporarySlots.length,
+    slotCount: slots.length,
+    discoveries: slots.filter((slot) => slot.known).map((slot) => slot.displayName),
+    unknownCount: permanentSlots.filter((slot) => !slot.known).length,
+    premiumSlotCount: permanentSlots.filter((slot) => slot.premium).length,
+    slots
   };
 }
 
@@ -45905,6 +46286,32 @@ function useV2MasterBallOnOpportunity(opportunityId, residentId, tokenInventoryI
   }
 }
 
+function applyV2TemporaryTypeInjectionEffect(opportunityId, selectedValue = "", activationId = "") {
+  try {
+    const player = activePlayer();
+    const primaryType = v2Text(selectedValue);
+    if (!opportunityId || !primaryType) throw new Error("Choose a Primary Type for Type Injection.");
+    const activationKey = v2Text(activationId) || `manual:${Date.now()}:${Math.random().toString(36).slice(2, 10)}`;
+    v2ApplyTemporaryPrimaryTypeInjection({
+      opportunityId,
+      playerId: player.id,
+      actingPlayerId: player.id,
+      primaryType,
+      count: V2_TYPE_INJECTION_COUNT,
+      source: {
+        kind: "development-route-effect",
+        sourceType: "route-encounter-rail",
+        sourceId: "type-injection",
+        sourceEffectId: activationKey
+      },
+      idempotencyKey: `route-rail-type-injection:${state.series}:${opportunityId}:${activationKey}`
+    });
+    v2PersistAndRender();
+  } catch (error) {
+    alert(error.message || "Unable to apply V2 Type Injection.");
+  }
+}
+
 function acquireV2RouteActionPokemon(actionId) {
   try {
     const pokemon = v2FinalizeRouteActionAcquisition(actionId, { actingPlayerId: activePlayer().id });
@@ -46004,27 +46411,126 @@ function renderV2RouteDiscoveryPills(route, { compact = false, revealNames = fal
   `;
 }
 
-function renderV2RoutePreviewSlots(route) {
-  const preview = v2RoutePublicPreview(route);
+function renderV2RoutePreviewSlots(routeState, route, player, opportunity = null) {
+  const preview = v2RouteResidentFieldPreview(routeState, route, player?.id, opportunity);
   if (!preview.slotCount) {
     return `<div class="v2-route-browser-empty">No encounter slots are available on this Route.</div>`;
   }
-  const renderSlot = (slot) => `
-    <span class="v2-route-preview-slot ${slot.known ? "revealed" : "mystery"}${slot.premium ? " premium" : ""}">
-      ${slot.known
-        ? renderV2RouteSpriteChip(slot.displayName, { large: true })
-        : renderV2RouteSpriteChip("", { large: true, unknown: true })}
-    </span>
-  `;
+  const renderDuplicateToggle = (control) => control ? `
+    <button class="v2-route-slot-duplicate-toggle${control.duplicateEnabled ? " on" : " off"}" type="button" data-v2-duplicate-toggle="${escapeHtml(control.residentId)}" data-v2-route-number="${escapeHtml(control.routeNumber)}" data-v2-duplicate-enabled="${control.duplicateEnabled ? "true" : "false"}" title="Toggle duplicate random encounters for ${escapeHtml(control.displayName)}">
+      <span aria-hidden="true"></span>
+      <b>${control.duplicateEnabled ? "ON" : "OFF"}</b>
+    </button>
+  ` : "";
+  const renderSlot = (slot) => {
+    const tierLabel = slot.known ? (slot.battleTier?.label || formatPokemonBalanceTierLabel(slot.battleTier?.id || "")) : "";
+    const metadataHtml = tierLabel || slot.duplicateControl ? `
+      <span class="v2-route-slot-meta">
+        ${tierLabel ? `<span class="v2-route-slot-tier">${escapeHtml(tierLabel)}</span>` : ""}
+        ${renderDuplicateToggle(slot.duplicateControl)}
+      </span>
+    ` : "";
+    return `
+      <span class="v2-route-preview-slot ${slot.known ? "revealed" : "mystery"}${slot.premium ? " premium" : ""}${slot.temporary ? " temporary" : ""}"${slot.known ? ` data-v2-route-resident-known="${escapeHtml(slot.residentId)}"` : ""}>
+        ${slot.known
+          ? renderV2RouteSpriteChip(slot.displayName, { large: true })
+          : renderV2RouteSpriteChip("", { large: true, unknown: true })}
+        ${slot.premium ? `<span class="v2-route-premium-marker" title="Premium Resident" aria-label="Premium Resident">P</span>` : ""}
+        ${slot.temporary ? `<span class="v2-route-temporary-marker" title="Temporary injected resident">TEMP</span>` : ""}
+        ${metadataHtml}
+      </span>
+    `;
+  };
   return `
-    <div class="v2-route-preview-slot-group normal" aria-label="Ordinary Route encounter slots">
-      ${preview.normalSlots.map(renderSlot).join("")}
+    <div class="v2-route-preview-slot-group resident-field" aria-label="Route resident field with permanent and temporary encounter slots" data-v2-route-resident-field data-v2-permanent-slots="${escapeHtml(preview.permanentSlotCount)}" data-v2-temporary-slots="${escapeHtml(preview.temporarySlotCount)}">
+      ${preview.slots.map(renderSlot).join("")}
     </div>
-    <div class="v2-route-preview-premium-band" aria-label="Premium Route encounter slots">
-      <span class="v2-route-premium-label">Premium Residents</span>
-      <div class="v2-route-preview-slot-group premium">
-        ${preview.premiumSlots.map(renderSlot).join("")}
+  `;
+}
+
+function getRouteEncounterRailCapabilitiesForPlayer(routeState, routeNumber, playerId) {
+  const route = v2FindRoute(routeState, routeNumber);
+  const player = state.players.find((entry) => entry.id === playerId);
+  if (!route || !player) {
+    return {
+      extra: { storedCount: 0, canBuy: false, canUse: false, tokenId: "", blockReason: "Route or player not found." },
+      typeInjection: { canInject: false, options: [], opportunityId: "" },
+      effects: []
+    };
+  }
+  const workspace = v2RouteWorkspaceState(routeState.seriesId || state.series);
+  const pendingOpportunity = v2RoutePendingOpportunityForPlayer(routeState, route.routeNumber, playerId, workspace.activeOpportunityId);
+  const extraTokens = v2RouteInventoryTokens(player, V2_ROUTE_TOKEN_IDS.extraEncounter);
+  const extraEligible = v2EligibleResidents(route, [], { routeState, playerId });
+  const progressionLegal = route.routeNumber <= v2CurrentProgressionRoute();
+  const extraCanUse = progressionLegal
+    && !pendingOpportunity
+    && extraTokens.length
+    && extraEligible.length
+    && v2RouteHasPositiveEncounterWeight(extraEligible);
+  const injectionOptions = v2TemporaryInjectionOptionsForOpportunity(routeState, pendingOpportunity, playerId);
+  const injectionFallbackOptions = injectionOptions.length ? injectionOptions : v2PrimaryTypeInjectionRailOptions();
+  return {
+    extra: {
+      storedCount: extraTokens.length,
+      canBuy: Number(player.balance || 0) >= V2_EXTRA_ENCOUNTER_PRICE,
+      canUse: Boolean(extraCanUse),
+      tokenId: extraTokens[0]?.id || "",
+      routeNumber: route.routeNumber,
+      blockReason: extraCanUse ? "" : (
+        !progressionLegal ? "Extra Encounter cannot target a Route above current progression."
+          : pendingOpportunity ? "Resolve the pending Route opportunity first."
+            : !extraTokens.length ? "No stored Extra Encounter."
+              : "No eligible Route encounter is available."
+      )
+    },
+    typeInjection: {
+      canInject: injectionOptions.length > 0,
+      options: injectionFallbackOptions,
+      opportunityId: injectionOptions.length ? (pendingOpportunity?.opportunityId || "") : "",
+      activationId: injectionOptions.length ? v2RouteInjectionActivationId(routeState, pendingOpportunity) : "",
+      blockReason: injectionOptions.length
+        ? ""
+        : pendingOpportunity
+          ? "Type Injection source unavailable."
+          : "No pending Route opportunity."
+    },
+    effects: getRouteEffectCapabilitiesForPlayer(routeState, route.routeNumber, playerId)
+  };
+}
+
+function renderV2RouteEncounterRail(route, player) {
+  if (!route || !player) return "";
+  const routeState = v2EnsureRouteSeriesState(state.series);
+  const capabilities = getRouteEncounterRailCapabilitiesForPlayer(routeState, route.routeNumber, player.id);
+  const extra = capabilities.extra;
+  const injection = capabilities.typeInjection;
+  const uiState = v2RouteEffectsUiState();
+  return `
+    <div class="v2-route-encounter-rail" data-v2-route-encounter-rail aria-label="Route encounter tools">
+      <div class="v2-route-rail-section extra" data-v2-route-rail-extra>
+        <span class="v2-route-rail-label">Extra</span>
+        <span class="v2-route-rail-count">${escapeHtml(extra.storedCount)} stored</span>
+        <button class="v2-route-rail-button" type="button" data-v2-rail-extra-buy${extra.canBuy ? "" : " disabled"}>Buy +1 · ${escapeHtml(formatMoney(V2_EXTRA_ENCOUNTER_PRICE))}</button>
+        <button class="v2-route-rail-button" type="button" data-v2-rail-extra-use="${escapeHtml(route.routeNumber)}" data-v2-token-id="${escapeHtml(extra.tokenId)}"${extra.canUse ? "" : " disabled"} title="${escapeHtml(extra.blockReason || "Use Extra Encounter")}">Use</button>
       </div>
+      <div class="v2-route-rail-section injection${injection.canInject ? "" : " unavailable"}" data-v2-route-rail-injection>
+        <label class="v2-route-rail-select">Primary Type
+          <select data-v2-rail-injection-primary>
+            ${injection.options.map((option) => `<option value="${escapeHtml(option.value)}">${escapeHtml(option.label)}</option>`).join("")}
+          </select>
+        </label>
+        <button class="v2-route-rail-button" type="button" data-v2-rail-injection-apply="${escapeHtml(injection.opportunityId)}" data-v2-rail-injection-activation="${escapeHtml(injection.activationId || "")}"${injection.canInject ? "" : " disabled"} title="${escapeHtml(injection.blockReason || "Inject four temporary residents")}">Inject +4</button>
+        ${injection.canInject ? "" : `<span class="v2-route-rail-zero" title="${escapeHtml(injection.blockReason || "Unavailable")}">Unavailable</span>`}
+      </div>
+      <div class="v2-route-rail-section effects">
+        <button class="v2-route-effects-toggle${uiState.routeEffectsOpen ? " active" : ""}" type="button" data-v2-route-effects-toggle aria-expanded="${uiState.routeEffectsOpen ? "true" : "false"}">
+          <span aria-hidden="true">FX</span>
+          <strong>Route Effects</strong>
+          <small>${escapeHtml(capabilities.effects.length)} usable</small>
+        </button>
+      </div>
+      ${renderV2RouteEffectsWindow(route, player, capabilities.effects)}
     </div>
   `;
 }
@@ -46041,8 +46547,7 @@ function renderV2RouteBrowserCommands(route, player, remaining, blockedReason) {
   if (!route) return "";
   const routeState = v2EnsureRouteSeriesState(state.series);
   const workspace = v2RouteWorkspaceState(state.series);
-  const pendingOpportunity = getPendingRouteOpportunitiesForPlayer(routeState, player.id)
-    .find((opportunity) => opportunity.routeNumber === route.routeNumber && (!workspace.activeOpportunityId || workspace.activeOpportunityId === opportunity.opportunityId));
+  const pendingOpportunity = v2RoutePendingOpportunityForPlayer(routeState, route.routeNumber, player.id, workspace.activeOpportunityId);
   const disabled = remaining <= 0 || Boolean(blockedReason) || Boolean(pendingOpportunity);
   const blockedMessage = blockedReason || (pendingOpportunity
     ? "This Route opportunity is already committed. Resolve it before exploring again."
@@ -46066,69 +46571,62 @@ function renderV2RouteBrowserCommands(route, player, remaining, blockedReason) {
   `;
 }
 
-function renderV2RouteDuplicatePreferenceControls(route, player) {
-  const routeState = v2EnsureRouteSeriesState(state.series);
-  const controls = getRouteDuplicatePreferenceControlsForPlayer(routeState, route?.routeNumber, player?.id);
-  if (!controls.length) return "";
+function renderV2RouteEffectList(capabilities, expandedId = "") {
+  if (!capabilities.length) {
+    return `<div class="v2-route-effects-empty">No usable Route effects are available for this trainer and Route.</div>`;
+  }
   return `
-    <div class="v2-route-duplicate-controls" aria-label="Duplicate encounter preferences">
-      ${controls.map((control) => `
-        <button class="ghost-button v2-route-duplicate-toggle${control.duplicateEnabled ? "" : " off"}" type="button" data-v2-duplicate-toggle="${escapeHtml(control.residentId)}" data-v2-route-number="${escapeHtml(control.routeNumber)}" data-v2-duplicate-enabled="${control.duplicateEnabled ? "true" : "false"}">
-          <span>${escapeHtml(control.displayName)}</span>
-          <small>Duplicate ${control.duplicateEnabled ? "ON" : "OFF"}${control.premium ? " · Premium" : ""}</small>
-        </button>
-      `).join("")}
+    <div class="v2-route-effects-list" data-v2-route-effect-list>
+      ${capabilities.map((capability) => {
+        const expanded = capability.id === expandedId;
+        return `
+          <article class="v2-route-effect-card${expanded ? " expanded" : ""}" data-v2-route-effect-card="${escapeHtml(capability.id)}">
+            <button class="v2-route-effect-summary" type="button" data-v2-route-effect-toggle="${escapeHtml(capability.id)}" aria-expanded="${expanded ? "true" : "false"}">
+              <span class="v2-route-effect-marker" aria-hidden="true">${escapeHtml(capability.marker || "*")}</span>
+              <span class="v2-route-effect-copy">
+                <strong>${escapeHtml(capability.label || "Route Effect")}</strong>
+                <small>${escapeHtml(capability.sourceLabel || "Available")}${capability.countLabel ? ` / ${escapeHtml(capability.countLabel)}` : ""}</small>
+              </span>
+            </button>
+            ${expanded ? `
+              <div class="v2-route-effect-detail">
+                <p>${escapeHtml(capability.description || "")}</p>
+                ${capability.detailHtml || ""}
+              </div>
+            ` : ""}
+          </article>
+        `;
+      }).join("")}
     </div>
   `;
 }
 
-function renderV2RouteBrowserTools(route, player) {
-  if (!route) return "";
-  const extraTokens = v2RouteInventoryTokens(player, V2_ROUTE_TOKEN_IDS.extraEncounter);
-  const progressionLegal = route.routeNumber <= v2CurrentProgressionRoute();
-  const routeState = v2EnsureRouteSeriesState(state.series);
-  const repelCapabilities = getRouteRepelCapabilitiesForPlayer(routeState, route.routeNumber, player.id);
-  const legalRepelTier = repelCapabilities.tiers.find((tier) => tier.canApplyRepel);
-  const workspace = v2RouteWorkspaceState(state.series);
-  const pendingOpportunity = getPendingRouteOpportunitiesForPlayer(routeState, player.id)
-    .find((opportunity) => opportunity.routeNumber === route.routeNumber && (!workspace.activeOpportunityId || workspace.activeOpportunityId === opportunity.opportunityId));
-  const masterBallCapabilities = pendingOpportunity
-    ? getMasterBallOpportunityCapabilitiesForPlayer(routeState, pendingOpportunity.opportunityId, player.id)
-    : null;
+function renderV2RouteEffectsWindow(route, player, capabilities) {
+  const uiState = v2RouteEffectsUiState();
+  if (!uiState.routeEffectsOpen) return "";
+  const ids = new Set(capabilities.map((capability) => capability.id));
+  const expandedId = ids.has(uiState.routeEffectsExpandedId) ? uiState.routeEffectsExpandedId : "";
+  if (expandedId !== uiState.routeEffectsExpandedId) uiState.routeEffectsExpandedId = "";
+  const style = Number(uiState.routeEffectsX || 0) > 0 || Number(uiState.routeEffectsY || 0) > 0
+    ? ` style="left: ${escapeHtml(uiState.routeEffectsX)}px; top: ${escapeHtml(uiState.routeEffectsY)}px;"`
+    : "";
   return `
-    <div class="v2-route-browser-tools" aria-label="Route tools">
-      <div class="v2-route-tool-line">
-        <button class="ghost-button" type="button" data-v2-extra-buy${Number(player.balance || 0) < V2_EXTRA_ENCOUNTER_PRICE ? " disabled" : ""}>Buy Extra Encounter (${formatMoney(V2_EXTRA_ENCOUNTER_PRICE)})</button>
-        <button class="ghost-button" type="button" data-v2-extra-use="${escapeHtml(route.routeNumber)}" data-v2-token-id="${escapeHtml(extraTokens[0]?.id || "")}"${!extraTokens.length || !progressionLegal ? " disabled" : ""}>Use Extra Encounter</button>
-        <span>${extraTokens.length} stored / Progression Route ${v2CurrentProgressionRoute()}</span>
-      </div>
-      ${!progressionLegal ? renderV2RouteBlockAlert("Extra Encounter cannot target a Route above current progression.") : ""}
-      <div class="v2-route-tool-line">
-        <label class="v2-route-inline-control">
-          Repel Tier
-          <select data-v2-repel-tier>
-            ${repelCapabilities.tiers.map((tier) => `<option value="${escapeHtml(tier.tierId)}"${tier.canApplyRepel ? "" : " disabled"}${legalRepelTier?.tierId === tier.tierId ? " selected" : ""}>${escapeHtml(tier.label)} (${escapeHtml(tier.unsuppressedEligibleCount)}/${escapeHtml(tier.currentResidentCount)})</option>`).join("")}
-          </select>
-        </label>
-        <button class="ghost-button" type="button" data-v2-repel-apply="${escapeHtml(route.routeNumber)}" data-v2-token-id="${escapeHtml(repelCapabilities.repelTokenInventoryIds[0] || "")}"${!repelCapabilities.canUseRepel || !legalRepelTier ? " disabled" : ""}>Apply Repel</button>
-        <span>${repelCapabilities.repelTokenInventoryIds.length} Repel Token${repelCapabilities.repelTokenInventoryIds.length === 1 ? "" : "s"}</span>
-      </div>
-      ${!repelCapabilities.canUseRepel ? renderV2RouteBlockAlert(repelCapabilities.blockReason) : ""}
-      ${pendingOpportunity ? `
-        <div class="v2-route-tool-line committed">
-          <label class="v2-route-inline-control">
-            Master Ball
-            <select data-v2-master-ball-resident="${escapeHtml(pendingOpportunity.opportunityId)}">
-              ${masterBallCapabilities.eligibleResidents.map((resident, index) => `<option value="${escapeHtml(index)}">${escapeHtml(resident.displayName)}</option>`).join("")}
-            </select>
-          </label>
-          <button class="ghost-button" type="button" data-v2-master-ball-use="${escapeHtml(pendingOpportunity.opportunityId)}" data-v2-token-id="${escapeHtml(masterBallCapabilities.masterBallTokenInventoryIds[0] || "")}"${!masterBallCapabilities.canUseMasterBall ? " disabled" : ""}>Use Master Ball</button>
-          ${!masterBallCapabilities.canUseMasterBall ? renderV2RouteBlockAlert(masterBallCapabilities.blockReason) : ""}
-        </div>
-      ` : ""}
-      ${renderV2RouteDuplicatePreferenceControls(route, player)}
-    </div>
+    <aside class="v2-route-effects-window" data-v2-route-effects-window${style} aria-label="Route Effects for Route ${escapeHtml(route.routeNumber)}">
+      <header class="v2-route-effects-header" data-v2-route-effects-drag-handle title="Drag Route Effects">
+        <span class="v2-route-effects-badge" aria-hidden="true">FX</span>
+        <span>
+          <strong>Route Effects</strong>
+          <small>Route ${escapeHtml(route.routeNumber)} / ${escapeHtml(player.name)}</small>
+        </span>
+        <button class="icon-button v2-route-effects-close" type="button" data-v2-route-effects-close aria-label="Close Route Effects">x</button>
+      </header>
+      ${renderV2RouteEffectList(capabilities, expandedId)}
+    </aside>
   `;
+}
+
+function renderV2RouteBrowserTools(route, player) {
+  return renderV2RouteEncounterRail(route, player);
 }
 
 function v2RouteLandingDiscoveryNames(routeState) {
@@ -46198,7 +46696,7 @@ function renderV2RouteBrowser(routeState, workspace, player, remaining, blockedR
     `;
   }
   return `
-    <section class="v2-route-browser${committedPending ? " committed" : ""}" data-v2-route-browser data-v2-route-browser-pinned="${escapeHtml(selectedRouteNumber)}" aria-label="Choose a Route">
+    <section class="v2-route-browser${committedPending ? " committed" : ""}" data-v2-route-browser data-v2-route-browser-pinned="${escapeHtml(selectedRouteNumber)}" data-v2-route-browser-preview="${escapeHtml(selectedRouteNumber)}" aria-label="Choose a Route">
       <div class="v2-route-browser-layout">
         <nav class="v2-route-browser-menu" aria-label="V2 Routes" data-v2-route-menu>
           ${routes.map((route) => {
@@ -46220,14 +46718,15 @@ function renderV2RouteBrowser(routeState, workspace, player, remaining, blockedR
         </nav>
         <div class="v2-route-browser-previews" aria-live="polite">
           ${routes.map((route) => {
-            const preview = v2RoutePublicPreview(route);
+            const pendingOpportunity = v2RoutePendingOpportunityForPlayer(routeState, route.routeNumber, player.id, workspace.activeOpportunityId);
+            const preview = v2RouteResidentFieldPreview(routeState, route, player.id, pendingOpportunity);
             const selected = route.routeNumber === selectedRouteNumber;
             const titleId = `v2RoutePreviewTitle${route.routeNumber}`;
             const unknownLabel = preview.unknownCount === 1 ? "unknown slot" : "unknown slots";
             const discoveredLabel = preview.discoveries.length === 1 ? "discovered" : "discovered";
             const slotLabel = `Route ${route.routeNumber} encounter slots: ${preview.discoveries.length} ${discoveredLabel}, ${preview.unknownCount} ${unknownLabel}, ${preview.slotCount} total.`;
             return `
-              <section class="v2-route-browser-preview density-${escapeHtml(v2RoutePreviewDensityClass(preview.slotCount))}${selected ? " active" : ""}" data-v2-route-preview="${escapeHtml(route.routeNumber)}" aria-labelledby="${escapeHtml(titleId)}" style="--route-slot-count: ${escapeHtml(preview.slotCount)};"${selected ? "" : " hidden"}>
+              <section class="v2-route-browser-preview density-${escapeHtml(v2RoutePreviewDensityClass(preview.slotCount))}${selected ? " active" : ""}" data-v2-route-preview="${escapeHtml(route.routeNumber)}" aria-labelledby="${escapeHtml(titleId)}" aria-hidden="${selected ? "false" : "true"}" style="--route-slot-count: ${escapeHtml(preview.slotCount)};">
                 <div class="v2-route-browser-path" aria-hidden="true"></div>
                 <div class="v2-route-preview-head">
                   <div class="v2-route-preview-copy">
@@ -46238,9 +46737,9 @@ function renderV2RouteBrowser(routeState, workspace, player, remaining, blockedR
                   ${renderV2RouteBrowserCommands(route, player, remaining, blockedReason)}
                 </div>
                 <div class="v2-route-preview-slots" aria-label="${escapeHtml(slotLabel)}">
-                  ${renderV2RoutePreviewSlots(route)}
+                  ${renderV2RoutePreviewSlots(routeState, route, player, pendingOpportunity)}
                 </div>
-                ${renderV2RouteBrowserTools(route, player)}
+                ${selected ? renderV2RouteBrowserTools(route, player) : ""}
               </section>
             `;
           }).join("")}
@@ -46328,6 +46827,7 @@ function renderV2RouteActionPhase() {
     state.routeUiState = normalizeRouteUiState(state.routeUiState);
     els.actionLocationMeta.innerHTML = state.routeUiState.lastRouteAcquisitionMessage ? `<p class="v2-route-acquisition-note">${escapeHtml(state.routeUiState.lastRouteAcquisitionMessage)}</p>` : "";
   }
+  applyV2RouteEffectsPosition();
 }
 
 function renderActionPhase() {
@@ -46662,25 +47162,29 @@ function renderActionPhase() {
 
 function setV2RouteBrowserPreview(routeNumber) {
   const browser = els.actionLocationBoard?.querySelector("[data-v2-route-browser]");
-  if (!browser) return;
+  if (!browser) return false;
   const normalized = String(Number(routeNumber || browser.dataset.v2RouteBrowserPinned || 0));
+  const current = String(Number(browser.dataset.v2RouteBrowserPreview || browser.dataset.v2RouteBrowserPinned || 0));
+  if (normalized === current) return false;
   const preview = [...browser.querySelectorAll("[data-v2-route-preview]")]
     .find((panel) => panel.dataset.v2RoutePreview === normalized);
-  if (!preview) return;
+  if (!preview) return false;
+  browser.dataset.v2RouteBrowserPreview = normalized;
   browser.querySelectorAll("[data-v2-route-preview]").forEach((panel) => {
     const active = panel.dataset.v2RoutePreview === normalized;
-    panel.hidden = !active;
+    panel.setAttribute("aria-hidden", active ? "false" : "true");
     panel.classList.toggle("active", active);
   });
   browser.querySelectorAll("[data-v2-route-preview-target]").forEach((button) => {
     button.classList.toggle("previewed", button.dataset.v2RoutePreviewTarget === normalized);
   });
+  return true;
 }
 
 function resetV2RouteBrowserPreview() {
   const browser = els.actionLocationBoard?.querySelector("[data-v2-route-browser]");
-  if (!browser) return;
-  setV2RouteBrowserPreview(browser.dataset.v2RouteBrowserPinned);
+  if (!browser) return false;
+  return setV2RouteBrowserPreview(browser.dataset.v2RouteBrowserPinned);
 }
 
 function focusV2RouteBrowserSibling(currentButton, delta) {
@@ -48519,6 +49023,7 @@ async function launchTokenScenarioSandbox() {
 
   resetLiveRefereeScreenState();
   state.liveRefereeCollapsed = false;
+  state.liveRefereeWindowMode = "floating";
   render();
   openAdminTools();
   syncAdminRepairControls();
@@ -49913,7 +50418,7 @@ function render() {
   els.activityLogTab.textContent = logClosed ? (visibleLogCount ? `Log ${visibleLogCount}` : "Log") : "Close Log";
   els.activityLogTab.setAttribute("aria-label", logClosed ? `Open Activity Log${visibleLogCount ? `, ${visibleLogCount} entries` : ""}` : "Close Activity Log");
   if (els.liveRefereeColumn) {
-    els.liveRefereeColumn.hidden = activePage === "actionPhase" && Boolean(state.liveRefereeCollapsed);
+    els.liveRefereeColumn.hidden = Boolean(state.liveRefereeCollapsed);
   }
   document.querySelectorAll(".top-level-tab").forEach((tab) => {
     if (tab.dataset.gameRibbon || tab.dataset.leagueDestination) return;
@@ -58398,9 +58903,12 @@ function renderShopEntryVisual(item) {
       </span>
     `;
   }
-  const tokenVisual = renderTokenVisual(item, "shop-entry-visual");
-  if (tokenVisual) return tokenVisual;
-  if (isKeyItemTicket(item)) {
+  const itemShopSpriteMetadata = state.activeShop === "items" ? shopSpriteMetadataForItem(item) : null;
+  if (!itemShopSpriteMetadata?.localSprite) {
+    const tokenVisual = renderTokenVisual(item, "shop-entry-visual");
+    if (tokenVisual) return tokenVisual;
+  }
+  if (!itemShopSpriteMetadata?.localSprite && isKeyItemTicket(item)) {
     const imageSetting = normalizeTokenImageSetting(tokenImageForItem(item));
     const label = tokenVisualLabel(item);
     return `
@@ -58875,8 +59383,8 @@ function renderOpponentDrawer() {
   const open = Boolean(drawer.open);
   els.opponentDrawerColumn.classList.toggle("drawer-open", open);
   els.opponentDrawer.classList.toggle("open", open);
-  els.opponentDrawerTab.setAttribute("aria-expanded", String(open));
-  els.opponentDrawerTab.textContent = open ? "Intel" : `Intel${opponents.length ? ` (${opponents.length})` : ""}`;
+  els.opponentDrawerTab?.setAttribute("aria-expanded", String(open));
+  if (els.opponentDrawerTab) els.opponentDrawerTab.textContent = open ? "Intel" : `Intel${opponents.length ? ` (${opponents.length})` : ""}`;
   if (open) {
     els.opponentDrawerControls.innerHTML = player ? renderOpponentDrawerControls(context) : "";
     renderOpponentDrawerContentOnly();
@@ -59133,6 +59641,13 @@ function itemShopItemBelongsInFolderTree(item, folderId = "root") {
 }
 
 function itemShopItemsForFolder(folderId = "root", { descendants = false } = {}) {
+  const folder = itemShopFolderById(folderId);
+  if (!descendants && Array.isArray(folder.items)) {
+    return folder.items
+      .map(itemShopEntryByName)
+      .filter(Boolean)
+      .filter((item) => itemShopItemBelongsDirectlyToFolder(item, folderId));
+  }
   const matcher = descendants ? itemShopItemBelongsInFolderTree : itemShopItemBelongsDirectlyToFolder;
   return battleItemShopData.filter((item) => matcher(item, folderId));
 }
@@ -59145,16 +59660,58 @@ function itemShopCurrentFolderScopeItems() {
   return itemShopFolderDescendantItems(itemShopCurrentFolderId());
 }
 
-function itemShopPresentationCardsForCurrentFolder() {
+function itemShopEntryIsAffordable(item, player) {
+  return !item?.cannotPurchase && discountedShopPrice(item, "items", player) <= Number(player?.balance || 0);
+}
+
+function itemShopFolderAffordableItems(folderId = "root", player = activePlayer()) {
+  return itemShopFolderDescendantItems(folderId).filter((item) => itemShopEntryIsAffordable(item, player));
+}
+
+function itemShopPokemonSpeciesKeys(pokemon = {}) {
+  return [...new Set([
+    pokemon.currentSpecies,
+    pokemon.name,
+    pokemon.baseSpecies,
+    pokemon.rosterSpeciesName,
+    pokemon.acquiredSpeciesName,
+    pokemon.seriesStartSpecies
+  ].map((name) => pokemonRuleKey(name || "")).filter(Boolean))];
+}
+
+function itemShopActiveOwnedSpeciesKeysForPlayer(player = activePlayer()) {
+  if (!player?.id) return new Set();
+  return new Set(activeRosterForPlayer(player.id).flatMap(itemShopPokemonSpeciesKeys));
+}
+
+function itemShopProductEligibilitySpeciesKeys(item = {}) {
+  return (Array.isArray(item.eligibility?.pokemonSpecies) ? item.eligibility.pokemonSpecies : [])
+    .map((name) => pokemonRuleKey(name || ""))
+    .filter(Boolean);
+}
+
+function itemShopRecommendedMechanicProducts(player = activePlayer()) {
+  const ownedSpeciesKeys = itemShopActiveOwnedSpeciesKeysForPlayer(player);
+  if (!ownedSpeciesKeys.size) return [];
+  const filters = itemShopFiltersState();
+  return battleItemShopData
+    .filter((item) => item.recommendOnOwnership === true)
+    .filter((item) => ["mega", "z-move"].includes(item.mechanicFamily))
+    .filter((item) => itemShopProductEligibilitySpeciesKeys(item).some((key) => ownedSpeciesKeys.has(key)))
+    .filter((item) => !filters.canAfford || itemShopEntryIsAffordable(item, player));
+}
+
+function itemShopPresentationCardsForCurrentFolder(player = activePlayer()) {
   const folder = itemShopCurrentFolder();
+  const filters = itemShopFiltersState();
   const folderCards = itemShopFolderChildIds(folder.id).map((folderId) => ({
     kind: "folder",
     folder: ITEM_SHOP_FOLDERS[folderId]
-  }));
+  })).filter((card) => !filters.canAfford || itemShopFolderAffordableItems(card.folder.id, player).length > 0);
   const itemCards = itemShopItemsForFolder(folder.id).map((item) => ({
     kind: "item",
     item
-  }));
+  })).filter((card) => !filters.canAfford || itemShopEntryIsAffordable(card.item, player));
   return [...folderCards, ...itemCards];
 }
 
@@ -59163,13 +59720,15 @@ function itemShopHasActiveFilters({ search = "" } = {}) {
   return Boolean(
     search ||
     filters.roles.length ||
-    filters.tags.length ||
-    filters.canAfford
+    filters.tags.length
   );
 }
 
-function itemShopFolderCardCount(folder) {
-  return itemShopFolderDescendantItems(folder.id).length;
+function itemShopFolderCardCount(folder, player = activePlayer()) {
+  const filters = itemShopFiltersState();
+  return filters.canAfford
+    ? itemShopFolderAffordableItems(folder.id, player).length
+    : itemShopFolderDescendantItems(folder.id).length;
 }
 
 function itemShopFolderSortLabel(card) {
@@ -59182,8 +59741,9 @@ function compareItemShopPresentationCards(a, b) {
   return battleItemShopData.indexOf(a.item) - battleItemShopData.indexOf(b.item);
 }
 
-function itemShopFolderVisualItems(folder) {
-  return itemShopFolderDescendantItems(folder.id).slice(0, 4);
+function itemShopFolderVisualItems(folder, player = activePlayer()) {
+  const filters = itemShopFiltersState();
+  return (filters.canAfford ? itemShopFolderAffordableItems(folder.id, player) : itemShopFolderDescendantItems(folder.id)).slice(0, 4);
 }
 
 function itemShopFiltersState() {
@@ -59253,15 +59813,15 @@ function renderItemShopFilterControls() {
   if (els.itemShopCanAffordFilter) els.itemShopCanAffordFilter.checked = filters.canAfford;
 }
 
-function itemShopCountText(collectionCount = 0, itemCount = 0) {
+function itemShopCountText(collectionCount = 0, itemCount = 0, { itemLabel = "item" } = {}) {
   const parts = [
-    collectionCount ? `${collectionCount} collection${collectionCount === 1 ? "" : "s"}` : "",
-    itemCount ? `${itemCount} item${itemCount === 1 ? "" : "s"}` : ""
+    itemCount ? `${itemCount} ${itemLabel}${itemCount === 1 ? "" : "s"}` : "",
+    collectionCount ? `${collectionCount} collection${collectionCount === 1 ? "" : "s"}` : ""
   ].filter(Boolean);
   return parts.length ? parts.join(" · ") : "0 items";
 }
 
-function renderItemShopBreadcrumb({ filtered = false } = {}) {
+function renderItemShopBreadcrumb({ filtered = false, player = activePlayer() } = {}) {
   if (!els.itemShopBreadcrumb) return;
   const itemMode = state.activeShop === "items";
   els.itemShopBreadcrumb.classList.toggle("hidden", !itemMode);
@@ -59271,18 +59831,20 @@ function renderItemShopBreadcrumb({ filtered = false } = {}) {
   }
   const trail = itemShopFolderTrail();
   const folder = trail.at(-1) || ITEM_SHOP_FOLDERS.root;
-  const folderCards = filtered ? 0 : itemShopFolderChildIds(folder.id).length;
-  const itemCount = filtered ? 0 : itemShopItemsForFolder(folder.id).length;
-  const browseTitle = folder.id === "root" ? "Item Shop" : folder.title;
+  const filters = itemShopFiltersState();
+  const folderCards = filtered ? 0 : itemShopFolderChildIds(folder.id)
+    .filter((folderId) => !filters.canAfford || itemShopFolderAffordableItems(folderId, player).length > 0).length;
+  const itemCount = filtered ? 0 : itemShopItemsForFolder(folder.id)
+    .filter((item) => !filters.canAfford || itemShopEntryIsAffordable(item, player)).length;
+  const browseTitle = folder.id === "root" ? "Items" : folder.title;
   const browseDescription = folder.id === "root"
     ? "Curated tools for building your trainer inventory."
     : folder.description || "Curated tools for building your trainer inventory.";
-  const totalCount = filtered ? "" : itemShopCountText(folderCards, itemCount);
+  const totalCount = filtered ? "" : itemShopCountText(folderCards, itemCount, { itemLabel: folder.id === "root" ? "main item" : "item" });
   const copy = document.createElement("div");
   copy.className = "item-shop-browse-copy";
   copy.innerHTML = `
     <div class="item-shop-browse-topline">
-      <p class="eyebrow">${escapeHtml(filtered ? "Item Shop" : folder.eyebrow || "Item Shop")}</p>
       ${totalCount ? `<span>${escapeHtml(totalCount)}</span>` : ""}
     </div>
     <h3>${escapeHtml(filtered ? "Filtered Results" : browseTitle)}</h3>
@@ -59298,7 +59860,7 @@ function renderItemShopBreadcrumb({ filtered = false } = {}) {
     backButton.className = "item-shop-parent-back";
     backButton.dataset.itemShopFolderBack = "true";
     backButton.dataset.itemShopFolderIndex = String(parentIndex);
-    backButton.textContent = `< ${parentFolder?.id === "root" ? "Item Shop" : parentFolder?.title || "Item Shop"}`;
+    backButton.textContent = `< ${parentFolder?.id === "root" ? "Items" : parentFolder?.title || "Items"}`;
     nav.append(backButton);
   }
   nav.classList.toggle("hidden", !nav.children.length);
@@ -59329,7 +59891,7 @@ function itemShopEntryMatchesFilters(item, filters, player) {
   if (filters.group !== "all" && item.shopGroup !== filters.group) return false;
   if (filters.roles.length && !filters.roles.every((role) => (item.roles || []).includes(role))) return false;
   if (filters.tags.length && !filters.tags.every((tag) => (item.tags || []).includes(tag))) return false;
-  if (filters.canAfford && discountedShopPrice(item, "items", player) > Number(player?.balance || 0)) return false;
+  if (filters.canAfford && !itemShopEntryIsAffordable(item, player)) return false;
   return true;
 }
 
@@ -59423,11 +59985,17 @@ function renderShop(player) {
   const itemFilters = itemShopFiltersState();
   const tokenMode = state.activeShop === "tokens";
   const tokenFilter = state.tokenShopCategoryFilter || "all";
+  const department = SHOP_DEPARTMENTS[state.activeShop] || SHOP_DEPARTMENTS.items;
   if (state.activeShop === "tms" && !pokemonBuildDataReady()) ensurePokemonBuildDataLoaded();
+  if (els.shopDepartmentTitle) els.shopDepartmentTitle.textContent = department.title;
+  if (els.shopDepartmentSubtitle) els.shopDepartmentSubtitle.textContent = department.subtitle;
   els.shopHeaderBalance && (els.shopHeaderBalance.textContent = `$${formatMoney(Number(player?.balance || 0))}`);
   els.shopView?.classList.toggle("item-shop-mode", itemMode);
   document.querySelectorAll(".tab[data-shop]").forEach((tab) => {
-    tab.classList.toggle("active", tab.dataset.shop === state.activeShop);
+    const active = tab.dataset.shop === state.activeShop;
+    tab.classList.toggle("active", active);
+    tab.setAttribute("aria-pressed", String(active));
+    tab.setAttribute("aria-current", active ? "page" : "false");
   });
   els.tmMoveFilters?.classList.toggle("hidden", state.activeShop !== "tms");
   els.itemShopBreadcrumb?.classList.toggle("hidden", !itemMode);
@@ -59439,14 +60007,15 @@ function renderShop(player) {
 
   if (itemMode) {
     const filteredMode = itemShopHasActiveFilters({ search });
-    renderItemShopBreadcrumb({ filtered: filteredMode });
+    renderItemShopBreadcrumb({ filtered: filteredMode, player });
     const entries = filteredMode
       ? battleItemShopData
         .filter((item) => itemShopEntryMatchesFilters(item, itemFilters, player))
         .filter((item) => !search || shopEntrySearchText(item).includes(search))
       : [];
-    renderTokenShopChrome(player, filteredMode ? entries.length : battleItemShopData.length);
-    renderItemShopAppliedFilters(entries.length);
+    const cards = filteredMode ? [] : itemShopPresentationCardsForCurrentFolder(player);
+    renderTokenShopChrome(player, filteredMode ? entries.length : itemFilters.canAfford ? itemShopFolderAffordableItems("root", player).length : battleItemShopData.length);
+    renderItemShopAppliedFilters(filteredMode ? entries.length : cards.length);
     if (filteredMode) {
       if (entries.length === 0) {
         els.shopGrid.innerHTML = `<p class="empty-state">No shop entries match these filters.</p>`;
@@ -59456,12 +60025,11 @@ function renderShop(player) {
       requestAnimationFrame(updateShopTooltipSides);
       return;
     }
-    const cards = itemShopPresentationCardsForCurrentFolder();
     if (!cards.length) {
-      els.shopGrid.innerHTML = `<p class="empty-state">This Item Shop folder is empty.</p>`;
+      els.shopGrid.innerHTML = `<p class="empty-state">${itemFilters.canAfford ? "No affordable entries in this collection." : "This Item Shop folder is empty."}</p>`;
       return;
     }
-    els.shopGrid.replaceChildren(createItemShopPresentationSection(itemShopCurrentFolder(), cards, player));
+    els.shopGrid.replaceChildren(...createItemShopPresentationSections(itemShopCurrentFolder(), cards, player));
     requestAnimationFrame(updateShopTooltipSides);
     return;
   }
@@ -59541,23 +60109,86 @@ function createShopTierSection(tierName, entries, player, options = {}) {
   return section;
 }
 
-function createItemShopPresentationSection(folder, cards, player) {
+function createItemShopPresentationSection(folder, cards, player, options = {}) {
   const section = document.createElement("section");
-  section.className = `shop-tier-section item-shop-folder-section item-shop-folder-${folder.id}`;
+  section.className = `shop-tier-section item-shop-folder-section item-shop-folder-${folder.id}${options.className ? ` ${options.className}` : ""}`;
+  const headerMarkup = options.title ? `
+    <div class="shop-tier-header item-shop-presentation-header">
+      <div>
+        <p class="eyebrow">${escapeHtml(options.eyebrow || "Item Shop")}</p>
+        <h3>${escapeHtml(options.title)}</h3>
+        ${options.description ? `<p>${escapeHtml(options.description)}</p>` : ""}
+      </div>
+      <div class="shop-tier-actions">
+        <span>${cards.length} ${escapeHtml(options.countLabel || "entry")}${cards.length === 1 ? "" : "s"}</span>
+      </div>
+    </div>
+  ` : "";
   section.innerHTML = `
+    ${headerMarkup}
     <div class="shop-card-grid item-shop-folder-grid" role="list"></div>
   `;
   const grid = section.querySelector(".shop-card-grid");
   grid.append(...cards.map((card) => card.kind === "folder"
-    ? createShopFolderCard(card.folder)
+    ? createShopFolderCard(card.folder, player)
     : createShopRow(card.item, player)));
   return section;
 }
 
-function createShopFolderCard(folder) {
+function createItemShopRecommendationSection(recommendations, player) {
+  const section = document.createElement("section");
+  section.className = "shop-tier-section item-shop-recommendation-section";
+  section.innerHTML = `
+    <div class="shop-tier-header item-shop-recommendation-header">
+      <div>
+        <p class="eyebrow">Recommended Shortcuts</p>
+        <h3>For Your Team</h3>
+        <p>Species-linked mechanic products for the viewed trainer's active roster.</p>
+      </div>
+      <div class="shop-tier-actions">
+        <span>${recommendations.length} recommendation${recommendations.length === 1 ? "" : "s"}</span>
+      </div>
+    </div>
+    <div class="shop-card-grid item-shop-recommendation-grid" role="list"></div>
+  `;
+  const grid = section.querySelector(".shop-card-grid");
+  grid.append(...recommendations.map((item) => {
+    const row = createShopRow(item, player);
+    row.classList.add("item-shop-recommendation-card");
+    row.dataset.itemShopRecommendation = "true";
+    return row;
+  }));
+  return section;
+}
+
+function createItemShopPresentationSections(folder, cards, player) {
+  if (folder.id !== "root") return [createItemShopPresentationSection(folder, cards, player)];
+  const recommendations = itemShopRecommendedMechanicProducts(player);
+  const folderCards = cards.filter((card) => card.kind === "folder");
+  const itemCards = cards.filter((card) => card.kind !== "folder");
+  return [
+    recommendations.length ? createItemShopRecommendationSection(recommendations, player) : null,
+    createItemShopPresentationSection(folder, itemCards, player, {
+      className: "item-shop-main-section",
+      eyebrow: "Main Page",
+      title: "Main Shop",
+      description: "Core items and trainer resources.",
+      countLabel: "main item"
+    }),
+    createItemShopPresentationSection(folder, folderCards, player, {
+      className: "item-shop-collections-section",
+      eyebrow: "Collections",
+      title: "Collections",
+      description: "Browse specialized item families.",
+      countLabel: "collection"
+    })
+  ].filter((section) => section?.querySelector(".shop-row"));
+}
+
+function createShopFolderCard(folder, player = activePlayer()) {
   const row = document.createElement("button");
-  const representativeItems = itemShopFolderVisualItems(folder);
-  const count = itemShopFolderCardCount(folder);
+  const representativeItems = itemShopFolderVisualItems(folder, player);
+  const count = itemShopFolderCardCount(folder, player);
   row.type = "button";
   row.className = "shop-row shop-card item-shop-folder-card";
   row.dataset.itemShopFolder = folder.id;
@@ -59584,8 +60215,8 @@ function createShopFolderCard(folder) {
 
 function createItemShopResultSections(entries, player) {
   return [createShopTierSection("Filtered Results", entries, player, {
-    eyebrow: "Item Shop",
-    description: "Matching products across the current Item Shop catalog.",
+    eyebrow: "Results",
+    description: "Matching products across Items.",
     className: "item-shop-results-section item-shop-results-filtered"
   })];
 }
@@ -61797,12 +62428,15 @@ function bindEvents() {
   document.addEventListener("pointermove", updateLiveRefereeDrag);
   document.addEventListener("pointermove", updateLiveRefereeResize);
   document.addEventListener("pointermove", updateLiveRefereePaneResize);
+  document.addEventListener("pointermove", updateV2RouteEffectsDrag);
   document.addEventListener("pointerup", endLiveRefereeDrag);
   document.addEventListener("pointerup", endLiveRefereeResize);
   document.addEventListener("pointerup", endLiveRefereePaneResize);
+  document.addEventListener("pointerup", endV2RouteEffectsDrag);
   document.addEventListener("pointercancel", endLiveRefereeDrag);
   document.addEventListener("pointercancel", endLiveRefereeResize);
   document.addEventListener("pointercancel", endLiveRefereePaneResize);
+  document.addEventListener("pointercancel", endV2RouteEffectsDrag);
   els.liveRefereeColumn?.addEventListener("keydown", (event) => {
     const paneDivider = event.target.closest?.("[data-live-referee-pane-divider]");
     if (paneDivider && ["ArrowLeft", "ArrowRight"].includes(event.key)) {
@@ -62877,7 +63511,7 @@ function bindEvents() {
       saveState();
       render();
     }
-    if (state.opponentDrawer?.open && !event.target.closest("#opponentDrawer") && !event.target.closest("#opponentDrawerTab")) {
+    if (state.opponentDrawer?.open && !event.target.closest("#opponentDrawer")) {
       state.opponentDrawer.open = false;
       saveState();
       render();
@@ -63110,7 +63744,21 @@ function bindEvents() {
     if (activeActionPhaseVersion() !== ACTION_PHASE_VERSION_V2) return;
     const routeButton = event.target.closest("[data-v2-route-preview-target]");
     if (!routeButton || !els.actionLocationBoard.contains(routeButton) || routeButton.disabled) return;
+    if (routeButton.contains(event.relatedTarget)) return;
     setV2RouteBrowserPreview(routeButton.dataset.v2RoutePreviewTarget);
+  });
+  els.actionLocationBoard.addEventListener("mouseout", (event) => {
+    if (activeActionPhaseVersion() !== ACTION_PHASE_VERSION_V2) return;
+    const routeButton = event.target.closest("[data-v2-route-preview-target]");
+    if (!routeButton || !els.actionLocationBoard.contains(routeButton) || routeButton.disabled) return;
+    if (routeButton.contains(event.relatedTarget)) return;
+    const browser = routeButton.closest("[data-v2-route-browser]");
+    if (!browser) return;
+    const routeNumber = String(Number(routeButton.dataset.v2RoutePreviewTarget || 0));
+    const pinned = String(Number(browser.dataset.v2RouteBrowserPinned || 0));
+    if (routeNumber !== pinned && String(Number(browser.dataset.v2RouteBrowserPreview || 0)) === routeNumber) {
+      resetV2RouteBrowserPreview();
+    }
   });
   els.actionLocationBoard.addEventListener("focusin", (event) => {
     if (activeActionPhaseVersion() !== ACTION_PHASE_VERSION_V2) return;
@@ -63162,6 +63810,11 @@ function bindEvents() {
     saveState({ immediate: true });
     render();
   });
+  els.actionLocationBoard.addEventListener("pointerdown", (event) => {
+    const handle = event.target.closest("[data-v2-route-effects-drag-handle]");
+    if (!handle || !els.actionLocationBoard.contains(handle) || activeActionPhaseVersion() !== ACTION_PHASE_VERSION_V2) return;
+    startV2RouteEffectsDrag(event);
+  });
   els.actionLocationBoard.addEventListener("click", (event) => {
     const routeEnterButton = event.target.closest("[data-v2-route-enter]");
     if (routeEnterButton && els.actionLocationBoard.contains(routeEnterButton) && activeActionPhaseVersion() === ACTION_PHASE_VERSION_V2) {
@@ -63211,39 +63864,72 @@ function bindEvents() {
       drawV2PendingRouteOpportunity(opportunityDrawButton.dataset.v2OpportunityDraw || "");
       return;
     }
-    const masterBallButton = event.target.closest("[data-v2-master-ball-use]");
-    if (masterBallButton && els.actionLocationBoard.contains(masterBallButton) && activeActionPhaseVersion() === ACTION_PHASE_VERSION_V2) {
+    const railExtraBuyButton = event.target.closest("[data-v2-rail-extra-buy]");
+    if (railExtraBuyButton && els.actionLocationBoard.contains(railExtraBuyButton) && activeActionPhaseVersion() === ACTION_PHASE_VERSION_V2) {
       event.preventDefault();
-      const opportunityId = masterBallButton.dataset.v2MasterBallUse || "";
-      const selectedIndex = Number(els.actionLocationBoard.querySelector(`[data-v2-master-ball-resident="${CSS.escape(opportunityId)}"]`)?.value || 0);
-      const capabilities = getMasterBallOpportunityCapabilitiesForPlayer(v2EnsureRouteSeriesState(state.series), opportunityId, activePlayer().id);
-      const residentId = capabilities.eligibleResidents[selectedIndex]?.residentId || "";
-      if (!masterBallButton.disabled && residentId) useV2MasterBallOnOpportunity(opportunityId, residentId, masterBallButton.dataset.v2TokenId || "");
+      if (!railExtraBuyButton.disabled) purchaseV2ExtraEncounter();
+      return;
+    }
+    const railExtraUseButton = event.target.closest("[data-v2-rail-extra-use]");
+    if (railExtraUseButton && els.actionLocationBoard.contains(railExtraUseButton) && activeActionPhaseVersion() === ACTION_PHASE_VERSION_V2) {
+      event.preventDefault();
+      if (!railExtraUseButton.disabled) useV2ExtraEncounter(Number(railExtraUseButton.dataset.v2RailExtraUse || 0), railExtraUseButton.dataset.v2TokenId || "");
+      return;
+    }
+    const railInjectionButton = event.target.closest("[data-v2-rail-injection-apply]");
+    if (railInjectionButton && els.actionLocationBoard.contains(railInjectionButton) && activeActionPhaseVersion() === ACTION_PHASE_VERSION_V2) {
+      event.preventDefault();
+      const rail = railInjectionButton.closest("[data-v2-route-encounter-rail]");
+      const primaryType = rail?.querySelector("[data-v2-rail-injection-primary]")?.value || "";
+      applyV2TemporaryTypeInjectionEffect(railInjectionButton.dataset.v2RailInjectionApply || "", primaryType, railInjectionButton.dataset.v2RailInjectionActivation || "");
+      return;
+    }
+    const routeEffectsToggle = event.target.closest("[data-v2-route-effects-toggle]");
+    if (routeEffectsToggle && els.actionLocationBoard.contains(routeEffectsToggle) && activeActionPhaseVersion() === ACTION_PHASE_VERSION_V2) {
+      event.preventDefault();
+      const uiState = v2RouteEffectsUiState();
+      uiState.routeEffectsOpen = !uiState.routeEffectsOpen;
+      saveClientUiState();
+      render();
+      return;
+    }
+    const routeEffectsClose = event.target.closest("[data-v2-route-effects-close]");
+    if (routeEffectsClose && els.actionLocationBoard.contains(routeEffectsClose) && activeActionPhaseVersion() === ACTION_PHASE_VERSION_V2) {
+      event.preventDefault();
+      const uiState = v2RouteEffectsUiState();
+      uiState.routeEffectsOpen = false;
+      saveClientUiState();
+      render();
+      return;
+    }
+    const routeEffectToggle = event.target.closest("[data-v2-route-effect-toggle]");
+    if (routeEffectToggle && els.actionLocationBoard.contains(routeEffectToggle) && activeActionPhaseVersion() === ACTION_PHASE_VERSION_V2) {
+      event.preventDefault();
+      const uiState = v2RouteEffectsUiState();
+      const effectId = routeEffectToggle.dataset.v2RouteEffectToggle || "";
+      uiState.routeEffectsExpandedId = uiState.routeEffectsExpandedId === effectId ? "" : effectId;
+      saveClientUiState();
+      render();
+      return;
+    }
+    const routeEffectApply = event.target.closest("[data-v2-route-effect-apply]");
+    if (routeEffectApply && els.actionLocationBoard.contains(routeEffectApply) && activeActionPhaseVersion() === ACTION_PHASE_VERSION_V2) {
+      event.preventDefault();
+      const card = routeEffectApply.closest("[data-v2-route-effect-card]");
+      const action = routeEffectApply.dataset.v2RouteEffectApply || "";
+      if (action === "repel") {
+        const tier = card?.querySelector('[data-v2-route-effect-field="repelTier"]')?.value || "";
+        applyV2RouteRepel(Number(routeEffectApply.dataset.v2RouteNumber || 0), tier, routeEffectApply.dataset.v2TokenId || "");
+      } else if (action === "master-ball") {
+        const residentId = card?.querySelector('[data-v2-route-effect-field="masterResident"]')?.value || "";
+        if (residentId) useV2MasterBallOnOpportunity(routeEffectApply.dataset.v2OpportunityId || "", residentId, routeEffectApply.dataset.v2TokenId || "");
+      }
       return;
     }
     const routeAcquireButton = event.target.closest("[data-v2-route-acquire]");
     if (routeAcquireButton && els.actionLocationBoard.contains(routeAcquireButton) && activeActionPhaseVersion() === ACTION_PHASE_VERSION_V2) {
       event.preventDefault();
       acquireV2RouteActionPokemon(routeAcquireButton.dataset.v2RouteAcquire);
-      return;
-    }
-    const extraBuyButton = event.target.closest("[data-v2-extra-buy]");
-    if (extraBuyButton && els.actionLocationBoard.contains(extraBuyButton) && activeActionPhaseVersion() === ACTION_PHASE_VERSION_V2) {
-      event.preventDefault();
-      if (!extraBuyButton.disabled) purchaseV2ExtraEncounter();
-      return;
-    }
-    const extraUseButton = event.target.closest("[data-v2-extra-use]");
-    if (extraUseButton && els.actionLocationBoard.contains(extraUseButton) && activeActionPhaseVersion() === ACTION_PHASE_VERSION_V2) {
-      event.preventDefault();
-      if (!extraUseButton.disabled) useV2ExtraEncounter(Number(extraUseButton.dataset.v2ExtraUse || 0), extraUseButton.dataset.v2TokenId || "");
-      return;
-    }
-    const repelButton = event.target.closest("[data-v2-repel-apply]");
-    if (repelButton && els.actionLocationBoard.contains(repelButton) && activeActionPhaseVersion() === ACTION_PHASE_VERSION_V2) {
-      event.preventDefault();
-      const tier = els.actionLocationBoard.querySelector("[data-v2-repel-tier]")?.value || "";
-      if (!repelButton.disabled) applyV2RouteRepel(Number(repelButton.dataset.v2RepelApply || 0), tier, repelButton.dataset.v2TokenId || "");
       return;
     }
     const duplicateToggle = event.target.closest("[data-v2-duplicate-toggle]");

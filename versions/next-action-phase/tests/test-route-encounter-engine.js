@@ -714,10 +714,19 @@ test("temporary Primary-Type injection adds nonresident encounter options withou
     playerId: "player-1",
     routeNumber: 5
   });
+  const routeBeforeInjection = withOpportunity.routes.find((entry) => entry.routeId === "route-5");
+  const injectionCatalog = fixtureCatalog().filter((entry) => !(entry.primaryType === "Fire" && entry.balanceTier === "master"));
   const injectedCandidates = routeEngine.selectTemporaryInjectionResidents({
-    pokemonCatalog: fixtureCatalog(),
+    pokemonCatalog: injectionCatalog,
+    route: routeBeforeInjection,
     primaryType: "Fire",
     count: 4,
+    tierRollOverrides: [
+      { rollId: "base-or-lower", baseOrLower: true, requestedTierId: "poke", candidateTierIds: ["lc", "lc-elite", "safari", "safari-elite", "poke"] },
+      { rollId: "plus-1", baseOrLower: false, requestedTierId: "poke-elite", candidateTierIds: ["poke-elite"] },
+      { rollId: "plus-2", baseOrLower: false, requestedTierId: "great", candidateTierIds: ["great"] },
+      { rollId: "forced-master-fallback", baseOrLower: false, requestedTierId: "master", candidateTierIds: ["master"] }
+    ],
     seed: "fire-injection"
   });
   const { state: injected, residents } = routeEngine.addTemporaryResidentsToOpportunity(withOpportunity, {
@@ -733,6 +742,10 @@ test("temporary Primary-Type injection adds nonresident encounter options withou
 
   assert.equal(residents.length, 4);
   assert.ok(residents.every((resident) => resident.permanent === false));
+  assert.deepEqual(residents.slice(0, 3).map((resident) => resident.source.tierRoll.rollId), ["base-or-lower", "plus-1", "plus-2"]);
+  assert.ok(residents.every((resident) => resident.battleTier.id !== "master-elite"));
+  assert.ok(residents.some((resident) => resident.source.tierRoll.fallbackTierIds?.length));
+  assert.ok(residents.every((resident) => tierIds.indexOf(resident.battleTier.id) <= tierIds.indexOf("master")));
   assert.equal(result.revisions[0].permanentResident, false);
   assert.equal(route.publicDiscoveryResidentIds.includes(selectedTemporary.residentId), false);
 });

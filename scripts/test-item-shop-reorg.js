@@ -13,6 +13,7 @@ const { staticShopChoiceDefinitions } = require("../shop-choice-data.js");
 const shopSpriteData = require("../shop-sprite-data.js");
 const shopBrowseData = require("../shop-browse-data.js");
 const { auditItemShopSprites, classifyProduct, summaryFor } = require("./audit-item-shop-sprites.js");
+const { STANDARD_Z_CRYSTAL_PRICE, auditItemShopZCatalog } = require("./audit-item-shop-z-catalog.js");
 
 const groupIds = new Set(["held", "berry", "pokemon-specific", "battle-mechanics"]);
 const roleIds = new Set(["offense", "defense", "recovery", "speed", "utility"]);
@@ -153,10 +154,22 @@ function pathEquals(left = [], right = []) {
 }
 
 function browseItemsForFolder(folderId = "root") {
+  const folder = declaredFolders[folderId] || declaredFolders.root;
+  if (Array.isArray(folder.items)) {
+    return Array.from(folder.items)
+      .map((entryName) => catalogItemShopData.find((entry) => entry.name === entryName))
+      .filter(Boolean)
+      .filter((entry) => {
+        const placement = shopBrowseData.placements[entry.name];
+        if (folderId === "root") return placement?.type === "featured";
+        return placement?.type === "folder" && pathEquals(placement.path || [], folderPathFor(folderId));
+      });
+  }
   return catalogItemShopData.filter((entry) => {
     const placement = shopBrowseData.placements[entry.name];
-    if (folderId === "root") return placement?.type === "featured";
-    return placement?.type === "folder" && pathEquals(placement.path || [], folderPathFor(folderId));
+    return folderId === "root"
+      ? placement?.type === "featured"
+      : placement?.type === "folder" && pathEquals(placement.path || [], folderPathFor(folderId));
   });
 }
 
@@ -213,17 +226,38 @@ test("explicit browse placement gives every concrete product one normal location
     folderOnlyNames.push(entry.name);
   });
 
-  assert.equal(featuredNames.length, 21);
-  assert.equal(browseItemsForFolder("root").length, 21);
-  assert.deepEqual(names(browseItemsForFolder("trainer-resources")).sort(), ["Badge Point", "Legacy Ticket"]);
-  assert.equal(shopBrowseData.placements["Legacy Ticket"].type, "folder");
-  assert.deepEqual(shopBrowseData.placements["Legacy Ticket"].path, ["trainer-resources"]);
-  assert.equal(shopBrowseData.placements["Badge Point"].type, "folder");
-  assert.deepEqual(shopBrowseData.placements["Badge Point"].path, ["trainer-resources"]);
-  ["Light Clay", "Eviolite", "Assault Vest", "Heavy-Duty Boots"].forEach((name) => {
+  assert.equal(featuredNames.length, 18);
+  assert.equal(browseItemsForFolder("root").length, 18);
+  assert.deepEqual(
+    featuredNames.filter((name) => ["mega", "z-move"].includes(item(name).mechanicFamily)),
+    [],
+    "default root should not feature Mega Stones or Z-Crystals"
+  );
+  assert.equal(declaredFolders["trainer-resources"], undefined);
+  assert.equal(shopBrowseData.placements["Legacy Ticket"].type, "featured");
+  assert.equal(shopBrowseData.placements["Legacy Ticket"].path, undefined);
+  assert.equal(shopBrowseData.placements["Badge Point"].type, "featured");
+  assert.equal(shopBrowseData.placements["Badge Point"].path, undefined);
+  assert.equal(shopBrowseData.placements["Sitrus Berry"].type, "featured");
+  assert.equal(shopBrowseData.placements["Sitrus Berry"].path, undefined);
+  assert.equal(shopBrowseData.placements["Berry Juice"].type, "folder");
+  assert.deepEqual(shopBrowseData.placements["Berry Juice"].path, ["berries", "healing-berries"]);
+  assert.equal(shopBrowseData.placements["Booster Energy"].type, "folder");
+  assert.deepEqual(shopBrowseData.placements["Booster Energy"].path, ["pokemon-specific", "paradox-items"]);
+  assert.deepEqual(names(browseItemsForFolder("root")).slice(0, 2), ["Badge Point", "Legacy Ticket"]);
+  assert.deepEqual(
+    Object.values(shopBrowseData.placements).filter((placement) => (placement.path || []).includes("trainer-resources")),
+    [],
+    "Trainer Resources should not remain in browse placement paths"
+  );
+  ["Sitrus Berry", "Light Clay", "Eviolite", "Assault Vest", "Heavy-Duty Boots"].forEach((name) => {
     assert.equal(shopBrowseData.placements[name].type, "featured", `${name} should be featured only`);
     assert.equal(browseItemsForFolder("oddball-utility").some((entry) => entry.name === name), false, `${name} should not browse in Oddball Utility`);
     assert.ok(browseItemsForFolder("root").some((entry) => entry.name === name), `${name} should browse on root storefront`);
+  });
+  ["Berry Juice", "Booster Energy", "Normalium Z", "Kommonium Z", "Kangaskhanite", "Metagrossite"].forEach((name) => {
+    assert.equal(shopBrowseData.placements[name].type, "folder", `${name} should not be a static root feature`);
+    assert.equal(browseItemsForFolder("root").some((entry) => entry.name === name), false, `${name} should not leak onto default root storefront`);
   });
   folderOnlyNames.forEach((name) => {
     assert.equal(browseItemsForFolder("root").some((entry) => entry.name === name), false, `${name} should not leak onto root storefront`);
@@ -250,7 +284,9 @@ test("approved Item Shop prices are authoritative on individual products", () =>
     "Light Clay": 3000,
     "Booster Energy": 3000,
     "Normalium Z": 7500,
-    "Kommonium Z": 10000,
+    "Kommonium Z": 7500,
+    "Mimikium Z": 7500,
+    "Snorlium Z": 7500,
     Kangaskhanite: 7500,
     Metagrossite: 7500,
     Lucarionite: 7500,
@@ -260,6 +296,16 @@ test("approved Item Shop prices are authoritative on individual products", () =>
   };
   Object.entries(expectedPrices).forEach(([name, price]) => {
     assert.equal(item(name).price, price, `${name} price`);
+  });
+});
+
+test("all concrete Z-Crystals use the standard mechanic access price", () => {
+  const zCrystals = itemShopData.filter((entry) => entry.mechanicFamily === "z-move" && /\bZ$/.test(entry.name));
+  assert.equal(zCrystals.length, 35);
+  zCrystals.forEach((entry) => {
+    assert.equal(entry.price, STANDARD_Z_CRYSTAL_PRICE, `${entry.name} should cost the standard Z-Crystal price`);
+    assert.notEqual(entry.cannotPurchase, true, `${entry.name} should be purchasable`);
+    assert.notEqual(entry.balanceReviewRequired, true, `${entry.name} should not remain in balance review`);
   });
 });
 
@@ -292,7 +338,9 @@ test("product type, role, tag, price, and search filters target individual produ
 test("default storefront and folder navigation are declared as presentation architecture", () => {
   const folderBlock = sourceBlock("const ITEM_SHOP_DEFAULT_STOREFRONT_ITEM_NAMES", "const SAGA_TIERS");
   [
-    "Berry Juice",
+    "Badge Point",
+    "Legacy Ticket",
+    "Sitrus Berry",
     "Air Balloon",
     "Covert Cloak",
     "Loaded Dice",
@@ -307,13 +355,10 @@ test("default storefront and folder navigation are declared as presentation arch
     "Leftovers",
     "Choice Band",
     "Choice Scarf",
-    "Choice Specs",
-    "Booster Energy",
-    "Normalium Z",
-    "Kommonium Z",
-    "Kangaskhanite",
-    "Metagrossite"
-  ].forEach((name) => assert.ok(folderBlock.includes(`"${name}"`), `${name} should be in the curated storefront`));
+    "Choice Specs"
+  ].forEach((name) => assert.ok(declaredFolders.root.items.includes(name), `${name} should be in the curated storefront`));
+  ["Berry Juice", "Booster Energy", "Normalium Z", "Kommonium Z", "Kangaskhanite", "Metagrossite"]
+    .forEach((name) => assert.equal(declaredFolders.root.items.includes(name), false, `${name} should stay out of the static storefront`));
   [
     "berries",
     "type-plates",
@@ -325,18 +370,18 @@ test("default storefront and folder navigation are declared as presentation arch
     "pokemon-specific",
     "battle-mechanics",
     "specialist-items",
-    "trainer-resources",
     "terastallization",
     "z-moves",
     "mega-evolution"
   ].forEach((folderId) => assert.ok(folderBlock.includes(`id: "${folderId}"`), `${folderId} folder should exist`));
+  assert.equal(folderBlock.includes('id: "trainer-resources"'), false);
   assert.match(appSource, /function normalizeItemShopFolderPath\(path\)/);
-  assert.match(appSource, /function createShopFolderCard\(folder\)/);
+  assert.match(appSource, /function createShopFolderCard\(folder, player = activePlayer\(\)\)/);
   assert.match(appSource, /data-item-shop-folder/);
   assert.match(appSource, /data-item-shop-folder-back/);
   assert.match(appSource, /data-item-shop-folder-index/);
   assert.match(appSource, /function itemShopCountText/);
-  assert.match(appSource, /Trainer progression and legacy resources/);
+  assert.match(appSource, /Core items and trainer resources/);
   assert.match(appSource, /shopPhaseOnly/);
 });
 
@@ -344,10 +389,28 @@ test("filtering uses flat products while idle browsing uses folder presentation 
   assert.match(appSource, /function itemShopHasActiveFilters/);
   assert.match(appSource, /function itemShopBrowsePlacementForItem\(item\)/);
   assert.match(appSource, /function itemShopItemsForFolder\(folderId = "root", \{ descendants = false \} = \{\}\)/);
-  assert.match(appSource, /const cards = itemShopPresentationCardsForCurrentFolder\(\);/);
-  assert.match(appSource, /createItemShopPresentationSection\(itemShopCurrentFolder\(\), cards, player\)/);
+  assert.match(appSource, /const cards = filteredMode \? \[\] : itemShopPresentationCardsForCurrentFolder\(player\);/);
+  assert.match(appSource, /createItemShopPresentationSections\(itemShopCurrentFolder\(\), cards, player\)/);
   assert.match(appSource, /createItemShopResultSections\(entries, player\)/);
-  assert.match(appSource, /Matching products across the current Item Shop catalog/);
+  assert.match(appSource, /function itemShopFolderAffordableItems\(folderId = "root", player = activePlayer\(\)\)/);
+  assert.match(appSource, /filters\.canAfford\s*\?\s*itemShopFolderAffordableItems\(folder\.id, player\)\.length/);
+  assert.match(appSource, /function itemShopRecommendedMechanicProducts\(player = activePlayer\(\)\)/);
+  assert.match(appSource, /createItemShopRecommendationSection\(recommendations, player\)/);
+});
+
+test("species-linked mechanic products expose recommendation eligibility metadata", () => {
+  assert.deepEqual(item("Kangaskhanite").eligibility, { pokemonSpecies: ["Kangaskhan"] });
+  assert.equal(item("Kangaskhanite").recommendOnOwnership, true);
+  assert.deepEqual(item("Metagrossite").eligibility, { pokemonSpecies: ["Metagross"] });
+  assert.equal(item("Metagrossite").recommendOnOwnership, true);
+  assert.deepEqual(item("Kommonium Z").eligibility, { pokemonSpecies: ["Kommo-o"] });
+  assert.equal(item("Kommonium Z").recommendOnOwnership, true);
+  assert.deepEqual(item("Mimikium Z").eligibility, { pokemonSpecies: ["Mimikyu"] });
+  assert.equal(item("Mimikium Z").recommendOnOwnership, true);
+  assert.deepEqual(item("Snorlium Z").eligibility, { pokemonSpecies: ["Snorlax"] });
+  assert.equal(item("Snorlium Z").recommendOnOwnership, true);
+  assert.equal(item("Normalium Z").eligibility, null);
+  assert.equal(item("Normalium Z").recommendOnOwnership, false);
 });
 
 test("Item Shop cards no longer expose chooser accordions", () => {
@@ -372,11 +435,49 @@ test("sprite and copy safeguards prefer real catalog/reference data", () => {
 });
 
 test("restored sprite metadata covers real item examples with local assets", () => {
+  const badgeMetadata = spriteMetadata("Badge Point");
+  assert.equal(badgeMetadata.localSprite, "assets/shop/custom/badge-point.svg");
+  assert.equal(badgeMetadata.sourceProvider, "Rival Saga Custom");
+  const legacyTicketMetadata = spriteMetadata("Legacy Ticket");
+  assert.equal(legacyTicketMetadata.localSprite, "assets/shop/custom/legacy-ticket.svg");
+  assert.equal(legacyTicketMetadata.sourceProvider, "Rival Saga Custom");
   ["Ability Shield", "Booster Energy", "Covert Cloak", "Room Service", "Utility Umbrella", "Blunder Policy"].forEach((name) => {
     const metadata = spriteMetadata(name);
     assert.equal(metadata.localSprite.startsWith("assets/shop/items/"), true, `${name} item sprite directory`);
     assert.notEqual(metadata.sourceProvider, "", `${name} source provider`);
   });
+});
+
+test("species-specific Z-Crystals use local Z-family icon assets and standard pricing", () => {
+  [
+    "Aloraichium Z",
+    "Decidium Z",
+    "Eevium Z",
+    "Incinium Z",
+    "Lunalium Z",
+    "Lycanium Z",
+    "Marshadium Z",
+    "Mewnium Z",
+    "Mimikium Z",
+    "Pikanium Z",
+    "Pikashunium Z",
+    "Primarium Z",
+    "Snorlium Z",
+    "Solganium Z",
+    "Tapunium Z",
+    "Ultranecrozium Z"
+  ].forEach((name) => {
+    const metadata = spriteMetadata(name);
+    const entry = item(name);
+    assert.equal(metadata.localSprite, `assets/shop/items/${spriteSlug(name)}.png`);
+    assert.equal(metadata.sourceProvider, "Pokemon Showdown Item Atlas");
+    assert.equal(metadata.restoreMethod, "atlas-crop");
+    assert.equal(entry.price, STANDARD_Z_CRYSTAL_PRICE, `${name} should use the standard Z-Crystal price`);
+    assert.notEqual(entry.cannotPurchase, true, `${name} should be purchasable after pricing`);
+    assert.notEqual(entry.balanceReviewRequired, true, `${name} should not remain in balance review after pricing`);
+  });
+  assert.equal(item("Kommonium Z").cannotPurchase, undefined);
+  assert.equal(item("Kommonium Z").price, STANDARD_Z_CRYSTAL_PRICE);
 });
 
 test("derived products resolve to concrete local assets rather than chooser parents", () => {
@@ -409,13 +510,38 @@ test("all Tera Type products resolve to deliberate local Tera assets", () => {
   });
 });
 
+test("Z catalog audit reports all species-specific crystals priced at the standard rate", () => {
+  const audit = auditItemShopZCatalog(itemShopData);
+  const missingNames = names(audit.missing);
+  const unpricedNames = names(audit.unpriced);
+  assert.deepEqual(missingNames, []);
+  assert.deepEqual(unpricedNames, []);
+  assert.deepEqual(names(audit.mispriced), []);
+  assert.equal(audit.speciesSpecific.find((entry) => entry.name === "Kommonium Z")?.price, STANDARD_Z_CRYSTAL_PRICE);
+  assert.equal(audit.speciesSpecific.find((entry) => entry.name === "Mimikium Z")?.present, true);
+  assert.equal(audit.speciesSpecific.find((entry) => entry.name === "Mimikium Z")?.price, STANDARD_Z_CRYSTAL_PRICE);
+  assert.match(fs.readFileSync(path.join(rootDir, "ITEM_SHOP_Z_CATALOG_BALANCE_REVIEW.md"), "utf8"), /Mimikium Z[\s\S]*Present[\s\S]*\$7,500/);
+  assert.doesNotMatch(fs.readFileSync(path.join(rootDir, "ITEM_SHOP_Z_CATALOG_BALANCE_REVIEW.md"), "utf8"), /Needs balance review|Unpriced/);
+});
+
 test("sprite audit has zero unresolved known products and keeps initials as failure fallback", () => {
   const summary = summaryFor(auditItemShopSprites());
-  assert.equal(summary.concreteProductsAudited, 270);
+  assert.equal(summary.concreteProductsAudited, 288);
+  assert.equal(summary.counts["intentional-custom"], 3);
+  assert.equal(summary.counts["balance-review-unpriced"] || 0, 0);
   assert.equal(summary.canonicalItemMissing, 0);
   assert.equal(summary.mechanicProductsUnresolved, 0);
   assert.equal(summary.unresolved, 0);
   assert.equal(summary.unexpectedInitialsFallbacks, 0);
+
+  const badgePoint = classifyProduct(trainerResourceTestData.find((entry) => entry.name === "Badge Point"));
+  assert.equal(badgePoint.classification, "intentional-custom");
+  assert.equal(badgePoint.resolvedSpriteSource, "assets/shop/custom/badge-point.svg");
+  assert.equal(badgePoint.fallback, "");
+  const legacyTicket = classifyProduct(trainerResourceTestData.find((entry) => entry.name === "Legacy Ticket"));
+  assert.equal(legacyTicket.classification, "intentional-custom");
+  assert.equal(legacyTicket.resolvedSpriteSource, "assets/shop/custom/legacy-ticket.svg");
+  assert.equal(legacyTicket.fallback, "");
 
   const unknown = classifyProduct({ name: "Fixture Unknown Item", id: "fixture-unknown-item", shopGroup: "held" });
   assert.equal(unknown.classification, "unresolved");

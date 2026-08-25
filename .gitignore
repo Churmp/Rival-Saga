@@ -3,3 +3,4 @@ node_modules/
 *.log
 scripts/.pokeapi-cache/
 scripts/.sprite-cache/
+artifacts/

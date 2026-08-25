@@ -5,12 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Rival Saga</title>
     <link rel="icon" href="data:,">
-    <link rel="stylesheet" href="styles.css?v=341">
+  <link rel="stylesheet" href="styles.css?v=353">
     <script defer src="game-shell-contract.js?v=1"></script>
     <script defer src="save-compaction.js?v=1"></script>
     <script defer src="move-classification-data.js?v=5"></script>
     <script defer src="shop-choice-data.js?v=3"></script>
-    <script defer src="shop-data.js?v=9"></script>
+    <script defer src="shop-data.js?v=12"></script>
     <script defer src="interaction-situation-lifecycle.js?v=2"></script>
     <script defer src="provisional-declaration-runtime.js?v=2"></script>
     <script defer src="encounter-token-runtime.js?v=1"></script>
@@ -21,12 +21,12 @@
     <script defer src="token-inventory-runtime.js?v=1"></script>
     <script defer src="token-sandbox-session.js?v=1"></script>
     <script defer src="item-reference-data.js?v=3"></script>
-    <script defer src="shop-sprite-data.js?v=1"></script>
-    <script defer src="shop-browse-data.js?v=2"></script>
+    <script defer src="shop-sprite-data.js?v=4"></script>
+    <script defer src="shop-browse-data.js?v=5"></script>
     <script defer src="pokemon-balance-tiers.js?v=188"></script>
     <script defer src="silph-data.js?v=3"></script>
     <script defer src="action-phase-balance.js?v=1"></script>
-    <script defer src="app.js?v=447"></script>
+    <script defer src="app.js?v=458"></script>
   </head>
   <body>
     <section id="gameHydrationScreen" class="game-hydration-screen hidden" role="status" aria-live="polite" aria-busy="true">
@@ -103,7 +103,6 @@
       <div class="game-header-navigation">
         <div id="gameplayRibbonScroll" class="gameplay-ribbon-scroll">
           <nav id="gameplayRibbon" class="gameplay-ribbon" aria-label="Gameplay destinations">
-            <button type="button" data-game-ribbon="referee" data-game-action="live-referee" aria-label="Live Referee" title="Live Referee">Referee</button>
             <button class="top-level-tab" type="button" data-game-ribbon="actionPhase" data-page="actionPhase" aria-label="Action Phase" title="Action Phase">Actions</button>
             <button type="button" data-game-ribbon="teambuilder" data-game-page="playerHub" data-game-view="teambuilder" aria-label="Team Builder" title="Team Builder">Team</button>
             <button type="button" data-game-ribbon="sheet" data-game-page="playerHub" data-game-view="sheet" aria-label="Player Sheet" title="Player Sheet">Player</button>
@@ -142,6 +141,10 @@
         </div>
       </div>
       <div class="game-header-actions">
+        <button id="liveRefereeLauncher" class="game-header-live-ref-launcher" type="button" data-game-action="live-referee" aria-expanded="false" aria-controls="liveRefereePanel" title="Live Referee">
+          <span aria-hidden="true">LR</span>
+          <strong>Live Ref</strong>
+        </button>
         <div class="game-header-phase-controls" aria-label="Global phase controls">
           <div class="game-header-agenda-control">
             <button id="phaseAgendaToggle" class="game-header-agenda-toggle" type="button" aria-expanded="false" aria-label="Open phase agenda">
@@ -592,19 +595,37 @@
           </div>
 
           <section id="shopView" class="hidden">
+          <nav class="tabs shop-mode-tabs" aria-label="Shop categories">
+            <button class="tab shop-department-card active" type="button" data-shop="items">
+              <span class="shop-department-icon" aria-hidden="true">I</span>
+              <span class="shop-department-copy">
+                <strong>Items</strong>
+                <small>Held tools and resources</small>
+              </span>
+            </button>
+            <button class="tab shop-department-card" type="button" data-shop="tms">
+              <span class="shop-department-icon" aria-hidden="true">TM</span>
+              <span class="shop-department-copy">
+                <strong>TMs</strong>
+                <small>Move discs by type</small>
+              </span>
+            </button>
+            <button class="tab shop-department-card" type="button" data-shop="tokens">
+              <span class="shop-department-icon" aria-hidden="true">T</span>
+              <span class="shop-department-copy">
+                <strong>Tokens</strong>
+                <small>League effects and tickets</small>
+              </span>
+            </button>
+          </nav>
+
           <header class="shop-storefront-header">
             <div>
-              <p class="eyebrow">Shop</p>
-              <strong>Rival Mart</strong>
+              <strong id="shopDepartmentTitle">Items</strong>
+              <small id="shopDepartmentSubtitle">Held items, berries, mechanics, and trainer resources</small>
             </div>
             <span id="shopHeaderBalance"></span>
           </header>
-
-          <nav class="tabs shop-mode-tabs" aria-label="Shop categories">
-            <button class="tab active" type="button" data-shop="items">Items</button>
-            <button class="tab" type="button" data-shop="tms">TMs</button>
-            <button class="tab" type="button" data-shop="tokens">Tokens</button>
-          </nav>
 
           <header id="tokenShopHeader" class="token-shop-header hidden">
             <div class="token-shop-brand">
@@ -1234,7 +1255,6 @@
       </aside>
 
       <aside id="activityResponseColumn" class="activity-response-column">
-        <button id="activityResponseTab" class="activity-response-tab" type="button" aria-controls="activityResponseDrawer" aria-expanded="false">Advanced Controls</button>
         <section id="activityResponseDrawer" class="activity-response-panel">
           <div class="panel-header">
             <div>
@@ -1254,7 +1274,6 @@
       <section id="activityToastStack" class="activity-toast-stack" aria-live="polite"></section>
 
       <aside id="opponentDrawerColumn" class="opponent-drawer-column">
-        <button id="opponentDrawerTab" class="opponent-drawer-tab" type="button" aria-controls="opponentDrawer" aria-expanded="false">Players</button>
         <section id="opponentDrawer" class="opponent-drawer-panel">
           <div class="panel-header">
             <div>

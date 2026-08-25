@@ -140,7 +140,9 @@ $payload = [ordered]@{
     "PokeAPI item sprites are localized from raw.githubusercontent.com/PokeAPI/sprites.",
     "Pokemon Showdown item atlas crops are used only when PokeAPI item records have no usable sprite.",
     "Pokemon Showdown Tera type icons are localized for Rival Saga mechanic products.",
-    "Blank Plate has no usable PokeAPI or Pokemon Showdown item sprite and uses an intentional Rival Saga custom plate asset."
+    "Blank Plate has no usable PokeAPI or Pokemon Showdown item sprite and uses an intentional Rival Saga custom plate asset.",
+    "Badge Point uses an intentional Rival Saga custom emblem asset.",
+    "Legacy Ticket uses an intentional Rival Saga custom pass asset."
   )
   items = $metadataItems
 }

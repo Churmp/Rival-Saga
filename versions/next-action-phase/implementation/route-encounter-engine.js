@@ -12,6 +12,25 @@ const DEFAULT_ROUTE_PREMIUM_ENCOUNTER_WEIGHT = 0.15;
 const PREMIUM_ROUTE_TIER_IDS = Object.freeze(["ultra-elite", "master", "master-elite"]);
 const DEFAULT_REPEL_SUPPRESSION_COUNT = 5;
 const EXTRA_ENCOUNTER_TOKEN_PRICE = 2500;
+const ROUTE_TIER_ORDER = Object.freeze(["lc", "lc-elite", "safari", "safari-elite", "poke", "poke-elite", "great", "great-elite", "ultra", "ultra-elite", "master", "master-elite"]);
+const TYPE_INJECTION_COUNT = 4;
+const TYPE_INJECTION_MAX_TIER_ID = "master";
+const TYPE_INJECTION_TIER_ROLLS = Object.freeze([
+  Object.freeze({ id: "base-or-lower", weight: 75, offset: 0, baseOrLower: true }),
+  Object.freeze({ id: "plus-1", weight: 20, offset: 1 }),
+  Object.freeze({ id: "plus-2", weight: 5, offset: 2 })
+]);
+const ROUTE_NATURAL_TIER_BY_ROUTE = Object.freeze({
+  1: "lc",
+  2: "lc-elite",
+  3: "safari",
+  4: "safari-elite",
+  5: "poke",
+  6: "poke-elite",
+  7: "great",
+  8: "great-elite",
+  9: "ultra"
+});
 
 const APPROVED_ROUTE_TIER_DISTRIBUTIONS = Object.freeze({
   1: Object.freeze([
@@ -1002,30 +1021,126 @@ function removeRouteSuppression(state, suppressionId) {
   throw new Error(`Route suppression not found: ${suppressionId}.`);
 }
 
+function tierIndex(tierId) {
+  return ROUTE_TIER_ORDER.indexOf(slugify(tierId));
+}
+
+function tierNameByIndex(index) {
+  const clamped = Math.max(0, Math.min(Number(index) || 0, ROUTE_TIER_ORDER.length - 1));
+  return ROUTE_TIER_ORDER[clamped];
+}
+
+function injectableTierIds() {
+  const maxIndex = tierIndex(TYPE_INJECTION_MAX_TIER_ID);
+  return ROUTE_TIER_ORDER.filter((tierId) => tierId !== "master-elite" && tierIndex(tierId) <= maxIndex);
+}
+
+function naturalInjectionTierId(route) {
+  const routeNumber = Number(route?.routeNumber || 1);
+  return ROUTE_NATURAL_TIER_BY_ROUTE[routeNumber] || "ultra";
+}
+
+function injectionTierIdsAtOrBelow(tierId) {
+  const targetIndex = Math.min(tierIndex(TYPE_INJECTION_MAX_TIER_ID), tierIndex(tierId));
+  return injectableTierIds().filter((candidateTierId) => tierIndex(candidateTierId) <= targetIndex);
+}
+
+function typeInjectionCandidates({ catalog, primaryType, tierIds, usedSpeciesIds }) {
+  const tiers = new Set((tierIds || []).map(slugify));
+  return catalog.filter((entry) => (
+    entry.primaryType.toLowerCase() === primaryType.toLowerCase()
+    && tiers.has(entry.battleTier.id)
+    && entry.battleTier.id !== "master-elite"
+    && !usedSpeciesIds.has(entry.speciesId)
+  ));
+}
+
+function injectionTierRollForRoute(route, rng) {
+  const roll = weightedChoice(TYPE_INJECTION_TIER_ROLLS, rng);
+  const naturalTierId = naturalInjectionTierId(route);
+  if (roll.baseOrLower) {
+    return {
+      rollId: roll.id,
+      baseOrLower: true,
+      offset: 0,
+      requestedTierId: naturalTierId,
+      candidateTierIds: injectionTierIdsAtOrBelow(naturalTierId)
+    };
+  }
+  const targetTierId = tierNameByIndex(Math.min(tierIndex(TYPE_INJECTION_MAX_TIER_ID), tierIndex(naturalTierId) + Number(roll.offset || 0)));
+  return {
+    rollId: roll.id,
+    baseOrLower: false,
+    offset: Number(roll.offset || 0),
+    requestedTierId: targetTierId,
+    candidateTierIds: [targetTierId]
+  };
+}
+
+function selectTypeInjectionCandidate({ catalog, route, primaryType, usedSpeciesIds, rng, rollOverride = null }) {
+  const roll = rollOverride || injectionTierRollForRoute(route, rng);
+  if (roll.baseOrLower) {
+    const candidates = typeInjectionCandidates({ catalog, primaryType, tierIds: roll.candidateTierIds, usedSpeciesIds });
+    assert(candidates.length, `No ${primaryType} Primary Type candidates are available at ${roll.requestedTierId} or lower.`);
+    const entry = chooseOne(candidates, rng);
+    return { entry, roll: { ...roll, resolvedTierId: entry.battleTier.id, fallbackTierIds: [] } };
+  }
+  const fallbackTierIds = [];
+  for (let index = tierIndex(roll.requestedTierId); index >= 0; index -= 1) {
+    const tierId = tierNameByIndex(index);
+    if (!injectableTierIds().includes(tierId)) continue;
+    const candidates = typeInjectionCandidates({ catalog, primaryType, tierIds: [tierId], usedSpeciesIds });
+    if (!candidates.length) {
+      fallbackTierIds.push(tierId);
+      continue;
+    }
+    const entry = chooseOne(candidates, rng);
+    return {
+      entry,
+      roll: {
+        ...roll,
+        candidateTierIds: [tierId],
+        resolvedTierId: tierId,
+        fallbackTierIds
+      }
+    };
+  }
+  throw new Error(`No ${primaryType} Primary Type candidates are available at ${roll.requestedTierId} or lower.`);
+}
+
 function selectTemporaryInjectionResidents(options = {}) {
   const catalog = normalizePokemonCatalog(options.pokemonCatalog || []);
   const primaryType = text(options.primaryType);
   assert(primaryType, "Temporary injection requires a Primary Type.");
-  const count = Number(options.count || 4);
-  const battleTierIds = new Set((options.battleTierIds || []).map(slugify).filter(Boolean));
-  const candidates = catalog.filter((entry) => (
-    entry.primaryType.toLowerCase() === primaryType.toLowerCase()
-    && (!battleTierIds.size || battleTierIds.has(entry.battleTier.id))
-  ));
-  assert(candidates.length >= count, `Only ${candidates.length} ${primaryType} Primary Type candidates are available; need ${count}.`);
+  const count = Number(options.count || TYPE_INJECTION_COUNT);
+  assert(count === TYPE_INJECTION_COUNT, "Temporary injection must select exactly 4 residents.");
+  const route = options.route || { routeNumber: options.routeNumber || 1 };
   const rng = createRng(options.seed || `temporary-injection:${primaryType}`);
-  const pool = [...candidates];
+  const usedSpeciesIds = new Set([
+    ...(options.usedSpeciesIds || []),
+    ...(route.residents || []).map((resident) => resident.speciesId)
+  ]);
   const selected = [];
+  const tierRolls = [];
   while (selected.length < count) {
-    const choice = chooseOne(pool, rng);
-    selected.push(choice);
-    pool.splice(pool.indexOf(choice), 1);
+    const selectedCandidate = selectTypeInjectionCandidate({
+      catalog,
+      route,
+      primaryType,
+      usedSpeciesIds,
+      rng,
+      rollOverride: Array.isArray(options.tierRollOverrides) ? options.tierRollOverrides[selected.length] : null
+    });
+    selected.push(selectedCandidate.entry);
+    tierRolls.push(selectedCandidate.roll);
+    usedSpeciesIds.add(selectedCandidate.entry.speciesId);
   }
-  return selected.map((entry) => ({
+  return selected.map((entry, index) => ({
     ...entry,
     source: {
       kind: "temporary-primary-type-injection",
       primaryType,
+      tierRoll: tierRolls[index],
       sourceEffectId: text(options.sourceEffectId)
     }
   }));

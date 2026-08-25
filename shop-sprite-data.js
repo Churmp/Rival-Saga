@@ -1,11 +1,13 @@
 ﻿const rivalSagaShopSpriteData = Object.freeze({
     "schemaVersion":  1,
-    "generatedAt":  "2026-08-21T20:06:37.1967774Z",
+    "generatedAt":  "2026-08-25T17:17:01.6963412Z",
     "sourceNotes":  [
                         "PokeAPI item sprites are localized from raw.githubusercontent.com/PokeAPI/sprites.",
                         "Pokemon Showdown item atlas crops are used only when PokeAPI item records have no usable sprite.",
                         "Pokemon Showdown Tera type icons are localized for Rival Saga mechanic products.",
-                        "Blank Plate has no usable PokeAPI or Pokemon Showdown item sprite and uses an intentional Rival Saga custom plate asset."
+                        "Blank Plate has no usable PokeAPI or Pokemon Showdown item sprite and uses an intentional Rival Saga custom plate asset.",
+                        "Badge Point uses an intentional Rival Saga custom emblem asset.",
+                        "Legacy Ticket uses an intentional Rival Saga custom pass asset."
                     ],
     "items":  {
                   "berry-juice":  {
@@ -1004,6 +1006,198 @@
                                         "spritenum":  null,
                                         "renderMode":  "pixel"
                                     },
+                  "aloraichium-z":  {
+                                        "name":  "Aloraichium Z",
+                                        "productId":  "item-aloraichium-z",
+                                        "productType":  "battle-mechanics",
+                                        "localSprite":  "assets/shop/items/aloraichium-z.png",
+                                        "sourceProvider":  "Pokemon Showdown Item Atlas",
+                                        "providerKey":  "aloraichiumz",
+                                        "originalSourceUrl":  "https://play.pokemonshowdown.com/sprites/itemicons-sheet.png",
+                                        "restoreMethod":  "atlas-crop",
+                                        "spritenum":  655,
+                                        "renderMode":  "pixel"
+                                    },
+                  "decidium-z":  {
+                                     "name":  "Decidium Z",
+                                     "productId":  "item-decidium-z",
+                                     "productType":  "battle-mechanics",
+                                     "localSprite":  "assets/shop/items/decidium-z.png",
+                                     "sourceProvider":  "Pokemon Showdown Item Atlas",
+                                     "providerKey":  "decidiumz",
+                                     "originalSourceUrl":  "https://play.pokemonshowdown.com/sprites/itemicons-sheet.png",
+                                     "restoreMethod":  "atlas-crop",
+                                     "spritenum":  650,
+                                     "renderMode":  "pixel"
+                                 },
+                  "eevium-z":  {
+                                   "name":  "Eevium Z",
+                                   "productId":  "item-eevium-z",
+                                   "productType":  "battle-mechanics",
+                                   "localSprite":  "assets/shop/items/eevium-z.png",
+                                   "sourceProvider":  "Pokemon Showdown Item Atlas",
+                                   "providerKey":  "eeviumz",
+                                   "originalSourceUrl":  "https://play.pokemonshowdown.com/sprites/itemicons-sheet.png",
+                                   "restoreMethod":  "atlas-crop",
+                                   "spritenum":  657,
+                                   "renderMode":  "pixel"
+                               },
+                  "incinium-z":  {
+                                     "name":  "Incinium Z",
+                                     "productId":  "item-incinium-z",
+                                     "productType":  "battle-mechanics",
+                                     "localSprite":  "assets/shop/items/incinium-z.png",
+                                     "sourceProvider":  "Pokemon Showdown Item Atlas",
+                                     "providerKey":  "inciniumz",
+                                     "originalSourceUrl":  "https://play.pokemonshowdown.com/sprites/itemicons-sheet.png",
+                                     "restoreMethod":  "atlas-crop",
+                                     "spritenum":  651,
+                                     "renderMode":  "pixel"
+                                 },
+                  "lunalium-z":  {
+                                     "name":  "Lunalium Z",
+                                     "productId":  "item-lunalium-z",
+                                     "productType":  "battle-mechanics",
+                                     "localSprite":  "assets/shop/items/lunalium-z.png",
+                                     "sourceProvider":  "Pokemon Showdown Item Atlas",
+                                     "providerKey":  "lunaliumz",
+                                     "originalSourceUrl":  "https://play.pokemonshowdown.com/sprites/itemicons-sheet.png",
+                                     "restoreMethod":  "atlas-crop",
+                                     "spritenum":  686,
+                                     "renderMode":  "pixel"
+                                 },
+                  "lycanium-z":  {
+                                     "name":  "Lycanium Z",
+                                     "productId":  "item-lycanium-z",
+                                     "productType":  "battle-mechanics",
+                                     "localSprite":  "assets/shop/items/lycanium-z.png",
+                                     "sourceProvider":  "Pokemon Showdown Item Atlas",
+                                     "providerKey":  "lycaniumz",
+                                     "originalSourceUrl":  "https://play.pokemonshowdown.com/sprites/itemicons-sheet.png",
+                                     "restoreMethod":  "atlas-crop",
+                                     "spritenum":  689,
+                                     "renderMode":  "pixel"
+                                 },
+                  "marshadium-z":  {
+                                       "name":  "Marshadium Z",
+                                       "productId":  "item-marshadium-z",
+                                       "productType":  "battle-mechanics",
+                                       "localSprite":  "assets/shop/items/marshadium-z.png",
+                                       "sourceProvider":  "Pokemon Showdown Item Atlas",
+                                       "providerKey":  "marshadiumz",
+                                       "originalSourceUrl":  "https://play.pokemonshowdown.com/sprites/itemicons-sheet.png",
+                                       "restoreMethod":  "atlas-crop",
+                                       "spritenum":  654,
+                                       "renderMode":  "pixel"
+                                   },
+                  "mewnium-z":  {
+                                    "name":  "Mewnium Z",
+                                    "productId":  "item-mewnium-z",
+                                    "productType":  "battle-mechanics",
+                                    "localSprite":  "assets/shop/items/mewnium-z.png",
+                                    "sourceProvider":  "Pokemon Showdown Item Atlas",
+                                    "providerKey":  "mewniumz",
+                                    "originalSourceUrl":  "https://play.pokemonshowdown.com/sprites/itemicons-sheet.png",
+                                    "restoreMethod":  "atlas-crop",
+                                    "spritenum":  658,
+                                    "renderMode":  "pixel"
+                                },
+                  "mimikium-z":  {
+                                     "name":  "Mimikium Z",
+                                     "productId":  "item-mimikium-z",
+                                     "productType":  "battle-mechanics",
+                                     "localSprite":  "assets/shop/items/mimikium-z.png",
+                                     "sourceProvider":  "Pokemon Showdown Item Atlas",
+                                     "providerKey":  "mimikiumz",
+                                     "originalSourceUrl":  "https://play.pokemonshowdown.com/sprites/itemicons-sheet.png",
+                                     "restoreMethod":  "atlas-crop",
+                                     "spritenum":  688,
+                                     "renderMode":  "pixel"
+                                 },
+                  "pikanium-z":  {
+                                     "name":  "Pikanium Z",
+                                     "productId":  "item-pikanium-z",
+                                     "productType":  "battle-mechanics",
+                                     "localSprite":  "assets/shop/items/pikanium-z.png",
+                                     "sourceProvider":  "Pokemon Showdown Item Atlas",
+                                     "providerKey":  "pikaniumz",
+                                     "originalSourceUrl":  "https://play.pokemonshowdown.com/sprites/itemicons-sheet.png",
+                                     "restoreMethod":  "atlas-crop",
+                                     "spritenum":  649,
+                                     "renderMode":  "pixel"
+                                 },
+                  "pikashunium-z":  {
+                                        "name":  "Pikashunium Z",
+                                        "productId":  "item-pikashunium-z",
+                                        "productType":  "battle-mechanics",
+                                        "localSprite":  "assets/shop/items/pikashunium-z.png",
+                                        "sourceProvider":  "Pokemon Showdown Item Atlas",
+                                        "providerKey":  "pikashuniumz",
+                                        "originalSourceUrl":  "https://play.pokemonshowdown.com/sprites/itemicons-sheet.png",
+                                        "restoreMethod":  "atlas-crop",
+                                        "spritenum":  659,
+                                        "renderMode":  "pixel"
+                                    },
+                  "primarium-z":  {
+                                      "name":  "Primarium Z",
+                                      "productId":  "item-primarium-z",
+                                      "productType":  "battle-mechanics",
+                                      "localSprite":  "assets/shop/items/primarium-z.png",
+                                      "sourceProvider":  "Pokemon Showdown Item Atlas",
+                                      "providerKey":  "primariumz",
+                                      "originalSourceUrl":  "https://play.pokemonshowdown.com/sprites/itemicons-sheet.png",
+                                      "restoreMethod":  "atlas-crop",
+                                      "spritenum":  652,
+                                      "renderMode":  "pixel"
+                                  },
+                  "snorlium-z":  {
+                                     "name":  "Snorlium Z",
+                                     "productId":  "item-snorlium-z",
+                                     "productType":  "battle-mechanics",
+                                     "localSprite":  "assets/shop/items/snorlium-z.png",
+                                     "sourceProvider":  "Pokemon Showdown Item Atlas",
+                                     "providerKey":  "snorliumz",
+                                     "originalSourceUrl":  "https://play.pokemonshowdown.com/sprites/itemicons-sheet.png",
+                                     "restoreMethod":  "atlas-crop",
+                                     "spritenum":  656,
+                                     "renderMode":  "pixel"
+                                 },
+                  "solganium-z":  {
+                                      "name":  "Solganium Z",
+                                      "productId":  "item-solganium-z",
+                                      "productType":  "battle-mechanics",
+                                      "localSprite":  "assets/shop/items/solganium-z.png",
+                                      "sourceProvider":  "Pokemon Showdown Item Atlas",
+                                      "providerKey":  "solganiumz",
+                                      "originalSourceUrl":  "https://play.pokemonshowdown.com/sprites/itemicons-sheet.png",
+                                      "restoreMethod":  "atlas-crop",
+                                      "spritenum":  685,
+                                      "renderMode":  "pixel"
+                                  },
+                  "tapunium-z":  {
+                                     "name":  "Tapunium Z",
+                                     "productId":  "item-tapunium-z",
+                                     "productType":  "battle-mechanics",
+                                     "localSprite":  "assets/shop/items/tapunium-z.png",
+                                     "sourceProvider":  "Pokemon Showdown Item Atlas",
+                                     "providerKey":  "tapuniumz",
+                                     "originalSourceUrl":  "https://play.pokemonshowdown.com/sprites/itemicons-sheet.png",
+                                     "restoreMethod":  "atlas-crop",
+                                     "spritenum":  653,
+                                     "renderMode":  "pixel"
+                                 },
+                  "ultranecrozium-z":  {
+                                           "name":  "Ultranecrozium Z",
+                                           "productId":  "item-ultranecrozium-z",
+                                           "productType":  "battle-mechanics",
+                                           "localSprite":  "assets/shop/items/ultranecrozium-z.png",
+                                           "sourceProvider":  "Pokemon Showdown Item Atlas",
+                                           "providerKey":  "ultranecroziumz",
+                                           "originalSourceUrl":  "https://play.pokemonshowdown.com/sprites/itemicons-sheet.png",
+                                           "restoreMethod":  "atlas-crop",
+                                           "spritenum":  687,
+                                           "renderMode":  "pixel"
+                                       },
                   "cheri-berry":  {
                                       "name":  "Cheri Berry",
                                       "productId":  "item-berries-not-in-pokeball--cheri-berry",
@@ -3247,7 +3441,31 @@
                                       "restoreMethod":  "download",
                                       "spritenum":  null,
                                       "renderMode":  "pixel"
-                                  }
+                                  },
+                  "badge-point":  {
+                                      "name":  "Badge Point",
+                                      "productId":  "utility-badge-point",
+                                      "productType":  "held",
+                                      "localSprite":  "assets/shop/custom/badge-point.svg",
+                                      "sourceProvider":  "Rival Saga Custom",
+                                      "providerKey":  "badge-point",
+                                      "originalSourceUrl":  "",
+                                      "restoreMethod":  "custom-badge-point",
+                                      "spritenum":  null,
+                                      "renderMode":  "smooth"
+                                  },
+                  "legacy-ticket":  {
+                                        "name":  "Legacy Ticket",
+                                        "productId":  "legacy-ticket",
+                                        "productType":  "held",
+                                        "localSprite":  "assets/shop/custom/legacy-ticket.svg",
+                                        "sourceProvider":  "Rival Saga Custom",
+                                        "providerKey":  "legacy-ticket",
+                                        "originalSourceUrl":  "",
+                                        "restoreMethod":  "custom-legacy-ticket",
+                                        "spritenum":  null,
+                                        "renderMode":  "smooth"
+                                    }
               }
 });
 

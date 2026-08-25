@@ -20,11 +20,13 @@ test("outside-game platform shell and dedicated game header are separate", () =>
 });
 
 test("game header exposes identity, gameplay ribbon, League, trainer, and Menu", () => {
-  for (const id of ["gameHeaderGameName", "gameHeaderContext", "gameplayRibbon", "gameLeagueToggle", "gameHeaderTrainerName", "gameSaveStatus", "gameMenuToggle"]) {
+  for (const id of ["gameHeaderGameName", "gameHeaderContext", "gameplayRibbon", "gameLeagueToggle", "gameHeaderTrainerName", "gameSaveStatus", "liveRefereeLauncher", "gameMenuToggle"]) {
     assert.match(html, new RegExp(`id="${id}"`));
   }
   assert.equal((html.match(/id="gameClientHeader"/g) || []).length, 1);
   assert.doesNotMatch(html, /id="gameHeaderDestination"/);
+  assert.doesNotMatch(header, /data-game-ribbon="referee"/);
+  assert.match(header, /id="liveRefereeLauncher"[\s\S]+data-game-action="live-referee"/);
   assert.match(source, /function activeGameShellDestination\(/);
   assert.match(source, /gameHeaderContext\.textContent = `\$\{state\.series\} · Gym \$\{state\.gym\}`/);
 });
@@ -56,6 +58,8 @@ test("activity log drawer always has a lightweight close path", () => {
 test("V1 side drawers are present for their existing toggle logic", () => {
   assert.match(html, /<aside id="activityResponseColumn" class="activity-response-column">/);
   assert.match(html, /<aside id="opponentDrawerColumn" class="opponent-drawer-column">/);
+  assert.doesNotMatch(html, /id="activityResponseTab"/);
+  assert.doesNotMatch(html, /id="opponentDrawerTab"/);
   assert.match(source, /activityResponseColumn\?\.classList\.toggle\("drawer-open", open\)/);
   assert.match(source, /opponentDrawerColumn\.classList\.toggle\("drawer-open", open\)/);
 });

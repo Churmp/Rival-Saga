@@ -13,6 +13,7 @@
     "audit:build-data": "node scripts/audit-build-learnsets.js",
     "audit:tm-shop": "node scripts/audit-tm-shop-coverage.js",
     "audit:item-shop-sprites": "node scripts/audit-item-shop-sprites.js --check",
+    "audit:item-shop-z-catalog": "node scripts/audit-item-shop-z-catalog.js --check",
     "audit:docs": "node scripts/check-doc-links.js",
     "audit:v2-routes": "node versions/next-action-phase/audit-route-generation.js",
     "generate:token-matrix": "node scripts/generate-token-effect-matrix.js",

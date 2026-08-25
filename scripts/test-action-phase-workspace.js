@@ -127,10 +127,10 @@ test("public discovery helpers are used without rendering hidden route populatio
   const pillsBody = functionBody("renderV2RouteDiscoveryPills");
   const publicPreviewBody = functionBody("v2RoutePublicPreview");
   assert.match(browserBody, /v2RoutePublicPreview/);
-  assert.match(previewBody, /v2RoutePublicPreview/);
-  assert.match(publicPreviewBody, /v2RoutePublicPreviewSlots/);
+  assert.match(previewBody, /v2RouteResidentFieldPreview/);
+  assert.match(publicPreviewBody, /slots/);
   assert.match(publicPreviewBody, /v2PublicRouteSlotCount/);
-  assert.match(publicPreviewBody, /premiumSlots/);
+  assert.match(publicPreviewBody, /premiumSlotCount/);
   assert.match(browserBody, /preview\.slotCount/);
   assert.match(browserBody, /density-\$\{escapeHtml\(v2RoutePreviewDensityClass\(preview\.slotCount\)\)\}/);
   assert.doesNotMatch(browserBody, /discoveryNames|known<\/small>|v2RouteBrowserTitle/);
@@ -155,7 +155,7 @@ test("Action Workspace CSS supports V1 cards and V2 spatial Route Encounter scre
   assert.match(cssSource, /\.v2-route-menu-item\s*\{/);
   assert.match(cssSource, /\.v2-route-browser-preview\s*\{/);
   assert.match(cssSource, /\.v2-route-preview-slots\s*\{/);
-  assert.match(cssSource, /\.v2-route-preview-slots\s*\{[\s\S]*repeat\(auto-fit, minmax\(var\(--route-slot-size\), 1fr\)\)/);
+  assert.match(cssSource, /\.v2-route-preview-slot-group\s*\{[\s\S]*repeat\(auto-fit, minmax\(var\(--route-slot-size\), 1fr\)\)/);
   assert.match(cssSource, /\.v2-route-browser-preview\.density-sparse/);
   assert.match(cssSource, /\.v2-action-phase-view \.action-workspace-header \.eyebrow\s*\{[\s\S]*display:\s*none/);
   assert.match(cssSource, /\.v2-route-encounter-reveal\s*,/);
