@@ -9,6 +9,7 @@ const ROOT = path.resolve(__dirname, "..");
 const EXPECTED_BRANCH = "audit/purge-v1-runtime";
 const APP_PATH = path.join(ROOT, "app.js");
 const INDEX_PATH = path.join(ROOT, "index.html");
+const SERVER_PATH = path.join(ROOT, "server.js");
 const RUNTIME_PATH = path.join(ROOT, "encounter-token-runtime.js");
 
 function git(args, { inherit = false } = {}) {
@@ -66,32 +67,23 @@ function removeLegacyGrantBranch(app) {
 
 function runChecks() {
   execFileSync(process.execPath, ["--check", "app.js"], { cwd: ROOT, stdio: "inherit" });
+  execFileSync(process.execPath, ["--check", "server.js"], { cwd: ROOT, stdio: "inherit" });
   execFileSync(process.execPath, ["--test", "scripts/test-v2-route-runtime-sequences.js"], { cwd: ROOT, stdio: "inherit" });
   execFileSync(process.execPath, ["--test", "versions/next-action-phase/tests/test-route-encounter-engine.js"], { cwd: ROOT, stdio: "inherit" });
 }
 
-function legacyRuntimeReferences() {
+function productionRuntimeReferences() {
   const markers = [
     "encounterTokenRuntime",
     "rivalSagaEncounterTokenRuntime",
     "encounter-token-runtime.js",
   ];
-  const allowedExtensions = new Set([".js", ".html", ".json"]);
+  const runtimeFiles = ["app.js", "index.html", "server.js", "package.json"];
   const refs = [];
-  const files = git(["ls-files"]).split("\n").filter(Boolean);
-  for (const rel of files) {
-    if (rel === "encounter-token-runtime.js") continue;
-    if (rel.startsWith("scripts/v1-purge-")) continue;
-    if (rel.startsWith("V1_PURGE_")) continue;
-    if (!allowedExtensions.has(path.extname(rel).toLowerCase())) continue;
+  for (const rel of runtimeFiles) {
     const full = path.join(ROOT, rel);
     if (!fs.existsSync(full)) continue;
-    let source = "";
-    try {
-      source = fs.readFileSync(full, "utf8");
-    } catch (_) {
-      continue;
-    }
+    const source = fs.readFileSync(full, "utf8");
     const hit = markers.find((marker) => source.includes(marker));
     if (hit) refs.push(`${rel}: ${hit}`);
   }
@@ -106,9 +98,11 @@ function main() {
 
   const originalApp = fs.readFileSync(APP_PATH, "utf8");
   const originalIndex = fs.readFileSync(INDEX_PATH, "utf8");
+  const originalServer = fs.readFileSync(SERVER_PATH, "utf8");
   const originalRuntime = fs.readFileSync(RUNTIME_PATH, "utf8");
   let app = originalApp;
   let index = originalIndex;
+  let server = originalServer;
   let wrote = false;
   let committed = false;
 
@@ -131,6 +125,7 @@ function main() {
     requireCount(app, "encounterTokenRuntime", 4, "legacy encounterTokenRuntime references");
     requireCount(app, 'metadata.resolverId === "extraEncounter"', 3, "legacy generic Extra Encounter resolver branches");
     requireCount(index, '<script defer src="encounter-token-runtime.js?v=1"></script>', 1, "legacy encounter runtime script tag");
+    requireCount(server, '  "/encounter-token-runtime.js",\n', 1, "legacy encounter runtime static-file entry");
 
     app = replaceExactOnce(
       app,
@@ -216,6 +211,13 @@ function main() {
       "legacy Encounter Token runtime script include"
     );
 
+    server = replaceExactOnce(
+      server,
+      '  "/encounter-token-runtime.js",\n',
+      "",
+      "legacy Encounter Token runtime static-file entry"
+    );
+
     for (const marker of [
       "encounterTokenRuntime",
       "rivalSagaEncounterTokenRuntime",
@@ -231,25 +233,27 @@ function main() {
 
     fs.writeFileSync(APP_PATH, app, "utf8");
     fs.writeFileSync(INDEX_PATH, index, "utf8");
+    fs.writeFileSync(SERVER_PATH, server, "utf8");
     fs.unlinkSync(RUNTIME_PATH);
     wrote = true;
 
     runChecks();
 
-    const refs = legacyRuntimeReferences();
+    const refs = productionRuntimeReferences();
     if (refs.length) {
-      throw new Error(`Legacy Encounter Token runtime references remain in tracked runtime/test files:\n${refs.join("\n")}`);
+      throw new Error(`Legacy Encounter Token runtime references remain in production runtime files:\n${refs.join("\n")}`);
     }
 
-    git(["add", "app.js", "index.html", "encounter-token-runtime.js"]);
+    git(["add", "app.js", "index.html", "server.js", "encounter-token-runtime.js"]);
     execFileSync("git", ["diff", "--cached", "--check"], { cwd: ROOT, stdio: "inherit" });
     const staged = git(["diff", "--cached", "--stat"]);
     if (!staged) throw new Error("Stage 5A produced no staged changes.");
 
     console.log(`\n${staged}`);
-    console.log("Legacy Encounter Token runtime dependency removed.");
+    console.log("Legacy Encounter Token runtime dependency removed from production.");
     console.log("Generic Extra Encounter activation now redirects to the current Route action before consumption.");
     console.log("Current Route Extra Encounter/Reroll/Repel/Master Ball handlers survived invariant checks.");
+    console.log("Historical encounter-runtime test/QA references are intentionally deferred to the later stale-test/tooling cleanup stage.");
 
     git(["commit", "-m", "Retire legacy Encounter Token runtime"], { inherit: true });
     committed = true;
@@ -257,9 +261,10 @@ function main() {
     console.log("\nStage 5A complete: legacy Encounter Token runtime removed and pushed.");
   } catch (error) {
     if (wrote && !committed) {
-      try { git(["reset", "HEAD", "--", "app.js", "index.html", "encounter-token-runtime.js"]); } catch (_) {}
+      try { git(["reset", "HEAD", "--", "app.js", "index.html", "server.js", "encounter-token-runtime.js"]); } catch (_) {}
       try { fs.writeFileSync(APP_PATH, originalApp, "utf8"); } catch (_) {}
       try { fs.writeFileSync(INDEX_PATH, originalIndex, "utf8"); } catch (_) {}
+      try { fs.writeFileSync(SERVER_PATH, originalServer, "utf8"); } catch (_) {}
       try { fs.writeFileSync(RUNTIME_PATH, originalRuntime, "utf8"); } catch (_) {}
     }
     const suffix = committed
