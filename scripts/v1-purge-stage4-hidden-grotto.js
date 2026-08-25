@@ -40,6 +40,13 @@ function requireCount(text, needle, expected, label = needle) {
   }
 }
 
+function requireMarkers(text, markers, label) {
+  const missing = markers.filter((marker) => !text.includes(marker));
+  if (missing.length) {
+    throw new Error(`${label}: ${missing.join(", ")}`);
+  }
+}
+
 function replaceExactOnce(text, oldValue, newValue = "", label = oldValue) {
   requireCount(text, oldValue, 1, label);
   return text.replace(oldValue, newValue);
@@ -179,23 +186,20 @@ function main() {
   let wrote = false;
   let committed = false;
 
-  const removedFunctions = [
-    "getHiddenGrottoTierCap",
-    "renderHiddenGrottoDetails",
-    "startHiddenGrottoSession",
-    "chooseHiddenGrottoType",
-    "chooseHiddenGrottoPokemon",
-    "getHiddenGrottoEligiblePokemonByType",
-    "isHiddenGrottoEncounterEligible",
-    "hiddenGrottoLowTierNfeCutoffIndex",
-    "hiddenGrottoEntryHasNoEvolutionNote",
-    "hiddenGrottoFinalEvolutionSpeciesIds",
-    "hiddenGrottoSpeciesForEntry",
-    "isHiddenGrottoFullyEvolvedEntry",
-    "hiddenGrottoExcludesLowTierNfe",
-    "getHiddenGrottoPool",
-    "hiddenGrottoAvailableTypes",
-    "activeHiddenGrottoSession",
+  const currentRouteMarkers = [
+    "function renderV2RouteActionPhase()",
+    "const V2_ROUTE_TOKEN_IDS",
+    "function useV2RouteRerollToken(",
+    "function useV2ExtraEncounter(",
+    "function applyV2RouteRepel(",
+    "function useV2MasterBallOnOpportunity(",
+  ];
+
+  const neighboringMarkers = [
+    "function renderRangerBaseDetails(",
+    "function renderBulletinBoardDetails(",
+    "function pendingSilphCoSession(",
+    "function encounterWheelKey(",
   ];
 
   try {
@@ -203,8 +207,8 @@ function main() {
       throw new Error("Stage 1 invariant failed: ACTION_PHASE_VERSION_V1 still exists.");
     }
     requireCount(app, "function renderActionPhase() {\n  renderV2RouteActionPhase();\n}", 1, "current-only renderActionPhase");
-    requireCount(app, "function renderV2RouteActionPhase()", 1, "current Route renderer");
-    requireCount(app, "const V2_ROUTE_TOKEN_IDS", 1, "current Route token IDs");
+    requireMarkers(app, currentRouteMarkers, "Current Route preflight invariant missing");
+    requireMarkers(app, neighboringMarkers, "Neighbor preflight invariant missing");
 
     app = removeBetween(
       app,
@@ -319,19 +323,8 @@ function main() {
       throw new Error(`Hidden Grotto runtime markers remain: ${leftovers.join(", ")}`);
     }
 
-    for (const marker of [
-      "function renderV2RouteActionPhase()",
-      "const V2_ROUTE_TOKEN_IDS",
-      "function useV2RouteActionToken",
-      "function renderRangerBaseDetails(",
-      "function renderBulletinBoardDetails(",
-      "function pendingSilphCoSession(",
-      "function encounterWheelKey(",
-    ]) {
-      if (!app.includes(marker)) {
-        throw new Error(`Current/neighbor invariant disappeared: ${marker}`);
-      }
-    }
+    requireMarkers(app, currentRouteMarkers, "Current Route invariant disappeared");
+    requireMarkers(app, neighboringMarkers, "Neighbor invariant disappeared");
 
     fs.writeFileSync(APP_PATH, app, "utf8");
     wrote = true;
@@ -344,8 +337,8 @@ function main() {
     if (!staged) throw new Error("Stage 4 produced no staged changes.");
 
     console.log(`\n${staged}`);
-    console.log(`Removed Hidden Grotto functions: ${removedFunctions.join(", ")}`);
-    console.log("Removed Hidden Grotto declarations: HIDDEN_GROTTO_TIER_STEP_BONUS, hiddenGrottoTypes");
+    console.log("Removed retired Hidden Grotto runtime and state plumbing.");
+    console.log("Verified current Route token handlers survived unchanged by boundary checks.");
     console.log("Preserved perk/bulletin descriptive data for later dedicated rules review.");
 
     git(["commit", "-m", "Remove retired Hidden Grotto runtime"], { inherit: true });
