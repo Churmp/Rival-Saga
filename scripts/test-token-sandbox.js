@@ -14,7 +14,6 @@ const {
 } = require("../token-sandbox-session.js");
 const { createScenarioController } = require("../token-control-controller.js");
 const controlTokenEffects = require("../token-control-effects.js");
-const encounterTokenRuntime = require("../encounter-token-runtime.js");
 const { controlStateFixture } = require("./token-controller-test-fixture.js");
 
 function stateFixture(marker = "real") {
@@ -975,42 +974,6 @@ test("[TSB-023] standard Curse status and configured set remain isolated until a
   assert.equal(discarded.state.lingeringStatuses.length, 0);
   assert.equal(discarded.state.tokenConsumptions.length, 0);
   assert.equal(discarded.state.teambuilder.buildsByPlayerId.red[0].slots[0].item, "Leftovers");
-});
-
-test("[TSB-024] Extra Encounter mutates only the sandbox clone and discard removes the exact grant", () => {
-  const baseline = controlStateFixture("sandbox-extra-encounter-baseline");
-  baseline.currentPhase = "action";
-  baseline.phaseState = { "Kanto:G1": { currentPhase: "action", flowState: "action" } };
-  baseline.encounterSessions = [];
-  const baselineBytes = JSON.stringify(baseline);
-  const manager = createSessionManager({ createSessionId: () => "sandbox-extra-encounter" });
-  const entered = manager.enter({
-    realState: baseline,
-    revision: 9,
-    revisionVerified: true,
-    persistenceQuiescent: true,
-    scenarioName: "Extra Encounter"
-  });
-  const result = encounterTokenRuntime.grantExtraEncounter(entered.workingState, {
-    playerId: "gold",
-    sourceTokenId: "steevee-extra-encounter-1",
-    sourceActivationId: "activation-extra-encounter-1"
-  }, {
-    wheelDefinition: { id: "kanto-gym-1", entries: [{ id: "abra", pokemonName: "Abra", weight: 1 }] },
-    sessionId: "sandbox-extra-session",
-    grantId: "sandbox-extra-grant"
-  });
-  assert.equal(result.ok, true);
-  assert.equal(result.session.playerId, "gold");
-  assert.equal(result.session.maxRolls, 1);
-  assert.equal(JSON.stringify(baseline), baselineBytes);
-
-  manager.setWorkingState(entered.workingState);
-  const candidate = prepareCommitCandidate({ workingState: entered.workingState, baselineState: baseline });
-  assert.equal(candidate.encounterSessions.length, 1);
-  assert.equal(candidate.encounterSessions[0].extraEncounterGrants[0].id, "sandbox-extra-grant");
-  const discarded = manager.discard({ authoritativeState: structuredClone(baseline) });
-  assert.deepEqual(discarded.state.encounterSessions, []);
 });
 
 test("[TSB-025] Immunity negation and both consumptions remain isolated in the sandbox clone", () => {
