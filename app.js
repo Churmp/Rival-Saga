@@ -82,8 +82,6 @@ const CLIENT_LOCAL_STATE_KEYS = Object.freeze([
   "wheelDrawerOpen",
   "selectedWheelSessionId",
   "skipWheelAnimation",
-  "encounterModalOpen",
-  "selectedEncounterSessionId",
   "randomPokemonDrawerOpen",
   "selectedRandomPokemonSessionId",
   "opponentDrawer",
@@ -2547,9 +2545,6 @@ function createCleanInitialState() {
     selectedWheelSessionId: "",
     wheelDrawerOpen: false,
     skipWheelAnimation: false,
-    encounterSessions: [],
-    selectedEncounterSessionId: "",
-    encounterModalOpen: false,
     randomPokemonSessions: [],
     pokemonFamilyTierCache: {},
     pokemonSpriteVariants: {},
@@ -3809,10 +3804,7 @@ function tokenUseRollbackSnapshot() {
     previousTokenConsumptions: structuredClone(state.tokenConsumptions || []),
     previousPlayerNotifications: structuredClone(state.playerNotifications || []),
     previousWheelSessions: structuredClone(state.wheelSessions || []),
-    previousEncounterSessions: structuredClone(state.encounterSessions || []),
     previousRandomPokemonSessions: structuredClone(state.randomPokemonSessions || []),
-    previousSelectedEncounterSessionId: state.selectedEncounterSessionId || "",
-    previousEncounterModalOpen: Boolean(state.encounterModalOpen),
     previousInteractionEvents: structuredClone(state.interactionEvents || []),
     previousTransactions: structuredClone(state.transactions || []),
     previousGlobalPokemonRules: structuredClone(state.globalPokemonRules || {}),
@@ -4338,7 +4330,6 @@ function buildCausalTokenEffectUndo(snapshot, activity, metadata) {
     copiedActivations: causalIdCollectionDelta(snapshot.previousCopiedActivations, state.copiedActivations),
     copiedTokenRelationships: causalIdCollectionDelta(snapshot.previousCopiedTokenRelationships, state.copiedTokenRelationships),
     wheelSessions: causalIdCollectionDelta(snapshot.previousWheelSessions, state.wheelSessions),
-    encounterSessions: causalIdCollectionDelta(snapshot.previousEncounterSessions, state.encounterSessions),
     randomPokemonSessions: causalIdCollectionDelta(snapshot.previousRandomPokemonSessions, state.randomPokemonSessions),
     delayedEffects: causalIdCollectionDelta(snapshot.previousDelayedEffects, state.delayedEffects),
     broughtTeamSnapshots: causalIdCollectionDelta(snapshot.previousBroughtTeamSnapshots, state.broughtTeamSnapshots),
@@ -4363,7 +4354,7 @@ function mergeCausalTokenUndoData(base = {}, later = {}) {
   const merged = structuredClone(base || {});
   const collectionKeys = [
     "pokemonRecords", "statuses", "activations", "consumptions", "transactions", "notifications",
-    "effectOperations", "copiedActivations", "copiedTokenRelationships", "wheelSessions", "encounterSessions",
+    "effectOperations", "copiedActivations", "copiedTokenRelationships", "wheelSessions",
     "randomPokemonSessions", "delayedEffects", "broughtTeamSnapshots", "postPayoutProcedures",
     "encounterCopyRecords", "pokemonLog", "banlistHistory"
   ];
@@ -4470,7 +4461,6 @@ function restoreCausalTokenEffectUndoData(undoData) {
   state.copiedActivations = applyCausalIdCollectionUndo(state.copiedActivations, undoData.copiedActivations);
   state.copiedTokenRelationships = applyCausalIdCollectionUndo(state.copiedTokenRelationships, undoData.copiedTokenRelationships);
   state.wheelSessions = applyCausalIdCollectionUndo(state.wheelSessions, undoData.wheelSessions);
-  state.encounterSessions = applyCausalIdCollectionUndo(state.encounterSessions, undoData.encounterSessions);
   state.randomPokemonSessions = applyCausalIdCollectionUndo(state.randomPokemonSessions, undoData.randomPokemonSessions);
   state.delayedEffects = applyCausalIdCollectionUndo(state.delayedEffects, undoData.delayedEffects);
   state.broughtTeamSnapshots = applyCausalIdCollectionUndo(state.broughtTeamSnapshots, undoData.broughtTeamSnapshots);
@@ -5995,150 +5985,6 @@ const GAME_CORNER_TIERS = Object.freeze({
   greatball: { id: "great", label: "Great", tokenName: "Great GC Ticket", rank: 4 },
   ultraball: { id: "ultra", label: "Ultra", tokenName: "Ultra GC Ticket", rank: 5 },
   masterball: { id: "master", label: "Master", tokenName: "Master GC Ticket", rank: 6 }
-});
-
-function normalizeEncounterEntryId(name, index = 0) {
-  const base = normalizePokemonName(name)
-    .replace(/-sf$/i, "")
-    .replace(/^hyperspace-hole$/i, "hyperspace-hole");
-  return index ? `${base}-${index + 1}` : base;
-}
-
-function encounterEntry(name, index = 0) {
-  const raw = String(name || "").trim();
-  const isWater = /\s+SF$/i.test(raw);
-  const displayName = raw.replace(/\s+SF$/i, "").trim();
-  const id = normalizeEncounterEntryId(displayName, index);
-  const isHyperspace = normalizePokemonName(displayName) === "hyperspace-hole";
-  return {
-    id,
-    pokemonName: displayName,
-    displayName,
-    weight: 1,
-    category: isWater ? "fishing" : isHyperspace ? "special" : "land",
-    enabledByDefault: !isWater,
-    removable: true,
-    ...(isWater ? { notes: "Fishing / Surf encounter." } : {}),
-    ...(isHyperspace ? { specialWheelId: "hoenn-hyperspace-hole", notes: "Hoenn-only Hyperspace Hole sub-wheel." } : {})
-  };
-}
-
-function makeEncounterWheel(series, gym, names) {
-  const seen = new Map();
-  return {
-    id: `${String(series).toLowerCase()}-gym-${gym}`,
-    series,
-    gym,
-    name: `${series} Gym ${gym} Encounter Wheel`,
-    rollsPerAction: 2,
-    rerollable: true,
-    entries: names.map((name) => {
-      const key = normalizePokemonName(String(name).replace(/\s+SF$/i, "").trim());
-      const count = seen.get(key) || 0;
-      seen.set(key, count + 1);
-      return encounterEntry(name, count);
-    })
-  };
-}
-
-const starterWheelDefinitions = Object.freeze({
-  "hoenn-gym-1": {
-    id: "hoenn-starter-wheel",
-    series: "Hoenn",
-    gym: 1,
-    name: "Hoenn Starter Wheel",
-    timing: "Start of Gym 1 Phase",
-    trigger: "natural-event",
-    entries: ["Treecko", "Mudkip", "Torchic"].map((name) => encounterEntry(name))
-  }
-});
-
-const hyperspaceWheelDefinitions = Object.freeze({
-  "hoenn-hyperspace-hole": {
-    id: "hoenn-hyperspace-hole",
-    series: "Hoenn",
-    name: "Hoenn Hyperspace Hole Wheel",
-    entries: [
-      "Rayquaza", "Cresselia", "Uxie", "Mesprit", "Azelf", "Landorus", "Thundurus", "Tornadus",
-      "Tornadus T", "Landorus T", "Thundurus T", "Dialga", "Palkia", "Giratina", "Groudon",
-      "Kyogre", "Jirachi", "Deoxys", "Deoxys A", "Deoxys S", "Deoxys D", "Kyurem", "Reshiram",
-      "Zekrom", "Cobalion", "Terrakion", "Virizion", "Regirock", "Regice", "Registeel",
-      "Regigigas", "Entei", "Raikou", "Suicune", "Latias", "Latios", "Heatran", "Ho-Oh", "Lugia"
-    ].map((name) => encounterEntry(name))
-  }
-});
-
-const encounterWheelDefinitions = Object.freeze({
-  "kanto-gym-1": makeEncounterWheel("Kanto", 1, ["Pidgey", "Shinx", "Oddish", "Magikarp SF", "Tentacool SF"]),
-  "hoenn-gym-1": makeEncounterWheel("Hoenn", 1, [
-    "Chikorita", "Cyndaquil", "Totodile", "Wurmple", "Zigzagoon", "Poochyena", "Lillipup", "Zorua",
-    "Sewaddle", "Turtwig", "Chimchar", "Piplup", "Snivy", "Oshawott", "Tepig", "Wingull",
-    "Wailmer SF", "Carvanha SF", "Chatot", "Shellos", "Tentacool SF", "Magikarp SF", "Lotad",
-    "Seedot", "Ralts", "Surskit", "Gothita", "Tympole", "Marill", "Corphish SF", "Goldeen SF",
-    "Taillow", "Pidove", "Shroomish", "Slakoth", "Cottonee", "Paras", "Phantump", "Omanyte",
-    "Kabuto", "Aerodactyl", "Lileep", "Anorith", "Cranidos", "Shieldon", "Tirtouga", "Archen",
-    "Tyrunt", "Amaura", "Makuhita", "Whismur", "Nincada", "Skitty", "Hyperspace Hole", "Joltik",
-    "Eevee", "Abra", "Geodude"
-  ]),
-  "hoenn-gym-2": makeEncounterWheel("Hoenn", 2, [
-    "Tentacool SF", "Wingull SF", "Wailmer SF", "Magikarp SF", "Zubat", "Makuhita", "Geodude",
-    "Abra", "Timburr", "Axew", "Onix", "Aron", "Sableye", "Mawile", "Nosepass", "Electrike",
-    "Zigzagoon", "Gulpin", "Plusle", "Minun", "Oddish", "Hyperspace Hole", "Voltorb", "Trubbish",
-    "Chatot", "Shellos", "Magnemite", "Poochyena"
-  ]),
-  "hoenn-gym-3": makeEncounterWheel("Hoenn", 3, [
-    "Zigzagoon", "Roselia", "Marill", "Volbeat", "Illumise", "Oddish", "Surskit", "Rattata",
-    "Deerling", "Tympole SF", "Corphish SF", "Magikarp SF", "Goldeen SF", "Poochyena", "Seedot",
-    "Numel", "Machop", "Ponyta", "Throh", "Sawk", "Tyrogue", "Hyperspace Hole"
-  ]),
-  "hoenn-gym-4": makeEncounterWheel("Hoenn", 4, [
-    "Spinda", "Sandshrew", "Skarmory", "Scraggy", "Klefki", "Bouffalant", "Slugma", "Numel",
-    "Koffing", "Torkoal", "Grimer", "Roggenrola", "Diglett", "Tyrogue", "Swablu", "Lombre",
-    "Nuzleaf", "Zangoose", "Seviper", "Surskit", "Skorupi", "Misdreavus", "Tympole", "Swablu",
-    "Azumarill SF", "Barboach SF", "Magikarp SF", "Goldeen SF", "Geodude", "Zubat", "Lunatone",
-    "Solrock", "Deino", "Druddigon", "Clefairy", "Bagon", "Taillow", "Jigglypuff", "Wingull",
-    "Pidove", "Wailmer", "Tentacool", "Spoink", "Mankey", "Ponyta", "Wynaut", "Hyperspace Hole"
-  ]),
-  "hoenn-gym-5": makeEncounterWheel("Hoenn", 5, [
-    "Sandshrew", "Trapinch", "Cacnea", "Baltoy", "Sandile", "Dwebble", "Gible", "Marill",
-    "Surskit", "Barboach SF", "Magikarp SF", "Goldeen SF", "Geodude", "Frillish SF", "Skrelp SF",
-    "Clauncher SF", "Krabby SF", "Tentacool SF", "Wingull SF", "Wailmer SF", "Clamperl SF",
-    "Lanturn SF", "Relicanth SF", "Spiritomb", "Hyperspace Hole"
-  ]),
-  "hoenn-gym-6": makeEncounterWheel("Hoenn", 6, [
-    "Linoone", "Manectric", "Pelipper", "Kecleon", "Raticate", "Luxio", "Aipom", "Tentacool SF",
-    "Sharpedo SF", "Magikarp SF", "Goldeen SF", "Gloom", "Tropius", "Feebas SF", "Castform",
-    "Skitty", "Plusle", "Shuppet", "Duskull", "Marill SF", "Surskit SF", "Corphish SF",
-    "Mightyena", "Wailmer SF", "Hyperspace Hole"
-  ]),
-  "hoenn-gym-7": makeEncounterWheel("Hoenn", 7, [
-    "Oddish", "Marill", "Kecleon", "Linoone", "Tropius", "Absol", "Surskit", "Barboach SF",
-    "Magikarp SF", "Tentacool SF", "Goldeen SF", "Mightyena", "Seedot", "Golbat", "Shuppet",
-    "Pelipper", "Elgyem", "Hypno", "Aipom", "Duskull", "Wailmer SF", "Doduo", "Psyduck",
-    "Rhyhorn", "Kakuna", "Pidgeotto", "Buneary", "Heracross", "Donphan", "Pinsir", "Xatu",
-    "Wobbuffet", "Pikachu", "Girafarig", "Teddiursa", "Hoothoot", "Pineco", "Houndour",
-    "Miltank", "Ledyba", "Sunkern", "Shuckle", "Geodude", "Mareep", "Gligar", "Snubbull",
-    "Stantler", "Spinarak", "Quagsire SF", "Octillery SF", "Frillish SF", "Finneon SF",
-    "Alomomola SF", "Sharpedo SF", "Meditite", "Vulpix", "Bronzor", "Growlithe", "Chimecho",
-    "Staryu", "Electrode", "Torkoal", "Hyperspace Hole", "Lanturn SF", "Clamperl SF",
-    "Relicanth SF", "Beldum", "Seel", "Spheal", "Snorunt", "Cubchoo", "Delibird"
-  ]),
-  "hoenn-gym-8": makeEncounterWheel("Hoenn", 8, [
-    "Frillish SF", "Finneon SF", "Alomomola SF", "Tentacool SF", "Pelipper SF", "Wailmer SF",
-    "Magikarp SF", "Chinchou SF", "Clamperl SF", "Relicanth SF", "Sharpedo SF", "Luvdisc SF",
-    "Corsola SF", "Golbat", "Graveler", "Hyperspace Hole", "Horsea SF", "Claydol", "Ariados",
-    "Sableye", "Mawile", "Swablu", "Banette", "Dusclops"
-  ]),
-  "hoenn-gym-9": makeEncounterWheel("Hoenn", 9, [
-    "Tentacool SF", "Pelipper SF", "Luvdisc SF", "Wailmer SF", "Corsola SF", "Magikarp SF",
-    "Golbat SF", "Lairon", "Hariyama", "Loudred", "Sableye", "Mawile", "Medicham", "Barboach SF",
-    "Goldeen SF", "Mantine SF", "Remoraid SF", "Hyperspace Hole", "Tangela", "Glameow",
-    "Sunkern", "Minccino", "Venomoth", "Zebstrika", "Xatu", "Maractus", "Graveler", "Binacle",
-    "Persian", "Audino", "Munna", "Ditto", "Darmanitan", "Larvesta", "Porygon", "Forretress",
-    "Stantler", "Donphan", "Kricketune", "Rufflet", "Vullaby", "Vulpix", "Girafarig", "Magby",
-    "Elekid", "Crustle", "Happiny", "Klink", "Tynamo", "Boldore", "Excadrill", "Onix",
-    "Cofagrigus", "Slowpoke", "Unown", "Petilil", "Cherrim"
-  ])
 });
 
 const silphCoMovePool = Object.freeze((window.rivalSagaSilphCoMovePool || [
@@ -18766,12 +18612,6 @@ const els = {
   skipWheelAnimation: document.querySelector("#skipWheelAnimation"),
   closeWheelPanel: document.querySelector("#closeWheelPanel"),
   wheelHistory: document.querySelector("#wheelHistory"),
-  encounterTab: document.querySelector("#encounterTab"),
-  encounterOverlay: document.querySelector("#encounterOverlay"),
-  closeEncounterOverlay: document.querySelector("#closeEncounterOverlay"),
-  encounterSessionList: document.querySelector("#encounterSessionList"),
-  encounterTitle: document.querySelector("#encounterTitle"),
-  encounterBody: document.querySelector("#encounterBody"),
   randomPokemonColumn: document.querySelector("#randomPokemonColumn"),
   randomPokemonTab: document.querySelector("#randomPokemonTab"),
   randomPokemonPanel: document.querySelector("#randomPokemonPanel"),
@@ -22230,21 +22070,6 @@ function normalizeState(nextState) {
   nextState.selectedWheelSessionId ||= "";
   nextState.wheelDrawerOpen = Boolean(nextState.wheelDrawerOpen);
   nextState.skipWheelAnimation = Boolean(nextState.skipWheelAnimation);
-  nextState.encounterSessions ||= [];
-  nextState.encounterSessions.forEach((session) => {
-    session.status = ["pending", "review", "completed", "undone", "cancelled"].includes(session.status) ? session.status : "pending";
-    session.rolls ||= [];
-    session.removedEntryIds ||= [];
-    session.temporaryEntries ||= [];
-    session.weightOverrides ||= {};
-    session.weightEditing = Boolean(session.weightEditing);
-    session.resultSessionIds ||= [];
-    session.visualRotation = Number(session.visualRotation || 0);
-    session.isSpinning = false;
-    session.pendingEntryId = "";
-  });
-  nextState.selectedEncounterSessionId ||= "";
-  nextState.encounterModalOpen = Boolean(nextState.encounterModalOpen);
   nextState.randomPokemonSessions ||= [];
   nextState.pokemonFamilyTierCache ||= {};
   pokemonFamilyTierCache = nextState.pokemonFamilyTierCache;
@@ -34641,24 +34466,6 @@ function ensureActionPhaseGymState(series = state.series, gym = state.gym) {
       completedAt: operation.completedAt || "",
       completionReason: operation.completionReason || ""
     }));
-  gymState.actionOperations.forEach((operation) => {
-    if (operation.status !== "resolving" || operation.linkedFeatureType !== "encounter") return;
-    const encounterSession = (state.encounterSessions || []).find((session) => session.id === operation.linkedFeatureSessionId);
-    if (!encounterSessionReadyForAutomaticCompletion(encounterSession)) return;
-    const completedAt = encounterSession.completedAt || new Date().toISOString();
-    encounterSession.status = "completed";
-    encounterSession.completedAt = completedAt;
-    operation.status = "completed";
-    operation.completedAt = completedAt;
-    operation.completionReason = "encounter-results-obtained";
-    const visit = gymState.playerVisits?.[operation.playerId]?.find((entry) => entry.id === operation.visitId);
-    if (visit) visit.actionOperationStatus = "completed";
-    if (gymState.destinationCommit?.operationId === operation.id) {
-      gymState.destinationCommit.status = provisionalDeclarationRuntime.DESTINATION_STATES.COMPLETED;
-      gymState.destinationCommit.completedAt = completedAt;
-    }
-    actionPhaseStateRepairQueued = true;
-  });
   if (!gymState.actionOperations.some((operation) => operation.id === gymState.activeActionOperationId && operation.status === "resolving")) {
     gymState.activeActionOperationId = gymState.actionOperations.find((operation) => operation.status === "resolving")?.id || "";
   }
@@ -34819,7 +34626,6 @@ function linkedActionOperationSession(operation) {
   if (!operation?.linkedFeatureSessionId) return null;
   const collections = {
     wheel: state.wheelSessions,
-    encounter: state.encounterSessions,
     "silph-co": state.silphCoSessions,
     "bulletin-board": state.bulletinBoardSessions,
     breeder: null,
@@ -41217,92 +41023,8 @@ function pendingSilphCoSession(playerId = activePlayer().id) {
   return (state.silphCoSessions || []).find((session) => session.playerId === playerId && session.status === "pending-choice") || null;
 }
 
-function encounterWheelKey(series = state.series, gym = state.gym) {
-  return `${String(series || "").toLowerCase()}-gym-${Number(gym || 1)}`;
-}
-
-function encounterWheelDefinition(series = state.series, gym = state.gym) {
-  return encounterWheelDefinitions[encounterWheelKey(series, gym)] || null;
-}
-
-function pendingEncounterSessions() {
-  state.encounterSessions ||= [];
-  return state.encounterSessions.filter((session) => ["pending", "review"].includes(session.status));
-}
-
-function selectedEncounterSession() {
-  const pending = pendingEncounterSessions();
-  if (!pending.length) return null;
-  let session = pending.find((entry) => entry.id === state.selectedEncounterSessionId);
-  if (!session) {
-    session = pending[0];
-    state.selectedEncounterSessionId = session.id;
-  }
-  return session;
-}
-
-function encounterEntriesForSession(session) {
-  const definition = encounterWheelDefinition(session?.series, session?.gym);
-  if (!definition) return [];
-  const includeFishing = Boolean(session.includeFishing);
-  const includeSurf = Boolean(session.includeSurf);
-  const removed = new Set(session.removedEntryIds || []);
-  const baseEntries = (definition.entries || []).filter((entry) => {
-    if (removed.has(entry.id)) return false;
-    const category = String(entry.category || "land").toLowerCase();
-    if (category === "fishing" && !includeFishing) return false;
-    if (category === "surf" && !includeSurf) return false;
-    if (entry.enabledByDefault === false && !["fishing", "surf"].includes(category)) return false;
-    return currentPokemonRuleStatusByName(entry.pokemonName || entry.displayName) !== "Banned";
-  });
-  return [...baseEntries, ...(session.temporaryEntries || [])].map((entry) => ({
-    ...entry,
-    weight: Math.max(0, Number(session.weightOverrides?.[entry.id] ?? entry.weight ?? 1))
-  })).filter((entry) => Number(entry.weight) > 0);
-}
-
-function weightedEncounterEntry(entries) {
-  const totalWeight = entries.reduce((total, entry) => total + Number(entry.weight || 1), 0);
-  if (!entries.length || totalWeight <= 0) return null;
-  let roll = Math.random() * totalWeight;
-  for (const entry of entries) {
-    roll -= Number(entry.weight || 1);
-    if (roll <= 0) return entry;
-  }
-  return entries[entries.length - 1];
-}
-
-const ENCOUNTER_POINTER_ANGLE_DEGREES = 0;
-
 function normalizeAngle(angle) {
   return ((Number(angle || 0) % 360) + 360) % 360;
-}
-
-function buildEncounterWheelSegments(entries) {
-  const totalWeight = entries.reduce((total, entry) => total + Number(entry.weight || 1), 0) || 1;
-  let cursor = 0;
-  return entries.map((entry) => {
-    const span = (Number(entry.weight || 1) / totalWeight) * 360;
-    const segment = {
-      entryId: entry.id,
-      displayName: entry.displayName || entry.pokemonName || "Unknown",
-      startAngle: cursor,
-      endAngle: cursor + span,
-      weight: Number(entry.weight || 1),
-      category: entry.category || "land"
-    };
-    cursor += span;
-    return segment;
-  });
-}
-
-function getEncounterSegmentAtPointer(rotationAngle, segments) {
-  if (!segments?.length) return null;
-  const angleUnderPointer = normalizeAngle(ENCOUNTER_POINTER_ANGLE_DEGREES - rotationAngle);
-  return segments.find((segment, index) => {
-    const end = index === segments.length - 1 ? 360.000001 : segment.endAngle;
-    return angleUnderPointer >= segment.startAngle && angleUnderPointer < end;
-  }) || segments[segments.length - 1];
 }
 
 function rotationFromTransform(transform) {
@@ -41310,86 +41032,6 @@ function rotationFromTransform(transform) {
   const values = transform.match(/matrix\(([^)]+)\)/)?.[1]?.split(",").map((value) => Number(value.trim()));
   if (!values || values.length < 2) return 0;
   return Math.atan2(values[1], values[0]) * (180 / Math.PI);
-}
-
-function updateEncounterLivePointerDisplay({ root = els.encounterOverlay, status = "Passing", finalName = "", finalMeta = "" } = {}) {
-  const display = root?.querySelector("[data-encounter-live-display]");
-  const wheelDisc = root?.querySelector(".encounter-wheel-visual .wheel-disc");
-  if (!display) return null;
-  const segments = JSON.parse(display.dataset.segments || "[]");
-  let segment = null;
-  if (finalName) {
-    segment = segments.find((entry) => entry.entryId === display.dataset.finalEntryId) || null;
-  } else {
-    if (!wheelDisc) return null;
-    segment = getEncounterSegmentAtPointer(rotationFromTransform(getComputedStyle(wheelDisc).transform), segments);
-  }
-  const name = finalName || segment?.displayName || "Ready";
-  const meta = finalMeta || (segment ? `${segment.category || "land"} / W${segment.weight || 1}` : "");
-  display.innerHTML = `
-    <span>${escapeHtml(status)}</span>
-    <strong>${escapeHtml(name)}</strong>
-    ${meta ? `<em>${escapeHtml(meta)}</em>` : ""}
-  `;
-  root?.querySelectorAll(".encounter-entry.pointer-active").forEach((entry) => entry.classList.remove("pointer-active"));
-  const activeEntryId = finalName ? display.dataset.finalEntryId : segment?.entryId;
-  if (activeEntryId) root?.querySelector(`[data-encounter-entry-id="${CSS.escape(activeEntryId)}"]`)?.classList.add("pointer-active");
-  return segment;
-}
-
-function animateEncounterLivePointer(root, duration = 5200) {
-  const start = performance.now();
-  function tick(now) {
-    if (!root?.isConnected) return;
-    updateEncounterLivePointerDisplay({ root, status: "Passing" });
-    if (now - start < duration) requestAnimationFrame(tick);
-  }
-  requestAnimationFrame(tick);
-}
-
-function resolveEncounterSpecialResult(entry) {
-  if (!entry?.specialWheelId) return { result: entry, special: null };
-  const subWheel = hyperspaceWheelDefinitions[entry.specialWheelId];
-  const subResult = subWheel ? weightedEncounterEntry(subWheel.entries || []) : null;
-  if (!subResult) return { result: entry, special: null };
-  return {
-    result: {
-      ...subResult,
-      category: "hyperspace",
-      sourceSpecialEntryId: entry.id,
-      sourceSpecialName: entry.displayName || entry.pokemonName,
-      specialWheelId: entry.specialWheelId,
-      specialWheelName: subWheel.name
-    },
-    special: {
-      triggerEntryId: entry.id,
-      triggerName: entry.displayName || entry.pokemonName,
-      wheelId: subWheel.id,
-      wheelName: subWheel.name,
-      resultEntryId: subResult.id,
-      resultName: subResult.displayName || subResult.pokemonName
-    }
-  };
-}
-
-function encounterEntryCenterDegrees(entries, entryId) {
-  const totalWeight = entries.reduce((total, entry) => total + Number(entry.weight || 1), 0) || 1;
-  let cursor = 0;
-  for (const entry of entries) {
-    const span = (Number(entry.weight || 1) / totalWeight) * 360;
-    if (entry.id === entryId) return cursor + (span / 2);
-    cursor += span;
-  }
-  return 0;
-}
-
-function nextEncounterLandingRotation(session, entries, entryId) {
-  const current = Number(session.visualRotation || 0);
-  const currentTurn = ((current % 360) + 360) % 360;
-  const targetTurn = (360 - encounterEntryCenterDegrees(entries, entryId)) % 360;
-  let delta = targetTurn - currentTurn;
-  if (delta < 0) delta += 360;
-  return current + 2160 + delta;
 }
 
 function isRerollToken(item) {
@@ -41400,14 +41042,6 @@ function isRerollToken(item) {
 
 function playerRerollTokenIndex(player) {
   return (player.inventory || []).findIndex(isRerollToken);
-}
-
-function encounterRollFreeRerollReason(player, roll) {
-  const pokemonName = roll?.resultDisplayName || roll?.resultPokemonName || "";
-  if (!pokemonName) return "";
-  if (currentPokemonRuleStatusByName(pokemonName) === "Banned") return "Banned Pokemon";
-  if (playerHasPokemonFamily(player.id, pokemonName)) return "Evolution line already owned";
-  return "";
 }
 
 function rerollOperationForSource(sourceEffectId = "") {
@@ -41455,26 +41089,6 @@ function pendingRerollTargets() {
         meta: `${session.series || state.series} Gym ${session.gym || state.gym}`
       });
     });
-  (state.encounterSessions || [])
-    .filter((session) => ["pending", "review"].includes(session.status))
-    .forEach((session) => {
-      const owner = state.players.find((player) => player.id === session.playerId);
-      (session.rolls || [])
-        .filter((roll) => !roll.rosterPokemonId)
-        .forEach((roll) => {
-          targets.push({
-            id: `encounter-roll:${session.id}:${roll.id}`,
-            kind: "encounter-roll",
-            targetResultId: roll.id,
-            encounterSessionId: session.id,
-            ownerPlayerId: session.playerId,
-            ownerName: owner?.name || "Unknown",
-            sourceLabel: roll.specialEncounter ? "Encounter / Hyperspace" : "Encounter Wheel",
-            resultName: roll.resultDisplayName || "Pending encounter",
-            meta: `${session.series || state.series} Gym ${session.gym || state.gym}`
-          });
-        });
-    });
   return targets;
 }
 
@@ -41519,16 +41133,6 @@ function renderRerollTargetModal() {
 async function rerollRandomPokemonResult({ targetResultId, actorPlayerId, mode = "result" }) {
   const actor = state.players.find((player) => player.id === actorPlayerId);
   if (!actor) return;
-  if (String(targetResultId || "").startsWith("encounter-roll:")) {
-    const [, sessionId, rollId] = targetResultId.split(":");
-    const session = (state.encounterSessions || []).find((entry) => entry.id === sessionId);
-    const roll = (session?.rolls || []).find((entry) => entry.id === rollId);
-    const effectiveMode = mode === "result" && roll?.specialEncounter && session?.playerId && session.playerId !== actor.id
-      ? "encounter"
-      : mode;
-    await rerollEncounterRoll(sessionId, rollId, { actorPlayerId: actor.id, mode: effectiveMode });
-    return;
-  }
   const randomSessionId = String(targetResultId || "").replace(/^random-pokemon:/, "");
   await rerollRandomPokemonSession(randomSessionId, { actorPlayerId: actor.id });
 }
@@ -41597,57 +41201,6 @@ async function createRandomPokemonSession({ sourceType, sourceLabel, player, tie
   return session;
 }
 
-async function createEncounterPokemonResultSession({ player, encounterSession, roll, result }) {
-  const session = {
-    id: `random-pokemon-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-    sourceType: "encounter",
-    sourceLabel: "Encounter Wheel",
-    playerId: player.id,
-    ownerPlayerId: player.id,
-    resultOwnerPlayerId: player.id,
-    series: encounterSession.series,
-    gym: Number(encounterSession.gym),
-    phase: "action",
-    encounterSessionId: encounterSession.id,
-    actionVisitId: encounterSession.actionVisitId,
-    encounterRollId: roll.id,
-    wheelId: encounterSession.wheelId,
-    tokenId: "",
-    tokenName: "",
-    tierId: getPokemonAcquisitionTier(result.displayName || result.pokemonName || "") || "",
-    status: "pending",
-    resultPokemonName: result.pokemonName || result.displayName,
-    resultDisplayName: result.displayName || result.pokemonName,
-    resultSprite: "",
-    chosenSpriteKey: "",
-    resultMetadata: structuredClone(result),
-    rerollable: true,
-    interactionLocked: false,
-    rerollCount: 0,
-    createdAt: new Date().toISOString(),
-    confirmedAt: null
-  };
-  state.randomPokemonSessions ||= [];
-  state.randomPokemonSessions.unshift(session);
-  encounterSession.resultSessionIds ||= [];
-  encounterSession.resultSessionIds.push(session.id);
-  roll.randomPokemonSessionId = session.id;
-  state.selectedRandomPokemonSessionId = session.id;
-  state.randomPokemonDrawerOpen = true;
-  createPokemonResultTimingWindow(session, player);
-  saveState();
-  render();
-  const sprite = await fetchStablePokemonSprite(session.resultDisplayName, session.chosenSpriteKey);
-  const latest = (state.randomPokemonSessions || []).find((entry) => entry.id === session.id);
-  if (latest && latest.status === "pending") {
-    latest.chosenSpriteKey = sprite.spriteKey || "";
-    latest.resultSprite = sprite.spriteUrl || "";
-    saveState();
-    renderRandomPokemonPanel();
-  }
-  return session;
-}
-
 function augmentHoneyCausalUndoAfterAcquisition(randomSession, causalBeforeAcquisition) {
   if (!randomSession?.copiedFromRandomPokemonSessionId || !causalBeforeAcquisition) return;
   const historyLog = (state.log || []).find((entry) => !entry.undone
@@ -41661,209 +41214,6 @@ function augmentHoneyCausalUndoAfterAcquisition(randomSession, causalBeforeAcqui
   historyLog.undoData = mergeCausalTokenUndoData(historyLog.undoData, later);
   historyLog.honeyAcquisitionCompleted = true;
   historyLog.acquiredPokemonId = randomSession.rosterPokemonId || "";
-}
-
-async function hydrateEncounterRollSprite(roll) {
-  if (!roll || roll.resultSprite) return roll;
-  const sprite = await fetchStablePokemonSprite(roll.resultDisplayName || roll.resultPokemonName, roll.chosenSpriteKey || "");
-  roll.chosenSpriteKey = sprite.spriteKey || roll.chosenSpriteKey || "";
-  roll.resultSprite = sprite.spriteUrl || roll.resultSprite || "";
-  return roll;
-}
-
-function encounterRollWasObtained(roll) {
-  return Boolean(roll?.rosterPokemonId || roll?.confirmedPokemonId);
-}
-
-function encounterSessionReadyForAutomaticCompletion(session) {
-  if (!session || ["completed", "cancelled", "undone"].includes(session.status)) return false;
-  const rolls = session.rolls || [];
-  return rolls.length >= Number(session.maxRolls || 2)
-    && rolls.every(encounterRollWasObtained);
-}
-
-function completeObtainedEncounterSession(session, completionReason = "encounter-results-obtained") {
-  if (!encounterSessionReadyForAutomaticCompletion(session)) return false;
-  session.status = "completed";
-  session.completedAt ||= new Date().toISOString();
-  (session.actionVisitIds || [session.actionVisitId]).filter(Boolean).forEach((visitId) => {
-    completeActionOperationForVisit(visitId, completionReason, session.series, session.gym);
-  });
-  const next = pendingEncounterSessions().find((entry) => entry.id !== session.id);
-  state.selectedEncounterSessionId = next?.id || "";
-  state.encounterModalOpen = Boolean(next);
-  return true;
-}
-
-async function addEncounterRollToRoster(sessionId, rollId, { skipPendingGuard = false } = {}) {
-  if (!skipPendingGuard && !guardPendingEventBeforeAction("Accept Encounter Result", () => addEncounterRollToRoster(sessionId, rollId, { skipPendingGuard: true }))) return;
-  const session = (state.encounterSessions || []).find((entry) => entry.id === sessionId);
-  const roll = (session?.rolls || []).find((entry) => entry.id === rollId);
-  if (!session || !roll || roll.rosterPokemonId) return;
-  const player = state.players.find((entry) => entry.id === session.playerId) || activePlayer();
-  await hydrateEncounterRollSprite(roll);
-  await ensurePokemonBuildDataLoaded({ renderOnLoad: false });
-  const acquisition = resolvePokemonAcquisitionSpecies(roll.resultDisplayName || roll.resultPokemonName);
-  const receivedSprite = acquisition.receivedSpecies && teambuilderDataKey(acquisition.receivedSpecies) !== teambuilderDataKey(roll.resultDisplayName || roll.resultPokemonName)
-    ? await fetchStablePokemonSprite(acquisition.receivedSpecies)
-    : { spriteUrl: roll.resultSprite || "", spriteKey: roll.chosenSpriteKey || "" };
-  const pokemon = createPokemonRecord(player, roll.resultDisplayName || roll.resultPokemonName, "Encounter Wheel", {
-    rosterType: "Active",
-    receivedSpriteUrl: receivedSprite.spriteUrl || "",
-    receivedSpriteKey: receivedSprite.spriteKey || "",
-    sourceTier: getPokemonAcquisitionTier(roll.resultDisplayName || roll.resultPokemonName),
-    acquisitionTier: getPokemonAcquisitionTier(roll.resultDisplayName || roll.resultPokemonName),
-    gameCornerMetadata: getPokemonGameCornerMetadata(roll.resultDisplayName || roll.resultPokemonName)
-  });
-  roll.rosterPokemonId = pokemon.id;
-  roll.addedAt = new Date().toISOString();
-  updateEncounterActionLog(session, player, (entry) => {
-    appendLogCategory(entry, "pokemon");
-    appendUniqueLogValue(entry, "pokemonNames", roll.resultDisplayName);
-    appendGroupedLogDetail(entry, `Encounter caught: ${roll.resultDisplayName}.`);
-    entry.childEvents ||= [];
-    entry.childEvents.push({
-      type: "encounter-caught",
-      category: "pokemon",
-      pokemonName: roll.resultDisplayName,
-      pokemonId: pokemon.id,
-      encounterRollId: roll.id,
-      encounterSessionId: session.id,
-      actionVisitId: session.actionVisitId,
-      timestamp: roll.addedAt
-    });
-  });
-  completeObtainedEncounterSession(session);
-  saveState();
-  render();
-}
-
-async function rerollEncounterRoll(sessionId, rollId, options = {}) {
-  const session = (state.encounterSessions || []).find((entry) => entry.id === sessionId);
-  const roll = (session?.rolls || []).find((entry) => entry.id === rollId);
-  if (!session || !roll || roll.rosterPokemonId) return;
-  const player = state.players.find((entry) => entry.id === session.playerId) || activePlayer();
-  const actor = state.players.find((entry) => entry.id === (options.actorPlayerId || session.playerId)) || player;
-  if (!requirePrivatePrepAccess(actor, "reroll token")) return;
-  const rerollMode = options.mode || "result";
-  const freeRerollReason = actor.id === player.id ? encounterRollFreeRerollReason(player, roll) : "";
-  const tokenIndex = freeRerollReason ? -1 : playerRerollTokenIndex(actor);
-  if (!freeRerollReason && tokenIndex < 0) {
-    alert(`${actor.name} needs a Reroll Token.`);
-    return;
-  }
-  const exactToken = tokenIndex >= 0 ? actor.inventory[tokenIndex] : null;
-  const sourceEffectId = options.sourceEffectId || (exactToken ? `reroll:${exactToken.id}:${session.id}:${roll.id}` : "");
-  const duplicateOperation = rerollOperationForSource(sourceEffectId);
-  if (duplicateOperation) return duplicateOperation;
-  const shouldStayInSpecialWheel = rerollMode !== "encounter" && roll.specialEncounter?.wheelId;
-  const entries = shouldStayInSpecialWheel
-    ? (hyperspaceWheelDefinitions[roll.specialEncounter.wheelId]?.entries || [])
-    : encounterEntriesForSession(session);
-  if (!entries.length) {
-    alert("No Pokemon are available in this Encounter pool.");
-    return;
-  }
-  const currentKey = normalizePokemonName(roll.resultPokemonName || roll.resultDisplayName);
-  const next = randomSample(entries.filter((entry) => normalizePokemonName(entry.key || entry.pokemonName || entry.displayName) !== currentKey), 1)[0] || randomSample(entries, 1)[0];
-  if (!next) return;
-  const causalBeforeReroll = exactToken ? tokenUseRollbackSnapshot() : null;
-  const rerollToken = freeRerollReason ? null : actor.inventory.splice(tokenIndex, 1)[0];
-  const previousResult = {
-    resultPokemonName: roll.resultPokemonName,
-    resultDisplayName: roll.resultDisplayName,
-    resultSprite: roll.resultSprite || "",
-    chosenSpriteKey: roll.chosenSpriteKey || "",
-    entryId: roll.entryId,
-    visualEntryId: roll.visualEntryId || roll.entryId,
-    category: roll.category || "land",
-    weight: Number(roll.weight || 1),
-    specialEncounter: structuredClone(roll.specialEncounter || null)
-  };
-  const { result: resolvedNext, special: nextSpecial } = shouldStayInSpecialWheel
-    ? { result: next, special: { ...roll.specialEncounter, resultEntryId: next.id, resultName: next.displayName || next.pokemonName || next.key } }
-    : resolveEncounterSpecialResult(next);
-  const nextName = resolvedNext.displayName || resolvedNext.pokemonName || resolvedNext.key;
-  roll.rerollHistory ||= [];
-  const previousRevisionId = roll.resultRevisionId || `${roll.id}:original`;
-  const rerollRecordId = `encounter-reroll-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-  roll.rerollHistory.push({
-    id: rerollRecordId,
-    actorPlayerId: actor.id,
-    targetPlayerId: player.id,
-    targetResultId: roll.id,
-    token: rerollToken ? structuredClone(rerollToken) : null,
-    free: Boolean(freeRerollReason),
-    freeReason: freeRerollReason,
-    mode: rerollMode,
-    previousResult: { ...previousResult, resultRevisionId: previousRevisionId, status: "superseded" },
-    newResultPokemonName: resolvedNext.key || resolvedNext.pokemonName || resolvedNext.displayName,
-    newResultDisplayName: nextName,
-    usedAt: new Date().toISOString()
-  });
-  roll.entryId = resolvedNext.id;
-  roll.visualEntryId = nextSpecial?.triggerEntryId || next.id;
-  roll.resultPokemonName = resolvedNext.pokemonName || resolvedNext.displayName;
-  roll.resultDisplayName = nextName;
-  roll.category = resolvedNext.category || "land";
-  roll.weight = Number(resolvedNext.weight || 1);
-  roll.specialEncounter = nextSpecial;
-  roll.resultSprite = "";
-  roll.chosenSpriteKey = "";
-  roll.resultRevisionId = `${roll.id}:replacement:${rerollRecordId}`;
-  roll.supersedesResultRevisionId = previousRevisionId;
-  await hydrateEncounterRollSprite(roll);
-  if (rerollToken) {
-    addTokenConsumptionRecord({
-      player: actor, token: rerollToken, tokenName: rerollToken.name,
-      metadata: tokenEffectMetadataByName(rerollToken.name), linkedEventId: sourceEffectId, source: "encounter-result-reroll"
-    });
-    const operation = {
-      id: `effect-operation-${rerollRecordId}`,
-      operationType: "rerollEncounterResult", sourceEffectId, sourceTokenId: rerollToken.id,
-      targetResultId: roll.id, targetSessionId: session.id, resultKind: "encounter-roll",
-      previousResultRevisionId: previousRevisionId, replacementResultRevisionId: roll.resultRevisionId,
-      status: "completed", createdAt: new Date().toISOString()
-    };
-    state.effectOperations ||= [];
-    state.effectOperations.push(operation);
-    recordRerollTokenHistory({ snapshot: causalBeforeReroll, actor, token: rerollToken, sourceEffectId,
-      targetResultId: roll.id, targetPlayerId: player.id, previousName: previousResult.resultDisplayName,
-      nextName, resultKind: "encounter-roll" });
-  }
-  updateEncounterActionLog(session, player, (entry) => {
-    appendLogCategory(entry, "items");
-    appendLogCategory(entry, "pokemon");
-    appendUniqueLogValue(entry, "tags", "encounter-reroll");
-    if (rerollToken?.name) appendUniqueLogValue(entry, "tokenNames", rerollToken.name);
-    appendUniqueLogValue(entry, "playerIds", actor.id);
-    appendUniqueLogValue(entry, "pokemonNames", nextName);
-    const modeLabel = rerollMode === "encounter" ? "Encounter respin" : shouldStayInSpecialWheel ? "Hyperspace reroll" : "Encounter reroll";
-    appendGroupedLogDetail(entry, freeRerollReason
-      ? `${modeLabel} (${freeRerollReason}): ${previousResult.resultDisplayName} -> ${nextName}.`
-      : `${actor.name} used Reroll Token on ${player.name}'s ${modeLabel}: ${previousResult.resultDisplayName} -> ${nextName}.`);
-    entry.childEvents ||= [];
-    entry.childEvents.push({
-      type: "encounter-reroll",
-      category: "items",
-      tokenId: rerollToken?.id || "",
-      tokenName: rerollToken?.name || "",
-      actorPlayerId: actor.id,
-      targetPlayerId: player.id,
-      targetResultId: roll.id,
-      free: Boolean(freeRerollReason),
-      freeReason: freeRerollReason,
-      mode: rerollMode,
-      previousPokemon: previousResult.resultDisplayName,
-      newPokemon: nextName,
-      encounterRollId: roll.id,
-      encounterSessionId: session.id,
-      actionVisitId: session.actionVisitId,
-      timestamp: new Date().toISOString()
-    });
-  });
-  saveState();
-  renderEncounterOverlay();
 }
 
 function useGameCornerToken(tier) {
@@ -41946,35 +41296,6 @@ async function confirmRandomPokemonSession(sessionId = state.selectedRandomPokem
   randomSession.rosterPokemonId = pokemon.id;
   resolvePokemonResultTimingWindow(randomSession, "resolved");
   augmentHoneyCausalUndoAfterAcquisition(randomSession, honeyAcquisitionSnapshot);
-  if (randomSession.sourceType === "encounter") {
-    const encounterSession = (state.encounterSessions || []).find((entry) => entry.id === randomSession.encounterSessionId);
-    if (encounterSession) {
-      const roll = (encounterSession.rolls || []).find((entry) => entry.id === randomSession.encounterRollId);
-      if (roll) {
-        roll.confirmedPokemonId = pokemon.id;
-        roll.confirmedAt = randomSession.confirmedAt;
-      }
-      updateEncounterActionLog(encounterSession, player, (entry) => {
-        appendLogCategory(entry, "pokemon");
-        appendUniqueLogValue(entry, "pokemonNames", randomSession.resultDisplayName);
-        appendGroupedLogDetail(entry, `Caught ${randomSession.resultDisplayName}.`);
-        entry.childEvents ||= [];
-        entry.childEvents.push({
-          type: "encounter-caught",
-          category: "pokemon",
-          pokemonId: pokemon.id,
-          pokemonName: randomSession.resultDisplayName,
-          randomPokemonSessionId: randomSession.id,
-          encounterSessionId: encounterSession.id,
-          timestamp: randomSession.confirmedAt
-        });
-      });
-      completeObtainedEncounterSession(encounterSession);
-    }
-    saveState();
-    render();
-    return;
-  }
   if (randomSession.sourceType !== "game-corner-token" || !session || !token) {
     saveState();
     render();
@@ -42051,10 +41372,7 @@ async function rerollRandomPokemonSession(sessionId = state.selectedRandomPokemo
   const sourceEffectId = options.sourceEffectId || `reroll:${exactToken.id}:${randomSession.id}`;
   const duplicateOperation = rerollOperationForSource(sourceEffectId);
   if (duplicateOperation) return duplicateOperation;
-  const encounterSession = randomSession.sourceType === "encounter"
-    ? (state.encounterSessions || []).find((entry) => entry.id === randomSession.encounterSessionId)
-    : null;
-  const available = encounterSession ? encounterEntriesForSession(encounterSession) : availablePokemonForGameCornerTier(randomSession.tierId);
+  const available = availablePokemonForGameCornerTier(randomSession.tierId);
   if (!available.length) {
     alert("No Pokemon are available in this result pool.");
     return;
@@ -42091,7 +41409,7 @@ async function rerollRandomPokemonSession(sessionId = state.selectedRandomPokemo
   let savedRerollResponse = null;
   if (randomSession.interactionEventId) {
     const updatedActivity = addInteractionResponse(randomSession.interactionEventId, {
-      type: encounterSession ? "encounter-reroll" : "pokemon-reroll",
+      type: "pokemon-reroll",
       playerId: actor.id,
       tokenId: rerollToken.id,
       tokenName: rerollToken.name,
@@ -42148,31 +41466,6 @@ async function rerollRandomPokemonSession(sessionId = state.selectedRandomPokemo
       });
     }
   }
-  if (encounterSession) {
-    updateEncounterActionLog(encounterSession, player, (entry) => {
-      appendLogCategory(entry, "items");
-      appendLogCategory(entry, "pokemon");
-      appendUniqueLogValue(entry, "tags", "encounter-reroll");
-      appendUniqueLogValue(entry, "tokenNames", rerollToken.name);
-      appendUniqueLogValue(entry, "playerIds", actor.id);
-      appendGroupedLogDetail(entry, `${actor.name} used Reroll Token on ${player.name}'s Encounter result: ${previousResult.resultDisplayName} -> ${nextName}.`);
-      entry.childEvents ||= [];
-      entry.childEvents.push({
-        type: "encounter-reroll",
-        category: "items",
-        tokenId: rerollToken.id,
-        tokenName: rerollToken.name,
-        actorPlayerId: actor.id,
-        targetPlayerId: player.id,
-        targetResultId: randomSession.id,
-        previousPokemon: previousResult.resultDisplayName,
-        newPokemon: nextName,
-        randomPokemonSessionId: randomSession.id,
-        encounterSessionId: encounterSession.id,
-        timestamp: new Date().toISOString()
-      });
-    });
-  }
   saveState();
   renderRandomPokemonPanel();
   const sprite = await fetchStablePokemonSprite(nextName, randomSession.chosenSpriteKey);
@@ -42188,7 +41481,7 @@ async function rerollRandomPokemonSession(sessionId = state.selectedRandomPokemo
   const operation = {
     id: `effect-operation-${rerollRecord.id}`,
     operationType: "rerollEncounterResult", sourceEffectId, sourceTokenId: rerollToken.id,
-    targetResultId: randomSession.id, resultKind: encounterSession ? "encounter-result" : "wheel-result",
+    targetResultId: randomSession.id, resultKind: "wheel-result",
     previousResultRevisionId: previousRevisionId, replacementResultRevisionId: randomSession.resultRevisionId,
     status: "completed", createdAt: new Date().toISOString()
   };
@@ -42212,163 +41505,6 @@ function cancelRandomPokemonSession(sessionId = state.selectedRandomPokemonSessi
   state.randomPokemonDrawerOpen = Boolean(next);
   saveState();
   render();
-}
-
-function updateEncounterActionLog(session, player, updater = null) {
-  const entry = (state.log || []).find((logEntry) => logEntry.type === "encounter-action"
-    && (logEntry.encounterSessionId === session.id || logEntry.actionVisitId === session.actionVisitId));
-  if (!entry) return null;
-  entry.details ||= [];
-  entry.childEvents ||= [];
-  entry.categories ||= [];
-  entry.tags ||= [];
-  if (updater) updater(entry);
-  const rolls = session.rolls || [];
-  const caughtNames = rolls.map((roll) => {
-    const result = (state.randomPokemonSessions || []).find((randomSession) => randomSession.id === roll.randomPokemonSessionId);
-    return result?.status === "confirmed" ? result.resultDisplayName : "";
-  }).filter(Boolean);
-  const lines = [
-    "Spent 1 Action at Encounter",
-    `Rolled ${rolls.length}/${session.maxRolls || 2} Encounters`,
-    caughtNames.length ? `Caught ${caughtNames.join(", ")}` : "",
-    session.includeFishing ? "Fishing included" : "",
-    session.includeSurf ? "Surf included" : "",
-    (session.removedEntryIds || []).length ? `Removed ${(session.removedEntryIds || []).length} option${session.removedEntryIds.length === 1 ? "" : "s"}` : ""
-  ].filter(Boolean);
-  entry.summary = lines.join("\n");
-  entry.details = [
-    `Active pool: ${encounterEntriesForSession(session).map((entry) => entry.displayName || entry.pokemonName).join(", ") || "None"}`,
-    `Fishing included: ${session.includeFishing ? "Yes" : "No"}`,
-    `Surf included: ${session.includeSurf ? "Yes" : "No"}`,
-    ...(session.removedEntryIds || []).map((id) => `Removed: ${id}`),
-    ...rolls.map((roll, index) => `Roll ${index + 1}: ${roll.resultDisplayName}`)
-  ];
-  entry.quantity = rolls.length;
-  entry.playerIds = [player.id];
-  entry.encounterSessionId = session.id;
-  return entry;
-}
-
-function activeEncounterSessionForPlayer(playerId, series = state.series, gym = state.gym) {
-  return (state.encounterSessions || []).find((session) => session.playerId === playerId
-    && session.series === series
-    && Number(session.gym) === Number(gym)
-    && ["pending", "review"].includes(session.status));
-}
-
-function startEncounterSession({ skipConfirmCheck = false } = {}) {
-  const player = activePlayer();
-  const location = actionLocationById("encounter");
-  const definition = encounterWheelDefinition();
-  if (!definition) {
-    alert("No Encounter Wheel is defined for this Series/Gym yet.");
-    return false;
-  }
-  if (!skipConfirmCheck) {
-    const check = actionLocationCanConfirm(location, player.id, 1);
-    if (!check.ok) {
-      alert(check.reason);
-      return false;
-    }
-  }
-  const previousVisits = structuredClone(actionVisitsForPlayer(player.id));
-  const previousEncounterSessions = structuredClone(state.encounterSessions || []);
-  const previousRandomPokemonSessions = structuredClone(state.randomPokemonSessions || []);
-  const previousPokemonRecords = structuredClone(state.pokemonRecords || []);
-  const previousInventory = structuredClone(player.inventory || []);
-  const previousInteractionEventIds = (state.interactionEvents || []).map((activity) => activity.id).filter(Boolean);
-  const previousTransactionIds = (state.transactions || []).map((transaction) => transaction.id).filter(Boolean);
-  const visit = {
-    id: `action-visit-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-    playerId: player.id,
-    locationId: "encounter",
-    locationName: "Encounter",
-    serviceId: "encounter-wheel",
-    serviceLabel: "Open Encounter Wheel",
-    actionCost: 1,
-    series: state.series,
-    gym: Number(state.gym),
-    phase: currentPhase(),
-    createdAt: new Date().toISOString(),
-    placeholder: false
-  };
-  commitActionVisit(visit);
-  state.encounterSessions ||= [];
-  let session = activeEncounterSessionForPlayer(player.id);
-  const reusedSession = Boolean(session);
-  if (session) {
-    session.actionVisitIds ||= session.actionVisitId ? [session.actionVisitId] : [];
-    session.actionVisitIds.push(visit.id);
-    session.maxRolls = Number(session.maxRolls || 0) + Number(definition.rollsPerAction || 2);
-    if (session.status === "review") session.status = "pending";
-    session.updatedAt = new Date().toISOString();
-  } else {
-    session = {
-      id: `encounter-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-      playerId: player.id,
-      series: state.series,
-      gym: Number(state.gym),
-      phase: "action",
-      actionVisitId: visit.id,
-      actionVisitIds: [visit.id],
-      wheelId: definition.id,
-      maxRolls: Number(definition.rollsPerAction || 2),
-      includeFishing: false,
-      includeSurf: false,
-      removedEntryIds: [],
-      temporaryEntries: [],
-      weightOverrides: {},
-      resultSessionIds: [],
-      rolls: [],
-      status: "pending",
-      visualRotation: 0,
-      createdAt: new Date().toISOString()
-    };
-    state.encounterSessions.unshift(session);
-  }
-  linkActionOperation(visit.id, { featureType: "encounter", featureSessionId: session.id });
-  state.selectedEncounterSessionId = session.id;
-  state.encounterModalOpen = true;
-  addLogEntry({
-    action: "phase",
-    category: "action",
-    player: player.name,
-    item: `${player.name} took action at Encounter`,
-    title: `${player.name} took action at Encounter`,
-    summary: `Spent 1 Action at Encounter\nRolled ${(session.rolls || []).length}/${session.maxRolls || 2} Encounters`,
-    details: [reusedSession ? "Added 2 more rolls to existing Encounter session" : "Spent 1 Action at Encounter"],
-    type: "encounter-action",
-    categories: ["action", "pokemon"],
-    tags: ["encounter", "wheel"],
-    subtypes: ["Encounter"],
-    playerIds: [player.id],
-    actionVisitId: visit.id,
-    visitId: visit.id,
-    encounterSessionId: session.id,
-    combinedEncounterSession: reusedSession,
-    undoable: true,
-    undone: false,
-    undoData: {
-      actionType: "undoEncounterAction",
-      visitId: visit.id,
-      playerId: player.id,
-      locationId: "encounter",
-      encounterSessionId: session.id,
-      series: state.series,
-      gym: Number(state.gym),
-      previousVisits,
-      previousEncounterSessions,
-      previousRandomPokemonSessions,
-      previousPokemonRecords,
-      previousInventory,
-      previousInteractionEventIds,
-      previousTransactionIds
-    }
-  });
-  saveState();
-  render();
-  return true;
 }
 
 async function confirmActionVisit(serviceId = "", { skipPendingGuard = false } = {}) {
@@ -46419,280 +45555,6 @@ function renderRandomPokemonPanel() {
   `;
 }
 
-async function completeEncounterRoll(sessionId, entryId) {
-  const session = (state.encounterSessions || []).find((entry) => entry.id === sessionId);
-  if (!session || session.status !== "pending") return;
-  session.isSpinning = false;
-  session.pendingEntryId = "";
-  const player = state.players.find((entry) => entry.id === session.playerId) || activePlayer();
-  const entries = encounterEntriesForSession(session);
-  const visualResult = entries.find((entry) => entry.id === entryId) || weightedEncounterEntry(entries);
-  const { result, special } = resolveEncounterSpecialResult(visualResult);
-  if (!result || (session.rolls || []).length >= Number(session.maxRolls || 2)) return;
-  const roll = {
-    id: `encounter-roll-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-    encounterSessionId: session.id,
-    actionVisitId: session.actionVisitIds?.[Math.floor((session.rolls || []).length / Number(encounterWheelDefinition(session.series, session.gym)?.rollsPerAction || 2))] || session.actionVisitId,
-    playerId: player.id,
-    series: session.series,
-    gym: Number(session.gym),
-    entryId: result.id,
-    visualEntryId: visualResult?.id || result.id,
-    resultPokemonName: result.pokemonName || result.displayName,
-    resultDisplayName: result.displayName || result.pokemonName,
-    resultSprite: "",
-    chosenSpriteKey: "",
-    category: result.category || "land",
-    weight: Number(result.weight || 1),
-    specialEncounter: special,
-    timestamp: new Date().toISOString()
-  };
-  await hydrateEncounterRollSprite(roll);
-  session.rolls ||= [];
-  session.rolls.push(roll);
-  updateEncounterActionLog(session, player, (entry) => {
-    appendLogCategory(entry, "wheel");
-    appendUniqueLogValue(entry, "tags", "encounter-roll");
-    appendUniqueLogValue(entry, "pokemonNames", roll.resultDisplayName);
-    entry.childEvents ||= [];
-    entry.childEvents.push({
-      type: "encounter-roll",
-      category: "wheel",
-      result: roll.resultDisplayName,
-      specialEncounter: special,
-      encounterRollId: roll.id,
-      encounterSessionId: session.id,
-      actionVisitId: session.actionVisitId,
-      timestamp: roll.timestamp
-    });
-    if (special) appendGroupedLogDetail(entry, `${special.triggerName} opened ${special.wheelName}: ${special.resultName}.`);
-  });
-  if (session.rolls.length >= Number(session.maxRolls || 2)) {
-    session.status = "review";
-    session.completedAt = new Date().toISOString();
-  }
-  saveState();
-  render();
-}
-
-function spinEncounterWheel(sessionId = state.selectedEncounterSessionId) {
-  const session = (state.encounterSessions || []).find((entry) => entry.id === sessionId);
-  if (!session || session.status !== "pending" || session.isSpinning) return;
-  if ((session.rolls || []).length >= Number(session.maxRolls || 2)) return;
-  const entries = encounterEntriesForSession(session);
-  if (!entries.length) {
-    alert("No valid Pokemon are available on this Encounter Wheel. Banned Pokemon are excluded.");
-    return;
-  }
-  const result = weightedEncounterEntry(entries);
-  if (!result) return;
-  session.pendingEntryId = result.id;
-  const nextRotation = nextEncounterLandingRotation(session, entries, result.id);
-  session.visualRotation = nextRotation;
-  if (state.skipWheelAnimation) {
-    completeEncounterRoll(session.id, result.id);
-    return;
-  }
-  session.isSpinning = true;
-  saveState();
-  const wheelVisual = els.encounterOverlay?.querySelector(".encounter-wheel-visual");
-  const wheelDisc = wheelVisual?.querySelector(".wheel-disc");
-  const latestResult = els.encounterOverlay?.querySelector(".wheel-latest-result");
-  const rollButton = els.encounterOverlay?.querySelector(`[data-encounter-roll="${session.id}"]`);
-  const liveDisplay = els.encounterOverlay?.querySelector("[data-encounter-live-display]");
-  if (liveDisplay) liveDisplay.dataset.finalEntryId = result.id;
-  if (wheelVisual && wheelDisc) {
-    wheelVisual.classList.add("spinning");
-    wheelDisc.getBoundingClientRect();
-    wheelDisc.style.setProperty("--wheel-rotation", `${Number(nextRotation || 0)}deg`);
-    animateEncounterLivePointer(els.encounterOverlay, 5200);
-  } else {
-    renderEncounterOverlay();
-  }
-  if (latestResult) {
-    latestResult.innerHTML = "<span>Passing</span><strong>Spinning...</strong>";
-  }
-  if (rollButton) {
-    rollButton.disabled = true;
-    rollButton.textContent = "Spinning...";
-  }
-  window.setTimeout(() => completeEncounterRoll(session.id, result.id), 5200);
-}
-
-function closeEncounterSession(sessionId = state.selectedEncounterSessionId, { skipPendingGuard = false } = {}) {
-  if (!skipPendingGuard && !guardPendingEventBeforeAction("Close Encounter Session", () => closeEncounterSession(sessionId, { skipPendingGuard: true }))) return;
-  const session = (state.encounterSessions || []).find((entry) => entry.id === sessionId);
-  if (!session) return;
-  const unaddedRolls = (session.rolls || []).filter((roll) => !encounterRollWasObtained(roll));
-  if (unaddedRolls.length) {
-    alert("Add every Encounter result to the party before closing this Encounter session.");
-    state.encounterModalOpen = true;
-    state.selectedEncounterSessionId = session.id;
-    saveState();
-    renderEncounterOverlay();
-    return;
-  }
-  if (session.status === "pending" && (session.rolls || []).length < Number(session.maxRolls || 2)
-    && !confirm(`Finish this Encounter session with ${(session.rolls || []).length}/${session.maxRolls || 2} rolls used?`)) return;
-  session.status = "completed";
-  session.completedAt ||= new Date().toISOString();
-  (session.actionVisitIds || [session.actionVisitId]).filter(Boolean).forEach((visitId) => {
-    completeActionOperationForVisit(visitId, "encounter-session-closed");
-  });
-  const next = pendingEncounterSessions().find((entry) => entry.id !== session.id);
-  state.selectedEncounterSessionId = next?.id || "";
-  state.encounterModalOpen = Boolean(next);
-  saveState();
-  render();
-}
-
-function renderEncounterOverlay() {
-  const pending = pendingEncounterSessions();
-  if (!pending.length) state.encounterModalOpen = false;
-  if (!els.encounterTab || !els.encounterOverlay || !els.encounterBody) return;
-  els.encounterTab.classList.toggle("hidden", !pending.length);
-  els.encounterTab.textContent = pending.length ? `Encounter (${pending.length})` : "Encounter";
-  const isOpen = Boolean(pending.length && state.encounterModalOpen);
-  els.encounterOverlay.classList.toggle("hidden", !isOpen);
-  els.encounterTab.setAttribute("aria-expanded", String(isOpen));
-  const session = selectedEncounterSession();
-  if (!pending.length || !session) {
-    els.encounterSessionList.innerHTML = "";
-    els.encounterBody.innerHTML = "";
-    return;
-  }
-  const definition = encounterWheelDefinition(session.series, session.gym);
-  const player = state.players.find((entry) => entry.id === session.playerId) || activePlayer();
-  const entries = encounterEntriesForSession(session);
-  const removedEntries = (definition?.entries || []).filter((entry) => (session.removedEntryIds || []).includes(entry.id));
-  const max = Number(session.maxRolls || definition?.rollsPerAction || 2);
-  const rolls = session.rolls || [];
-  const isSpinning = Boolean(session.isSpinning);
-  const weightEditing = Boolean(session.weightEditing);
-  const rerollTokenCount = (player.inventory || []).filter(isRerollToken).length;
-  const rollFreeRerollReasons = Object.fromEntries(rolls.map((roll) => [roll.id, encounterRollFreeRerollReason(player, roll)]));
-  els.encounterTitle.textContent = definition?.name || "Encounter Wheel";
-  els.encounterSessionList.replaceChildren(...pending.map((entry) => {
-    const entryPlayer = state.players.find((candidate) => candidate.id === entry.playerId);
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = `wheel-session-card${entry.id === session.id ? " active" : ""}`;
-    button.dataset.encounterSession = entry.id;
-    button.innerHTML = `
-      <strong>${escapeHtml(encounterWheelDefinition(entry.series, entry.gym)?.name || "Encounter Wheel")}</strong>
-      <span>${escapeHtml(entryPlayer?.name || "Unknown")} - ${entry.series} G${entry.gym}</span>
-      <em>${(entry.rolls || []).length}/${entry.maxRolls || 2} rolls</em>
-    `;
-    return button;
-  }));
-  const totalWeight = entries.reduce((total, entry) => total + Number(entry.weight || 1), 0) || 1;
-  const colors = ["#7cc6fe", "#98d973", "#f7c948", "#ff8a65", "#c6a4ff", "#80cbc4", "#f06292", "#ffd166"];
-  let cursor = 0;
-  const segments = buildEncounterWheelSegments(entries);
-  const finalRoll = rolls[rolls.length - 1];
-  const finalEntryId = finalRoll?.visualEntryId || finalRoll?.entryId || "";
-  const finalMeta = finalRoll
-    ? finalRoll.specialEncounter
-      ? `${finalRoll.specialEncounter.triggerName} -> ${finalRoll.specialEncounter.wheelName}`
-      : `${finalRoll.category || "land"} / W${Number(finalRoll.weight || 1)}`
-    : "";
-  const visualEntries = entries.map((entry, index) => {
-    const start = cursor;
-    const percent = Number(entry.weight || 1) / totalWeight * 100;
-    cursor += percent;
-    return { ...entry, color: colors[index % colors.length], start, end: cursor, midpoint: start + percent / 2 };
-  });
-  const gradientStops = visualEntries.map((entry) => `${entry.color} ${entry.start}% ${entry.end}%`).join(", ");
-  const canRoll = session.status === "pending" && !isSpinning && rolls.length < max && entries.length > 0;
-  els.encounterBody.innerHTML = `
-    <div class="encounter-layout">
-      <section class="encounter-wheel-section">
-        <div class="wheel-visual encounter-wheel-visual${isSpinning ? " spinning" : ""}" style="--wheel-gradient:conic-gradient(${gradientStops})">
-          <div class="wheel-pointer"></div>
-          <div class="wheel-disc" style="--wheel-rotation:${Number(session.visualRotation || 0)}deg">
-            <div class="wheel-face encounter-wheel-face" aria-hidden="true"></div>
-          </div>
-          <div class="wheel-hub"></div>
-        </div>
-        <div class="wheel-latest-result encounter-live-result" data-encounter-live-display data-segments="${escapeHtml(JSON.stringify(segments))}" data-final-entry-id="${escapeHtml(finalEntryId)}">
-          <span>${isSpinning ? "Passing" : rolls.length ? "Result" : "Ready"}</span>
-          <strong>${isSpinning ? "Spinning..." : rolls.length ? escapeHtml(finalRoll.resultDisplayName) : "Ready"}</strong>
-          ${!isSpinning && finalMeta ? `<em>${escapeHtml(finalMeta)}</em>` : ""}
-        </div>
-        <div class="split-actions">
-          <button class="buy-button" type="button" data-encounter-roll="${escapeHtml(session.id)}"${canRoll ? "" : " disabled"}>${isSpinning ? "Spinning..." : rolls.length >= max ? "All Rolls Used" : "Roll Encounter"}</button>
-          <button class="ghost-button" type="button" data-encounter-done="${escapeHtml(session.id)}">Done</button>
-        </div>
-        <label class="wheel-skip-toggle encounter-skip-toggle">
-          <input type="checkbox" data-encounter-skip-animation ${state.skipWheelAnimation ? "checked" : ""}>
-          Skip Animation
-        </label>
-        <h3>Results</h3>
-        <div class="encounter-result-list">
-          ${rolls.length ? rolls.map((roll, index) => `
-            <article class="encounter-result-card">
-              <div class="encounter-result-art">${roll.resultSprite ? `<img src="${escapeHtml(roll.resultSprite)}" alt="${escapeHtml(roll.resultDisplayName)}">` : `<span>${escapeHtml((roll.resultDisplayName || "?").slice(0, 1))}</span>`}</div>
-              <div>
-                <strong>#${index + 1}: ${escapeHtml(roll.resultDisplayName)}</strong>
-                <span>${roll.specialEncounter ? `${escapeHtml(roll.specialEncounter.triggerName)} -> ${escapeHtml(roll.specialEncounter.wheelName)}` : escapeHtml(roll.category || "land")} - ${escapeHtml(pokemonBattleTierSummary(roll.resultDisplayName || roll.resultPokemonName, "Unassigned"))}${roll.rerollHistory?.length ? ` - ${roll.rerollHistory.length} reroll${roll.rerollHistory.length === 1 ? "" : "s"}` : ""}</span>
-              </div>
-              <div class="encounter-result-actions">
-                ${roll.rosterPokemonId ? `<span class="encounter-result-added">Added</span>` : `
-                  <button class="buy-button mini-button" type="button" data-encounter-add="${escapeHtml(roll.id)}">Add</button>
-                  <button class="ghost-button mini-button" type="button" data-encounter-reroll="${escapeHtml(roll.id)}" data-encounter-reroll-mode="result"${rollFreeRerollReasons[roll.id] || rerollTokenCount ? "" : " disabled"} title="${roll.specialEncounter ? `Spend ${player.name}'s Reroll Token to reroll within the Hyperspace sub-wheel.` : rollFreeRerollReasons[roll.id] ? `Free reroll: ${escapeHtml(rollFreeRerollReasons[roll.id])}` : rerollTokenCount ? `Spend ${player.name}'s Reroll Token on this encounter result.` : `${player.name} needs a Reroll Token.`}">${roll.specialEncounter ? "Owner Reroll Hyperspace" : rollFreeRerollReasons[roll.id] ? "Free Reroll" : `Owner Reroll${rerollTokenCount ? ` (${rerollTokenCount})` : ""}`}</button>
-                  ${roll.specialEncounter ? `<button class="ghost-button mini-button danger-lite" type="button" data-encounter-reroll="${escapeHtml(roll.id)}" data-encounter-reroll-mode="encounter"${rollFreeRerollReasons[roll.id] || rerollTokenCount ? "" : " disabled"} title="${rollFreeRerollReasons[roll.id] ? `Free respin: ${escapeHtml(rollFreeRerollReasons[roll.id])}` : rerollTokenCount ? `Spend ${player.name}'s Reroll Token to respin the original Encounter Wheel result.` : `${player.name} needs a Reroll Token.`}">Owner Respin Encounter</button>` : ""}
-                `}
-              </div>
-            </article>
-          `).join("") : `<p class="empty-state compact">Encounter results will appear here.</p>`}
-        </div>
-      </section>
-      <section class="encounter-controls">
-        <div class="wheel-meta">
-          <div><span>Trainer</span><strong>${escapeHtml(player.name)}</strong></div>
-          <div><span>Rolls</span><strong>${rolls.length}/${max}</strong></div>
-          <div><span>Active Options</span><strong>${entries.length}</strong></div>
-          <div><span>Rerolls</span><strong>Allowed</strong></div>
-        </div>
-        <div class="encounter-toggle-row">
-          <label><input type="checkbox" data-encounter-toggle="water" ${session.includeFishing || session.includeSurf ? "checked" : ""}> Include Fishing / Surf</label>
-          <label><input type="checkbox" data-encounter-weight-editing ${weightEditing ? "checked" : ""}${rolls.length ? " disabled" : ""}> Edit Weights</label>
-        </div>
-        <p class="gc-rule-note">Fishing and Surf are grouped for now. Later this should come from items/effects.</p>
-        <h3>Active Wheel Options</h3>
-        <div class="encounter-entry-list">
-          ${entries.map((entry) => `
-            <article class="encounter-entry${entry.id === finalEntryId ? " pointer-active" : ""}" data-encounter-entry-id="${escapeHtml(entry.id)}">
-              <div>
-                <strong>${escapeHtml(entry.displayName || entry.pokemonName)}</strong>
-                <span>${escapeHtml(entry.category || "land")}</span>
-              </div>
-              ${weightEditing ? `
-                <label class="encounter-weight-control">
-                  Weight
-                  <input type="number" min="0" step="1" value="${Number(entry.weight || 1)}" data-encounter-weight="${escapeHtml(entry.id)}"${rolls.length ? " disabled" : ""}>
-                </label>
-              ` : `<span class="encounter-weight-badge">W ${Number(entry.weight || 1)}</span>`}
-              ${entry.removable === false ? "" : `<button class="ghost-button mini-button" type="button" data-encounter-remove="${escapeHtml(entry.id)}"${rolls.length ? " disabled" : ""}>Remove</button>`}
-            </article>
-          `).join("") || `<p class="empty-state compact">No active entries.</p>`}
-        </div>
-        ${removedEntries.length ? `
-          <h3>Removed</h3>
-          <div class="encounter-entry-list">
-            ${removedEntries.map((entry) => `
-              <article class="encounter-entry">
-                <div><strong>${escapeHtml(entry.displayName || entry.pokemonName)}</strong><span>${escapeHtml(entry.category || "land")}</span></div>
-                <button class="ghost-button mini-button" type="button" data-encounter-restore="${escapeHtml(entry.id)}"${rolls.length ? " disabled" : ""}>Restore</button>
-              </article>
-            `).join("")}
-          </div>
-        ` : ""}
-      </section>
-    </div>
-  `;
-}
-
 function renderWheelPanel() {
   const active = activeWheelVisit();
   const pending = pendingWheelSessions();
@@ -48020,7 +46882,6 @@ function prepareTokenSandboxCommitState(workingState, baseline, info) {
     "playerNotifications",
     "lingeringStatuses",
     "randomPokemonSessions",
-    "encounterSessions",
     "wheelSessions"
   ].forEach((key) => markSandboxCollectionChanges(candidate, baseline, key, origin));
   candidate.chronologyCounter = Number(candidate.chronologyCounter || 0) + 1;
@@ -49620,7 +48481,6 @@ function render() {
   renderLiveRefereePanel();
   renderOpponentDrawer();
   renderCart();
-  renderEncounterOverlay();
   renderWheelPanel();
   renderRandomPokemonPanel();
   renderSiteShell();
@@ -50040,9 +48900,8 @@ function honeyEligibleEncounterResults() {
   return (state.randomPokemonSessions || []).filter((session) => {
     if (session.sourceType !== "encounter" || session.status !== "confirmed") return false;
     if (session.copiedFromRandomPokemonSessionId || session.sourceLabel === "Honey copied Encounter") return false;
-    const parent = (state.encounterSessions || []).find((entry) => entry.id === session.encounterSessionId);
-    return String(session.series || parent?.series || state.series) === String(state.series)
-      && Number(session.gym || parent?.gym || state.gym) === Number(state.gym);
+    return String(session.series || state.series) === String(state.series)
+      && Number(session.gym || state.gym) === Number(state.gym);
   });
 }
 
@@ -60678,70 +59537,6 @@ function restoreGameCornerTokenInventorySnapshot(undoData, player) {
   player.inventory = [...previousGcTokens, ...currentNonGcInventory];
 }
 
-function undoEncounterActionVisit(undoData) {
-  const player = state.players.find((candidate) => candidate.id === undoData.playerId);
-  if (player && undoData.previousInventory) player.inventory = structuredClone(undoData.previousInventory);
-  const session = (state.encounterSessions || []).find((entry) => entry.id === undoData.encounterSessionId);
-  if (!session) {
-    if (undoData.previousEncounterSessions) state.encounterSessions = structuredClone(undoData.previousEncounterSessions);
-    if (undoData.previousRandomPokemonSessions) state.randomPokemonSessions = structuredClone(undoData.previousRandomPokemonSessions);
-    if (undoData.previousPokemonRecords) state.pokemonRecords = structuredClone(undoData.previousPokemonRecords).map(normalizePokemonRecord);
-    if (undoData.previousInteractionEvents) {
-      state.interactionEvents = structuredClone(undoData.previousInteractionEvents);
-    } else if (Array.isArray(undoData.previousInteractionEventIds)) {
-      const previousIds = new Set(undoData.previousInteractionEventIds);
-      state.interactionEvents = (state.interactionEvents || []).filter((activity) => previousIds.has(activity.id));
-    }
-    if (undoData.previousTransactions) {
-      state.transactions = structuredClone(undoData.previousTransactions);
-    } else if (Array.isArray(undoData.previousTransactionIds)) {
-      const previousIds = new Set(undoData.previousTransactionIds);
-      state.transactions = (state.transactions || []).filter((transaction) => previousIds.has(transaction.id));
-    }
-    syncLinkedTransactions();
-    syncPlayerPokemonLists();
-    return;
-  }
-  const definition = encounterWheelDefinition(session.series, session.gym);
-  const rollsPerAction = Number(definition?.rollsPerAction || 2);
-  const visitIds = session.actionVisitIds || (session.actionVisitId ? [session.actionVisitId] : []);
-  const visitIndex = Math.max(0, visitIds.indexOf(undoData.visitId));
-  let rollsToRemove = (session.rolls || []).filter((roll) => roll.actionVisitId === undoData.visitId);
-  if (!rollsToRemove.length || rollsToRemove.length > rollsPerAction) {
-    rollsToRemove = (session.rolls || []).slice(visitIndex * rollsPerAction, visitIndex * rollsPerAction + rollsPerAction);
-  }
-  const rollIds = new Set(rollsToRemove.map((roll) => roll.id));
-  const randomSessionIds = new Set(rollsToRemove.map((roll) => roll.randomPokemonSessionId).filter(Boolean));
-  const interactionIdsToRemove = new Set((state.interactionEvents || [])
-    .filter((activity) => randomSessionIds.has(activity.sourceId) || randomSessionIds.has(activity.payload?.randomPokemonSessionId))
-    .map((activity) => activity.id));
-  const pokemonIdsToRemove = new Set(rollsToRemove.map((roll) => roll.rosterPokemonId).filter(Boolean));
-  (state.randomPokemonSessions || []).forEach((randomSession) => {
-    if (randomSessionIds.has(randomSession.id) && randomSession.rosterPokemonId) pokemonIdsToRemove.add(randomSession.rosterPokemonId);
-  });
-  session.rolls = (session.rolls || []).filter((roll) => !rollIds.has(roll.id));
-  session.resultSessionIds = (session.resultSessionIds || []).filter((id) => !randomSessionIds.has(id));
-  session.actionVisitIds = visitIds.filter((id) => id !== undoData.visitId);
-  session.maxRolls = Math.max(0, Number(session.maxRolls || rollsPerAction) - rollsPerAction);
-  session.status = session.rolls.length >= Number(session.maxRolls || 0) ? "review" : "pending";
-  session.updatedAt = new Date().toISOString();
-  state.randomPokemonSessions = (state.randomPokemonSessions || []).filter((randomSession) => !randomSessionIds.has(randomSession.id));
-  state.interactionEvents = (state.interactionEvents || []).filter((activity) => !interactionIdsToRemove.has(activity.id));
-  state.transactions = (state.transactions || []).filter((transaction) => !interactionIdsToRemove.has(transaction.linkedEventId));
-  syncLinkedTransactions();
-  state.pokemonRecords = (state.pokemonRecords || []).filter((pokemon) => !pokemonIdsToRemove.has(pokemon.id));
-  if (!session.actionVisitIds.length && !(session.rolls || []).length) {
-    state.encounterSessions = (state.encounterSessions || []).filter((entry) => entry.id !== session.id);
-  } else if (player) {
-    updateEncounterActionLog(session, player);
-  }
-  if (state.selectedEncounterSessionId === undoData.encounterSessionId && !pendingEncounterSessions().some((entry) => entry.id === state.selectedEncounterSessionId)) {
-    state.selectedEncounterSessionId = "";
-    state.encounterModalOpen = false;
-  }
-  syncPlayerPokemonLists();
-}
-
 function restoreTokenEffectContractUndoData(undoData) {
   if (undoData.previousPlayers) state.players = structuredClone(undoData.previousPlayers);
   if (undoData.previousPokemonRecords) state.pokemonRecords = structuredClone(undoData.previousPokemonRecords).map(normalizePokemonRecord);
@@ -60751,14 +59546,7 @@ function restoreTokenEffectContractUndoData(undoData) {
   if (undoData.previousTokenConsumptions) state.tokenConsumptions = structuredClone(undoData.previousTokenConsumptions);
   if (undoData.previousPlayerNotifications) state.playerNotifications = structuredClone(undoData.previousPlayerNotifications);
   if (undoData.previousWheelSessions) state.wheelSessions = structuredClone(undoData.previousWheelSessions);
-  if (undoData.previousEncounterSessions) state.encounterSessions = structuredClone(undoData.previousEncounterSessions);
   if (undoData.previousRandomPokemonSessions) state.randomPokemonSessions = structuredClone(undoData.previousRandomPokemonSessions);
-  if (Object.prototype.hasOwnProperty.call(undoData, "previousSelectedEncounterSessionId")) {
-    state.selectedEncounterSessionId = undoData.previousSelectedEncounterSessionId || "";
-  }
-  if (Object.prototype.hasOwnProperty.call(undoData, "previousEncounterModalOpen")) {
-    state.encounterModalOpen = Boolean(undoData.previousEncounterModalOpen);
-  }
   if (undoData.previousInteractionEvents) state.interactionEvents = structuredClone(undoData.previousInteractionEvents).map((activity) => normalizeInteractionActivity(activity, state));
   if (undoData.previousTransactions) state.transactions = structuredClone(undoData.previousTransactions);
   if (undoData.previousGlobalPokemonRules) state.globalPokemonRules = structuredClone(undoData.previousGlobalPokemonRules);
@@ -60890,14 +59678,6 @@ function undoLogEntry(logId) {
     if (undoData.previousSilphCoSessions) state.silphCoSessions = structuredClone(undoData.previousSilphCoSessions);
     if (player && undoData.previousMoveAccessGrants) player.moveAccessGrants = structuredClone(undoData.previousMoveAccessGrants);
     syncPlayerPokemonLists();
-  } else if (undoData.actionType === "undoEncounterAction") {
-    const key = actionPhaseKey(undoData.series, undoData.gym);
-    state.actionPhaseState ||= { selections: {}, seriesTrackers: {} };
-    state.actionPhaseState.selections ||= {};
-    state.actionPhaseState.selections[key] ||= { series: undoData.series, gym: undoData.gym, playerVisits: {} };
-    state.actionPhaseState.selections[key].playerVisits[undoData.playerId] = (state.actionPhaseState.selections[key].playerVisits[undoData.playerId] || [])
-      .filter((visit) => visit.id !== undoData.visitId);
-    undoEncounterActionVisit(undoData);
   } else if (undoData.actionType === "undoActionVisit") {
     const key = actionPhaseKey(undoData.series, undoData.gym);
     state.actionPhaseState ||= { selections: {}, seriesTrackers: {} };
@@ -62733,11 +61513,6 @@ function bindEvents() {
         saveState();
         renderRandomPokemonPanel();
       }
-      if (state.encounterModalOpen) {
-        state.encounterModalOpen = false;
-        saveState();
-        renderEncounterOverlay();
-      }
       els.phaseAgendaPanel.classList.add("hidden");
       els.phaseAgendaToggle.setAttribute("aria-expanded", "false");
       els.actionDemoNotice?.classList.add("hidden");
@@ -63151,110 +61926,6 @@ function bindEvents() {
     state.randomPokemonDrawerOpen = !state.randomPokemonDrawerOpen;
     saveState();
     renderRandomPokemonPanel();
-  });
-  els.encounterTab?.addEventListener("click", () => {
-    state.encounterModalOpen = !state.encounterModalOpen;
-    saveState();
-    renderEncounterOverlay();
-  });
-  els.closeEncounterOverlay?.addEventListener("click", () => {
-    state.encounterModalOpen = false;
-    saveState();
-    renderEncounterOverlay();
-  });
-  els.encounterOverlay?.addEventListener("click", (event) => {
-    if (event.target === els.encounterOverlay) {
-      state.encounterModalOpen = false;
-      saveState();
-      renderEncounterOverlay();
-      return;
-    }
-    event.stopPropagation();
-    const sessionButton = event.target.closest("[data-encounter-session]");
-    if (sessionButton) {
-      state.selectedEncounterSessionId = sessionButton.dataset.encounterSession;
-      saveState();
-      renderEncounterOverlay();
-      return;
-    }
-    const rollButton = event.target.closest("[data-encounter-roll]");
-    if (rollButton && !rollButton.disabled) {
-      spinEncounterWheel(rollButton.dataset.encounterRoll);
-      return;
-    }
-    const doneButton = event.target.closest("[data-encounter-done]");
-    if (doneButton) {
-      closeEncounterSession(doneButton.dataset.encounterDone);
-      return;
-    }
-    const toggle = event.target.closest("[data-encounter-toggle]");
-    if (toggle) {
-      const session = selectedEncounterSession();
-      if (!session || (session.rolls || []).length) return;
-      if (toggle.dataset.encounterToggle === "water") {
-        session.includeFishing = toggle.checked;
-        session.includeSurf = toggle.checked;
-      }
-      saveState();
-      renderEncounterOverlay();
-      return;
-    }
-    const weightEditingToggle = event.target.closest("[data-encounter-weight-editing]");
-    if (weightEditingToggle) {
-      const session = selectedEncounterSession();
-      if (!session || (session.rolls || []).length) return;
-      session.weightEditing = weightEditingToggle.checked;
-      saveState();
-      renderEncounterOverlay();
-      return;
-    }
-    const skipAnimationToggle = event.target.closest("[data-encounter-skip-animation]");
-    if (skipAnimationToggle) {
-      state.skipWheelAnimation = skipAnimationToggle.checked;
-      saveState();
-      return;
-    }
-    const addEncounterButton = event.target.closest("[data-encounter-add]");
-    if (addEncounterButton) {
-      const session = selectedEncounterSession();
-      if (session) addEncounterRollToRoster(session.id, addEncounterButton.dataset.encounterAdd);
-      return;
-    }
-    const rerollEncounterButton = event.target.closest("[data-encounter-reroll]");
-    if (rerollEncounterButton && !rerollEncounterButton.disabled) {
-      const session = selectedEncounterSession();
-      if (session) rerollEncounterRoll(session.id, rerollEncounterButton.dataset.encounterReroll, {
-        mode: rerollEncounterButton.dataset.encounterRerollMode || "result"
-      });
-      return;
-    }
-    const removeButton = event.target.closest("[data-encounter-remove]");
-    if (removeButton) {
-      const session = selectedEncounterSession();
-      if (!session || (session.rolls || []).length) return;
-      session.removedEntryIds ||= [];
-      if (!session.removedEntryIds.includes(removeButton.dataset.encounterRemove)) session.removedEntryIds.push(removeButton.dataset.encounterRemove);
-      saveState();
-      renderEncounterOverlay();
-      return;
-    }
-    const restoreButton = event.target.closest("[data-encounter-restore]");
-    if (restoreButton) {
-      const session = selectedEncounterSession();
-      if (!session || (session.rolls || []).length) return;
-      session.removedEntryIds = (session.removedEntryIds || []).filter((id) => id !== restoreButton.dataset.encounterRestore);
-      saveState();
-      renderEncounterOverlay();
-    }
-  });
-  els.encounterOverlay?.addEventListener("input", (event) => {
-    const weightInput = event.target.closest("[data-encounter-weight]");
-    if (!weightInput) return;
-    const session = selectedEncounterSession();
-    if (!session || (session.rolls || []).length) return;
-    session.weightOverrides ||= {};
-    session.weightOverrides[weightInput.dataset.encounterWeight] = Math.max(0, Number(weightInput.value || 0));
-    saveState();
   });
   els.randomPokemonPanel.addEventListener("click", (event) => {
     event.stopPropagation();
