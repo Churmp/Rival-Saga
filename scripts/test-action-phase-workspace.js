@@ -68,14 +68,12 @@ test("root Action Workspace menu renders selectable cards for the supplied actio
   assert.doesNotMatch(rootMenu, /v2/);
 });
 
-test("V1 resolving operations reopen their workspace even if selection was cleared", () => {
+test("Action Phase delegates directly to the current Route workspace", () => {
   const renderBody = functionBody("renderActionPhase");
-  assert.match(renderBody, /const activeOperation = currentActionOperation\(\)/);
-  assert.match(renderBody, /const activeOperationLocation = activeOperation\?\.playerId === player\.id[\s\S]+actionLocationById\(activeOperation\.locationId\)/);
-  assert.match(renderBody, /const workspaceLocation = selectedLocation \|\| activeOperationLocation/);
-  assert.match(renderBody, /backLabel: workspaceIsResolvingOperation \? "Resolving" : "Actions"/);
-  assert.match(renderBody, /backDisabled: workspaceIsResolvingOperation/);
-  assert.match(renderBody, /activeOperation\.locationId === workspaceLocation\?\.id/);
+  assert.match(renderBody, /^\s*renderV2RouteActionPhase\(\);\s*$/);
+  assert.doesNotMatch(renderBody, /currentActionOperation\(\)/);
+  assert.doesNotMatch(renderBody, /renderActionWorkspaceRootMenu/);
+  assert.doesNotMatch(renderBody, /workspaceIsResolvingOperation/);
 });
 
 test("V2 Action Workspace root only exposes Route Encounter in this pass", () => {
