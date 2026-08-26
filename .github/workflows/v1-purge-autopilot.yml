@@ -1,0 +1,54 @@
+name: V1 Purge Autopilot
+
+on:
+  push:
+    branches:
+      - audit/purge-v1-runtime
+    paths:
+      - scripts/v1-purge-autopilot-command.txt
+
+permissions:
+  contents: write
+
+concurrency:
+  group: v1-purge-autopilot
+  cancel-in-progress: false
+
+jobs:
+  run-purge-stage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out purge branch
+        uses: actions/checkout@v4
+        with:
+          ref: audit/purge-v1-runtime
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Configure purge commit identity
+        run: |
+          git config user.name "Rival Saga Purge Bot"
+          git config user.email "actions@users.noreply.github.com"
+
+      - name: Run requested fail-closed purge stage
+        shell: bash
+        run: |
+          set -euo pipefail
+          STAGE="$(tr -d '\r\n' < scripts/v1-purge-autopilot-command.txt)"
+          case "$STAGE" in
+            scripts/v1-purge-stage*.js) ;;
+            *) echo "Refusing unexpected autopilot command: $STAGE" >&2; exit 1 ;;
+          esac
+          test -f "$STAGE"
+          echo "Running $STAGE"
+          node "$STAGE"
