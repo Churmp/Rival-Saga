@@ -8,14 +8,32 @@ const Module = require("module");
 const SCRIPT_PATH = path.join(__dirname, "v1-purge-stage9b-retire-encounter-contract-layer.js");
 let source = fs.readFileSync(SCRIPT_PATH, "utf8");
 
-const anchor = '  contract=removeFreezeProperty(contract,"reroll-token");\n  contract=removeFreezeProperty(contract,"honey-token");';
-const replacement = '  contract=removeFreezeProperty(contract,"reroll-token");\n  contract=removeFreezeProperty(contract,"extra-encounter-token");\n  contract=removeFreezeProperty(contract,"honey-token");';
-
-if (!source.includes(anchor)) {
+const verificationAnchor = '  contract=removeFreezeProperty(contract,"reroll-token");\n  contract=removeFreezeProperty(contract,"honey-token");';
+const verificationReplacement = '  contract=removeFreezeProperty(contract,"reroll-token");\n  contract=removeFreezeProperty(contract,"extra-encounter-token");\n  contract=removeFreezeProperty(contract,"honey-token");';
+if (!source.includes(verificationAnchor)) {
   console.error("Stage 9B fixed runner failed safely: expected verification cleanup anchor was not found.");
   process.exit(1);
 }
-source = source.replace(anchor, replacement);
+source = source.replace(verificationAnchor, verificationReplacement);
+
+const phaseAnchor = '  contract=removePhaseSetProperties(contract);';
+const phaseReplacement = `  contract=removePhaseSetProperties(contract);
+  {
+    const marker = '    "honey-token": {';
+    if (count(contract, marker) !== 1) throw new Error(\`Honey implementation override: expected one property, found \${count(contract, marker)}.\`);
+    const st = contract.indexOf(marker);
+    const op = contract.indexOf("{", st);
+    const en = braceEnd(contract, op);
+    let close = en;
+    if (contract[close] === ",") close += 1;
+    const r = lineRange(contract, st, close);
+    contract = contract.slice(0, r.s) + contract.slice(r.e);
+  }`;
+if (!source.includes(phaseAnchor)) {
+  console.error("Stage 9B fixed runner failed safely: expected phase-set cleanup anchor was not found.");
+  process.exit(1);
+}
+source = source.replace(phaseAnchor, phaseReplacement);
 
 const runner = new Module(SCRIPT_PATH, module);
 runner.filename = SCRIPT_PATH;
