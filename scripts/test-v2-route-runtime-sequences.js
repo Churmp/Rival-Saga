@@ -206,7 +206,7 @@ async function openRouteGame(marker) {
   const loaded = cdp.once("Page.loadEventFired", 60000);
   await cdp.send("Page.navigate", { url: `${server.baseUrl}/?view=game&game=${encodeURIComponent(gameId)}&page=actionPhase` }, 60000);
   await loaded;
-  await waitUntil(`typeof v2EnsureRouteSeriesState === "function" && state?.marker === ${JSON.stringify(marker)}`, 60000);
+  await waitUntil(`typeof state !== "undefined" && typeof v2EnsureRouteSeriesState === "function" && state.marker === ${JSON.stringify(marker)}`, 60000);
   return gameId;
 }
 
@@ -242,7 +242,7 @@ async function persistAndReload(gameId, marker) {
   const loaded = cdp.once("Page.loadEventFired", 60000);
   await cdp.send("Page.navigate", { url: clean.href }, 60000);
   await loaded;
-  await waitUntil(`typeof v2EnsureRouteSeriesState === "function" && state?.marker === ${JSON.stringify(marker)}`, 60000);
+  await waitUntil(`typeof state !== "undefined" && typeof v2EnsureRouteSeriesState === "function" && state.marker === ${JSON.stringify(marker)}`, 60000);
 }
 
 before(async () => {
