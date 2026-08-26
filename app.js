@@ -641,7 +641,7 @@ const activityResponseRules = Object.freeze({
   },
   "pokemon-result": {
     label: "Pokemon Result",
-    responseTypes: ["encounter-reroll", "steal-encounter"]
+    responseTypes: ["pokemon-reroll"]
   }
 });
 
@@ -652,24 +652,17 @@ const activityResponseDefinitions = Object.freeze({
     tokenNames: ["Immunity", "Emergency Immunity Token"],
     description: "Cancel a token, perk, or class effect targeting you."
   },
-  "encounter-reroll": {
-    id: "encounter-reroll",
-    label: "Reroll Encounter",
+  "pokemon-reroll": {
+    id: "pokemon-reroll",
+    label: "Reroll Pokemon Result",
     tokenNames: ["Reroll Token"],
-    description: "Future hook: force a Pokemon result to be rerolled."
+    description: "Reroll an eligible unresolved Pokemon result."
   },
-  "steal-encounter": {
-    id: "steal-encounter",
-    label: "Steal Encounter",
-    tokenNames: ["Quick Ball Token", "Steal"],
-    description: "Future hook: take a Pokemon result before it is claimed."
-  }
 });
 
 const TOKEN_TIMING_CATEGORIES = Object.freeze({
   CONTROL: "control",
   PROTECTION: "protection",
-  ENCOUNTER: "encounter",
   CURSE: "curse",
   MANUAL: "manual"
 });
@@ -692,7 +685,6 @@ const EFFECT_TARGET_CATEGORIES = Object.freeze({
   POKEMON: "pokemon",
   TEAM: "team",
   PARTY_ROSTER: "partyRoster",
-  ENCOUNTER_RESULT: "encounterResult",
   TOKEN: "token",
   ITEM: "item",
   TM: "tm",
@@ -710,7 +702,6 @@ const EFFECT_TARGET_TYPES = Object.freeze({
   POKEMON: "pokemon",
   PLAYER: "player",
   TEAM: "team",
-  ENCOUNTER_RESULT: "encounterResult",
   RESOURCE: "resource",
   TABLE: "table",
   MANUAL: "manual"
@@ -763,7 +754,6 @@ const TOKEN_CONSUMPTION_MODES = Object.freeze({
 const TOKEN_USE_TYPES = Object.freeze({
   ACTIVATION: "activation",
   RESPONSE: "response",
-  ENCOUNTER_MODIFIER: "encounterModifier"
 });
 
 const TOKEN_OBJECT_TYPES = Object.freeze({
@@ -820,11 +810,9 @@ const TOKEN_RESOLUTION_PAYLOADS = Object.freeze({
 });
 
 const TOKEN_PENDING_EVENT_TYPES = Object.freeze({
-  ENCOUNTER_RESULT: "encounterResult",
   CONTROL_TOKEN: "controlToken",
   PROTECTION_RESPONSE: "protectionResponse",
   CURSE_TOKEN: "curseToken",
-  ENCOUNTER_TOKEN: "encounterToken",
   CLASS_EFFECT: "classEffect",
   MANUAL_EVENT: "manualEvent",
   TRANSACTION_ONLY: "transactionOnly",
@@ -852,15 +840,6 @@ const TOKEN_TIMING_DEFAULTS = Object.freeze({
     transactionsAllowed: true,
     responseRole: "protection",
     livePromptType: TOKEN_PENDING_EVENT_TYPES.PROTECTION_RESPONSE
-  }),
-  [TOKEN_TIMING_CATEGORIES.ENCOUNTER]: Object.freeze({
-    timingCategory: TOKEN_TIMING_CATEGORIES.ENCOUNTER,
-    useType: TOKEN_USE_TYPES.ENCOUNTER_MODIFIER,
-    createsPendingEvent: false,
-    requiresPendingEvent: true,
-    requiredPendingType: TOKEN_PENDING_EVENT_TYPES.ENCOUNTER_RESULT,
-    responseRole: "encounterModifier",
-    livePromptType: TOKEN_PENDING_EVENT_TYPES.ENCOUNTER_TOKEN
   }),
   [TOKEN_TIMING_CATEGORIES.CURSE]: Object.freeze({
     timingCategory: TOKEN_TIMING_CATEGORIES.CURSE,
@@ -2677,14 +2656,14 @@ const defaultTokenShopData = Object.freeze([
     { id: "seven-tools", name: "7 Tools Of The Bandit", tokenType: "protection", tier: "Protection", category: "Protection", price: 9000, description: "When A Player Activates A Protection Token, Use This Token Immediately After. Negate That Protection Token, Then Copy It. The Copied Token Must Be Used During This Gym Or It Is Lost." },
     { id: "immunity", name: "Immunity", tokenType: "protection", tier: "Protection", category: "Protection", price: 9000, description: "Negate any effect or global effect. Does not stop series restricts or bans." },
     { id: "revenge", name: "Revenge", tokenType: "protection", tier: "Protection", category: "Protection", price: 10000, description: "After a Battle Phase where an opponent cursed a Pokemon you brought, release 2 Pokemon from their brought team and destroy the held item." },
-    { id: "reroll-token", name: "Reroll", tokenType: "reroll", tier: "Encounter", category: "Encounter", price: 1000, description: "Reroll any wheel result." },
-    { id: "extra-encounter-token", name: "Extra Encounter Token", tokenType: "encounter", tier: "Encounter", category: "Encounter", price: 3500, description: "Use in Action Phase to roll an extra encounter." },
-    { id: "repel-token", name: "Repel", tokenType: "encounter", tier: "Encounter", category: "Encounter", price: 3500, description: "Remove one Pokemon for every 5 entries on an encounter wheel." },
-    { id: "quick-ball-token", name: "Quick Ball Token", tokenType: "encounter", tier: "Encounter", category: "Encounter", price: 12500, description: "Release an encounter and steal another player's encounter." },
-    { id: "dream-ball-token", name: "Dream Ball Token", tokenType: "encounter", tier: "Encounter", category: "Encounter", price: 8000, description: "Before an encounter wheel, name almost any ability. The encounter has access to that ability." },
-    { id: "honey-token", name: "Honey", tokenType: "encounter", tier: "Encounter", category: "Encounter", price: 7000, description: "At End of Action Phase, choose an eligible Pokemon encountered during that Action Phase and copy that encounter." },
-    { id: "master-ball-token", name: "Master Ball Token", tokenType: "encounter", tier: "Encounter", category: "Encounter", price: 12500, description: "Choose your encounter. Other players cannot change it." },
-    { id: "beast-ball-token", name: "Beast Ball", tokenType: "encounter", tier: "Encounter", category: "Encounter", price: 8000, description: "Before an encounter wheel, name any move. The encounter has access to that move." },
+    { id: "reroll-token", name: "Reroll", tokenType: "reroll", tier: "Encounter", category: "Encounter", price: 1000, description: "Reroll an eligible unresolved Pokemon result." },
+    { id: "extra-encounter-token", name: "Extra Encounter Token", tokenType: "encounter", tier: "Encounter", category: "Encounter", price: 3500, description: "Gain one additional encounter opportunity on a currently legal Route." },
+    { id: "repel-token", name: "Repel", tokenType: "encounter", tier: "Encounter", category: "Encounter", price: 3500, description: "On a Route, suppress five eligible residents of a chosen Battle Tier." },
+    { id: "quick-ball-token", name: "Quick Ball Token", tokenType: "encounter", tier: "Encounter", category: "Encounter", price: 12500, description: "Route-era transfer rules pending review. Generic activation is currently unavailable." },
+    { id: "dream-ball-token", name: "Dream Ball Token", tokenType: "encounter", tier: "Encounter", category: "Encounter", price: 8000, description: "Route-era ability-grant rules pending review. Generic activation is currently unavailable." },
+    { id: "honey-token", name: "Honey", tokenType: "encounter", tier: "Encounter", category: "Encounter", price: 7000, description: "Route-era encounter-copy rules pending review. Generic activation is currently unavailable." },
+    { id: "master-ball-token", name: "Master Ball Token", tokenType: "encounter", tier: "Encounter", category: "Encounter", price: 12500, description: "Use a pending Route opportunity to choose a known eligible resident." },
+    { id: "beast-ball-token", name: "Beast Ball", tokenType: "encounter", tier: "Encounter", category: "Encounter", price: 8000, description: "Route-era move-grant rules pending review. Generic activation is currently unavailable." },
     { id: "move-deleter", legacyIds: ["move-deleter-curse"], name: "Move Deleter", tokenType: "control", tier: "Control", category: "Control", price: 1500, description: "Ban one move from being brought for 1 week. Cannot be used after team submission." },
     { id: "toxic-curse", name: "Toxic Curse", tokenType: "curse", tier: "Curses", category: "Curses", price: 3000, description: "Force a Pokemon to carry a Toxic Orb for 2 gyms." },
     { id: "iron-ball-curse", name: "Iron Ball Curse", tokenType: "curse", tier: "Curses", category: "Curses", price: 3000, description: "Force a Pokemon to carry an Iron Ball for 2 gyms." },
@@ -2710,16 +2689,15 @@ const tokenEffectDefinitions = Object.freeze({
     id: "reroll-token",
     name: "Reroll Token",
     sourceType: "token",
-    timingCategory: TOKEN_TIMING_CATEGORIES.ENCOUNTER,
-    useType: TOKEN_USE_TYPES.ENCOUNTER_MODIFIER,
+    timingCategory: TOKEN_TIMING_CATEGORIES.MANUAL,
+    useType: TOKEN_USE_TYPES.RESPONSE,
     createsPendingEvent: false,
-    requiresPendingEvent: true,
-    requiredPendingType: TOKEN_PENDING_EVENT_TYPES.ENCOUNTER_RESULT,
-    responseRole: "encounterModifier",
-    livePromptType: "encounterToken",
-    timing: "pending-result",
-    targetType: "pending-random-result",
-    validTargets: ["random-pokemon-result", "encounter-result", "quest-roll"],
+    requiresPendingEvent: false,
+    responseRole: "resultModifier",
+    livePromptType: TOKEN_PENDING_EVENT_TYPES.MANUAL_EVENT,
+    timing: "contextual-result",
+    targetType: "manual",
+    validTargets: ["random-pokemon-result", "pokemon-result", "quest-roll"],
     excludedSources: ["game-corner-gamble-wheel"],
     effect: "reroll"
   }
@@ -2749,13 +2727,13 @@ const utilityTokenDefinitions = Object.freeze({
   "smokescreen": { names: ["Smokescreen"], category: "protection", targetMode: "player", targetType: EFFECT_TARGET_TYPES.CURRENT_PROMPT, targetScope: EFFECT_TARGET_SCOPES.CURRENT_PROMPT, effectType: "log", note: "Spins every player once and replaces the original target only when another player has a legal corresponding target." },
   "immunity": { names: ["Immunity", "Emergency Immunity Token"], category: "protection", targetMode: "player", targetType: EFFECT_TARGET_TYPES.CURRENT_PROMPT, targetScope: EFFECT_TARGET_SCOPES.CURRENT_PROMPT, effectType: "player-buff", buff: "Immunity", note: "Negates one effect/global effect." },
   "revenge": { names: ["Revenge"], category: "protection", targetMode: "player", targetType: EFFECT_TARGET_TYPES.CURRENT_PROMPT, targetScope: EFFECT_TARGET_SCOPES.CURRENT_PROMPT, effectType: "player-buff", buff: "Revenge Pending", note: "Post-curse revenge marker." },
-  "extra-encounter-token": { names: ["Extra Encounter Token"], category: "encounter", targetMode: "player", targetType: EFFECT_TARGET_TYPES.ENCOUNTER_RESULT, targetScope: EFFECT_TARGET_SCOPES.CURRENT_PROMPT, effectType: "player-buff", buff: "Extra Encounter Available", note: "Spend during Action Phase to roll an extra encounter." },
-  "repel-token": { names: ["Repel"], category: "encounter", targetMode: "none", targetType: EFFECT_TARGET_TYPES.ENCOUNTER_RESULT, targetScope: EFFECT_TARGET_SCOPES.CURRENT_PROMPT, choiceLabel: "Pokemon Name", effectType: "log", note: "Remove one Pokemon per 5 entries from Encounter Wheel. Wheel editor hook pending." },
-  "quick-ball-token": { names: ["Quick Ball Token"], category: "encounter", targetMode: "player", targetType: EFFECT_TARGET_TYPES.ENCOUNTER_RESULT, targetScope: EFFECT_TARGET_SCOPES.CURRENT_PROMPT, effectType: "player-buff", buff: "Quick Ball Pending", note: "Release/steal encounter marker." },
-  "dream-ball-token": { names: ["Dream Ball Token"], category: "encounter", targetMode: "player", targetType: EFFECT_TARGET_TYPES.ENCOUNTER_RESULT, targetScope: EFFECT_TARGET_SCOPES.CURRENT_PROMPT, effectType: "player-buff", buff: "Dream Ball Pending", note: "Encounter ability choice marker." },
-  "honey-token": { names: ["Honey"], category: "encounter", targetMode: "none", targetType: EFFECT_TARGET_TYPES.ENCOUNTER_RESULT, targetScope: EFFECT_TARGET_SCOPES.MANUAL, effectType: "log", note: "At End of Action, copies one immutable completed Encounter result into a new acquisition-ready Encounter without rerolling." },
-  "master-ball-token": { names: ["Master Ball Token"], category: "encounter", targetMode: "player", targetType: EFFECT_TARGET_TYPES.ENCOUNTER_RESULT, targetScope: EFFECT_TARGET_SCOPES.CURRENT_PROMPT, effectType: "player-buff", buff: "Master Ball Pending", note: "Choose encounter; cannot be changed by other players." },
-  "beast-ball-token": { names: ["Beast Ball"], category: "encounter", targetMode: "player", targetType: EFFECT_TARGET_TYPES.ENCOUNTER_RESULT, targetScope: EFFECT_TARGET_SCOPES.CURRENT_PROMPT, effectType: "player-buff", buff: "Beast Ball Pending", note: "Encounter move choice marker." }
+  "extra-encounter-token": { names: ["Extra Encounter Token"], category: "encounter", targetMode: "none", targetType: EFFECT_TARGET_TYPES.MANUAL, targetScope: EFFECT_TARGET_SCOPES.MANUAL, effectType: "log", note: "Resolved directly inside the current Route action." },
+  "repel-token": { names: ["Repel"], category: "encounter", targetMode: "none", targetType: EFFECT_TARGET_TYPES.MANUAL, targetScope: EFFECT_TARGET_SCOPES.MANUAL, effectType: "log", note: "Resolved directly inside the current Route action." },
+  "quick-ball-token": { names: ["Quick Ball Token"], category: "encounter", targetMode: "none", targetType: EFFECT_TARGET_TYPES.MANUAL, targetScope: EFFECT_TARGET_SCOPES.MANUAL, effectType: "log", note: "Route-era transfer rules pending review; generic activation unavailable." },
+  "dream-ball-token": { names: ["Dream Ball Token"], category: "encounter", targetMode: "none", targetType: EFFECT_TARGET_TYPES.MANUAL, targetScope: EFFECT_TARGET_SCOPES.MANUAL, effectType: "log", note: "Route-era ability-grant rules pending review; generic activation unavailable." },
+  "honey-token": { names: ["Honey"], category: "encounter", targetMode: "none", targetType: EFFECT_TARGET_TYPES.MANUAL, targetScope: EFFECT_TARGET_SCOPES.MANUAL, effectType: "log", note: "Route-era encounter-copy rules pending review; generic activation unavailable." },
+  "master-ball-token": { names: ["Master Ball Token"], category: "encounter", targetMode: "none", targetType: EFFECT_TARGET_TYPES.MANUAL, targetScope: EFFECT_TARGET_SCOPES.MANUAL, effectType: "log", note: "Resolved directly inside the current Route action." },
+  "beast-ball-token": { names: ["Beast Ball"], category: "encounter", targetMode: "none", targetType: EFFECT_TARGET_TYPES.MANUAL, targetScope: EFFECT_TARGET_SCOPES.MANUAL, effectType: "log", note: "Route-era move-grant rules pending review; generic activation unavailable." }
 });
 
 const statusTokenDefinitions = Object.freeze({
@@ -2958,31 +2936,7 @@ const statusTokenDefinitions = Object.freeze({
   }
 });
 
-const TOKEN_TIMING_ENGINE_V1_DEFINITIONS = Object.freeze({
-  "extra-encounter-token": Object.freeze({
-    id: "extra-encounter-token",
-    names: ["Extra Encounter Token", "Extra Encounter"],
-    objectType: TOKEN_OBJECT_TYPES.TOKEN,
-    family: ["encounter"],
-    timingCategory: TOKEN_TIMING_CATEGORIES.ENCOUNTER,
-    timingWindows: [TOKEN_TIMING_WINDOWS.ACTION_OPEN, TOKEN_TIMING_WINDOWS.MANUAL_HOST],
-    activationPattern: TOKEN_ACTIVATION_PATTERNS.PROACTIVE,
-    persistence: TOKEN_PERSISTENCE_BUCKETS.INSTANT,
-    resolutionPayloads: [TOKEN_RESOLUTION_PAYLOADS.WHEEL, TOKEN_RESOLUTION_PAYLOADS.ROSTER_CHANGE],
-    targetType: EFFECT_TARGET_TYPES.PLAYER,
-    targetScope: EFFECT_TARGET_SCOPES.SINGLE_PLAYER,
-    selfOnly: true,
-    duration: "instant",
-    consumesOnLegalUse: true,
-    consumeIfMisses: true,
-    consumeIfBlocked: true,
-    canOpenPendingEvent: false,
-    canBeRespondedTo: false,
-    canRespondTo: [],
-    visibility: "public",
-    logType: "tokenUsed",
-    resolverId: "extraEncounter"
-  }),
+const TOKEN_TIMING_ENGINE_DEFINITIONS = Object.freeze({
   "restrict-token": Object.freeze({
     id: "restrict-token",
     names: ["Restrict Token", "Restrict"],
@@ -3109,13 +3063,13 @@ const TOKEN_TIMING_ENGINE_V1_DEFINITIONS = Object.freeze({
     names: ["Reroll Token", "Reroll"],
     objectType: TOKEN_OBJECT_TYPES.TOKEN,
     family: ["reroll"],
-    timingCategory: TOKEN_TIMING_CATEGORIES.ENCOUNTER,
+    timingCategory: TOKEN_TIMING_CATEGORIES.MANUAL,
     timingWindows: [TOKEN_TIMING_WINDOWS.WHEEL_WINDOW, TOKEN_TIMING_WINDOWS.MANUAL_HOST],
     activationPattern: TOKEN_ACTIVATION_PATTERNS.RESPONSE,
     persistence: TOKEN_PERSISTENCE_BUCKETS.INSTANT,
-    resolutionPayloads: [TOKEN_RESOLUTION_PAYLOADS.WHEEL, TOKEN_RESOLUTION_PAYLOADS.REPLACEMENT],
-    targetType: EFFECT_TARGET_TYPES.ENCOUNTER_RESULT,
-    targetScope: EFFECT_TARGET_SCOPES.CURRENT_PROMPT,
+    resolutionPayloads: [TOKEN_RESOLUTION_PAYLOADS.REPLACEMENT],
+    targetType: EFFECT_TARGET_TYPES.MANUAL,
+    targetScope: EFFECT_TARGET_SCOPES.MANUAL,
     duration: "instant",
     consumesOnLegalUse: true,
     consumeIfMisses: true,
@@ -3131,10 +3085,9 @@ const TOKEN_TIMING_ENGINE_V1_DEFINITIONS = Object.freeze({
 
 function tokenTimingCategoryFromRaw(value = "") {
   const key = String(value || "").toLowerCase().trim();
-  if (key === "reroll") return TOKEN_TIMING_CATEGORIES.ENCOUNTER;
+  if (key === "reroll" || key === "encounter" || key === "encounters") return TOKEN_TIMING_CATEGORIES.MANUAL;
   if (Object.values(TOKEN_TIMING_CATEGORIES).includes(key)) return key;
   if (key === "curses") return TOKEN_TIMING_CATEGORIES.CURSE;
-  if (key === "encounters") return TOKEN_TIMING_CATEGORIES.ENCOUNTER;
   if (key === "manual" || key === "other") return TOKEN_TIMING_CATEGORIES.MANUAL;
   return "";
 }
@@ -3142,9 +3095,9 @@ function tokenTimingCategoryFromRaw(value = "") {
 function tokenEngineDefinitionByName(tokenName = "") {
   const key = slugify(tokenName);
   if (!key) return null;
-  const entry = Object.entries(TOKEN_TIMING_ENGINE_V1_DEFINITIONS)
+  const entry = Object.entries(TOKEN_TIMING_ENGINE_DEFINITIONS)
     .find(([id, definition]) => slugify(id) === key || (definition.names || []).some((name) => slugify(name) === key));
-  return entry ? { ...entry[1], id: entry[1].id || entry[0], source: "engine-v1" } : null;
+  return entry ? { ...entry[1], id: entry[1].id || entry[0], source: "engine" } : null;
 }
 
 function tokenTimingDefinitionByName(tokenName = "") {
@@ -3153,7 +3106,7 @@ function tokenTimingDefinitionByName(tokenName = "") {
   const legacy = TOKEN_TIMING_LEGACY_OVERRIDES[key];
   if (legacy) return { id: key, source: "legacy", ...legacy };
   const engine = tokenEngineDefinitionByName(tokenName);
-  if (engine) return { id: engine.id || key, source: "engine-v1", ...engine };
+  if (engine) return { id: engine.id || key, source: "engine", ...engine };
   const effectDefinition = Object.values(tokenEffectDefinitions).find((definition) => slugify(definition.name || definition.id) === key);
   if (effectDefinition?.timingCategory) return { id: effectDefinition.id, source: "effect", ...effectDefinition };
   const utilityEntry = Object.entries(utilityTokenDefinitions).find(([, definition]) => definition.names.some((candidate) => slugify(candidate) === key));
@@ -3186,8 +3139,6 @@ function normalizeEffectTargetType(value = "") {
   const values = Object.values(EFFECT_TARGET_TYPES);
   if (values.includes(raw)) return raw;
   if (key === "current-prompt") return EFFECT_TARGET_TYPES.CURRENT_PROMPT;
-  if (key === "pending-random-result" || key === "pending-result") return EFFECT_TARGET_TYPES.ENCOUNTER_RESULT;
-  if (/encounter|random/.test(key)) return EFFECT_TARGET_TYPES.ENCOUNTER_RESULT;
   if (/pokemon/.test(key)) return EFFECT_TARGET_TYPES.POKEMON;
   if (/player/.test(key)) return EFFECT_TARGET_TYPES.PLAYER;
   if (/team/.test(key)) return EFFECT_TARGET_TYPES.TEAM;
@@ -3221,7 +3172,6 @@ function effectTargetTypeFromDefinition(definition = {}, category = "") {
   const explicit = normalizeEffectTargetType(definition.targetType);
   if (explicit) return explicit;
   if (category === TOKEN_TIMING_CATEGORIES.PROTECTION) return EFFECT_TARGET_TYPES.CURRENT_PROMPT;
-  if (category === TOKEN_TIMING_CATEGORIES.ENCOUNTER) return EFFECT_TARGET_TYPES.ENCOUNTER_RESULT;
   const mode = String(definition.targetMode || "").toLowerCase();
   if (/pokemon/.test(mode) || mode === "banned-pokemon") return EFFECT_TARGET_TYPES.POKEMON;
   if (/player/.test(mode)) return EFFECT_TARGET_TYPES.PLAYER;
@@ -3235,7 +3185,6 @@ function effectTargetScopeFromDefinition(definition = {}, targetType = "", categ
   const explicit = normalizeEffectTargetScope(definition.targetScope);
   if (explicit) return explicit;
   if (targetType === EFFECT_TARGET_TYPES.CURRENT_PROMPT) return EFFECT_TARGET_SCOPES.CURRENT_PROMPT;
-  if (targetType === EFFECT_TARGET_TYPES.ENCOUNTER_RESULT) return EFFECT_TARGET_SCOPES.CURRENT_PROMPT;
   if (targetType === EFFECT_TARGET_TYPES.PLAYER) return EFFECT_TARGET_SCOPES.SINGLE_PLAYER;
   if (targetType === EFFECT_TARGET_TYPES.TABLE) return EFFECT_TARGET_SCOPES.TABLE_WIDE;
   if (targetType === EFFECT_TARGET_TYPES.RESOURCE) return definition.targetMode === "none"
@@ -3253,7 +3202,6 @@ function effectTargetScopeFromDefinition(definition = {}, targetType = "", categ
 
 function targetCategoryFromEffectBucket(targetType = "", targetScope = "") {
   if (targetType === EFFECT_TARGET_TYPES.POKEMON) return EFFECT_TARGET_CATEGORIES.POKEMON;
-  if (targetType === EFFECT_TARGET_TYPES.ENCOUNTER_RESULT) return EFFECT_TARGET_CATEGORIES.ENCOUNTER_RESULT;
   if (targetType === EFFECT_TARGET_TYPES.PLAYER) return EFFECT_TARGET_CATEGORIES.PLAYER;
   if (targetType === EFFECT_TARGET_TYPES.RESOURCE) return EFFECT_TARGET_CATEGORIES.TOKEN;
   if (targetType === EFFECT_TARGET_TYPES.TABLE || targetType === EFFECT_TARGET_TYPES.TEAM) return EFFECT_TARGET_CATEGORIES.WHOLE_TABLE;
@@ -3287,7 +3235,6 @@ function tokenResolutionModeForDefinition(definition = {}) {
   if (key === "reroll-token" || key === "reroll") return EFFECT_RESOLUTION_MODES.AUTOMATIC;
   if (["restrict", "immunity", "counterProtection", "substituteAttach"].includes(definition.resolverId)) return EFFECT_RESOLUTION_MODES.AUTOMATIC;
   if (definition.resolverId === "safeguard") return EFFECT_RESOLUTION_MODES.AUTOMATIC;
-  if (definition.resolverId === "extraEncounter") return EFFECT_RESOLUTION_MODES.AUTOMATIC;
   return EFFECT_RESOLUTION_MODES.HOST_CONFIRMED;
 }
 
@@ -3427,7 +3374,6 @@ function tokenTimingCategoryLabel(category) {
   return {
     [TOKEN_TIMING_CATEGORIES.CONTROL]: "Control Token",
     [TOKEN_TIMING_CATEGORIES.PROTECTION]: "Protection Token",
-    [TOKEN_TIMING_CATEGORIES.ENCOUNTER]: "Encounter Token",
     [TOKEN_TIMING_CATEGORIES.CURSE]: "Curse Token",
     [TOKEN_TIMING_CATEGORIES.MANUAL]: "Manual Token"
   }[category] || "Token";
@@ -3873,10 +3819,6 @@ function tokenEffectAuditRecord({
 
 async function resolveImmediateTokenUse(draft, { context = {} } = {}) {
   const metadata = tokenEffectMetadataByName(draft.tokenName);
-  if (metadata.resolverId === "extraEncounter") {
-    alert("Extra Encounter is used from the current Route action. Open Routes and use the Token on the Route you want to explore.");
-    return null;
-  }
   const timingCheck = tokenUseTimingCheck({ player: draft.actor, tokenName: draft.tokenName, metadata, context });
   if (!timingCheck.ok) {
     alert(timingCheck.reason);
@@ -3909,7 +3851,7 @@ async function resolveImmediateTokenUse(draft, { context = {} } = {}) {
       player: draft.actor,
       tokenName: draft.tokenName,
       metadata,
-      source: "token-engine-v1"
+      source: "token-engine"
     })
     : { token: null, consumption: null };
   if (metadata.consumesOnLegalUse && !consumed?.token) {
@@ -3994,14 +3936,13 @@ async function resolveImmediateTokenUse(draft, { context = {} } = {}) {
     title: `${draft.actor?.name || "A player"} used ${consumedToken.name || draft.tokenName}`,
     summary: details.join("\n"),
     details,
-    type: "token-engine-v1",
+    type: "token-engine",
     categories: ["tokens", metadata.timingCategory, metadata.persistence, metadata.objectType].filter(Boolean),
-    tags: ["token-engine-v1", metadata.resolverId, ...(metadata.family || []), consumedToken.name || draft.tokenName].filter(Boolean),
+    tags: ["token-engine", metadata.resolverId, ...(metadata.family || []), consumedToken.name || draft.tokenName].filter(Boolean),
     playerIds: [draft.actorPlayerId, draft.targetPlayerId].filter(Boolean),
     tokenNames: [consumedToken.name || draft.tokenName],
     tokenId: consumedToken.id || "",
     tokenActivationId: activation.id,
-    encounterSessionId,
     effectAuditId: resolutionAudit.id,
     tokenConsumptionIds: consumed?.consumption ? [consumed.consumption.id] : [],
     statusIds,
@@ -4121,7 +4062,7 @@ async function resolveTokenUse(draft, { context = {} } = {}) {
     return null;
   }
   if (pendingEvent) {
-    if ((metadata.timingWindows.includes(TOKEN_TIMING_WINDOWS.WHEEL_WINDOW) || metadata.timingCategory === TOKEN_TIMING_CATEGORIES.ENCOUNTER) && liveResultSessionForActivity(pendingEvent)) {
+    if (metadata.timingWindows.includes(TOKEN_TIMING_WINDOWS.WHEEL_WINDOW) && liveResultSessionForActivity(pendingEvent)) {
       return recordPokemonResultTokenUse(draft);
     }
     if (metadata.activationPattern === TOKEN_ACTIVATION_PATTERNS.RESPONSE || metadata.timingCategory === TOKEN_TIMING_CATEGORIES.PROTECTION) {
@@ -4332,7 +4273,7 @@ function mergeCausalTokenUndoData(base = {}, later = {}) {
     "pokemonRecords", "statuses", "activations", "consumptions", "transactions", "notifications",
     "effectOperations", "copiedActivations", "copiedTokenRelationships", "wheelSessions",
     "randomPokemonSessions", "delayedEffects", "broughtTeamSnapshots", "postPayoutProcedures",
-    "encounterCopyRecords", "pokemonLog", "banlistHistory"
+    "pokemonLog", "banlistHistory"
   ];
   collectionKeys.forEach((key) => {
     merged[key] = mergeCausalIdCollectionDelta(merged[key], later[key]);
@@ -5948,7 +5889,6 @@ function tokenTimingCategoryOptions(selected = "") {
   return [
     [TOKEN_TIMING_CATEGORIES.CONTROL, "Control Token"],
     [TOKEN_TIMING_CATEGORIES.PROTECTION, "Protection Token"],
-    [TOKEN_TIMING_CATEGORIES.ENCOUNTER, "Encounter Token"],
     [TOKEN_TIMING_CATEGORIES.CURSE, "Curse Token"],
   ].map(([value, label]) => `<option value="${escapeHtml(value)}" ${value === selected ? "selected" : ""}>${escapeHtml(label)}</option>`).join("");
 }
@@ -23137,7 +23077,7 @@ function createPokemonResultTimingWindow(session, player) {
     targetPlayerId: player.id,
     sourceType: session.sourceType || "random-pokemon",
     sourceId: session.id,
-    responseTypes: ["encounter-reroll", "steal-encounter"],
+    responseTypes: ["pokemon-reroll"],
     eligiblePlayerIds: state.players.map((entry) => entry.id),
     series: session.series || state.series,
     gym: Number(session.gym || state.gym),
@@ -27957,7 +27897,6 @@ function liveRefereeTokenInventoryGroups(player) {
   const categoryOrder = {
     [TOKEN_TIMING_CATEGORIES.CONTROL]: 1,
     [TOKEN_TIMING_CATEGORIES.PROTECTION]: 2,
-    [TOKEN_TIMING_CATEGORIES.ENCOUNTER]: 3,
     [TOKEN_TIMING_CATEGORIES.CURSE]: 4,
     [TOKEN_TIMING_CATEGORIES.MANUAL]: 9
   };
@@ -27965,12 +27904,9 @@ function liveRefereeTokenInventoryGroups(player) {
     || a.name.localeCompare(b.name));
 }
 
-function liveRefereePromptIsEncounterResult(prompt) {
+function liveRefereePromptHasPokemonResult(prompt) {
   const activity = prompt?.pendingEvent;
-  return Boolean(prompt?.resultSession
-    || activity?.type === "encounter-result"
-    || activity?.type === TOKEN_PENDING_EVENT_TYPES.ENCOUNTER_RESULT
-    || liveResultSessionForActivity(activity));
+  return Boolean(prompt?.resultSession || liveResultSessionForActivity(activity));
 }
 
 function liveRefereeTokenCanUseNow(group, prompt, player) {
@@ -27995,7 +27931,7 @@ function liveRefereeTokenCanUseNow(group, prompt, player) {
   }
   if (group.metadata?.resolverId === "delayParent"
     && !teleportDelayableParentPlan(prompt?.pendingEvent, step).ok) return false;
-  if (group.metadata?.timingWindows?.includes(TOKEN_TIMING_WINDOWS.WHEEL_WINDOW)) return liveRefereePromptIsEncounterResult(prompt);
+  if (group.metadata?.timingWindows?.includes(TOKEN_TIMING_WINDOWS.WHEEL_WINDOW)) return liveRefereePromptHasPokemonResult(prompt);
   return true;
 }
 
@@ -28248,7 +28184,6 @@ function liveRefereeAvailableTokenGroups(prompt, playerId = liveRefereeControlle
 function liveRefereeTokenUseIntentLabel(group, prompt) {
   const category = group?.metadata?.timingCategory || "";
   if (prompt?.pendingEvent && category === TOKEN_TIMING_CATEGORIES.PROTECTION) return "Respond";
-  if (prompt?.pendingEvent && category === TOKEN_TIMING_CATEGORIES.ENCOUNTER) return "Modify";
   return "Open Window";
 }
 
@@ -28975,14 +28910,6 @@ function persistLiveRefereeGenericEffectDraft(form, { immediate = false } = {}) 
   persistProvisionalDeclarationDraft({ immediate })?.catch((error) => console.warn("Declaration draft save failed.", error));
 }
 
-function liveRefereeCurrentEncounterLine(prompt) {
-  const session = prompt.resultSession || liveResultSessionForActivity(prompt.pendingEvent);
-  if (!session) return "";
-  const ownerId = session.resultOwnerPlayerId || session.ownerPlayerId || session.playerId || "";
-  const ownerName = livePlayerName(ownerId, "A player");
-  const resultName = session.resultDisplayName || session.resultPokemonName || "an encounter";
-  return `${ownerName} rolled ${resultName}.`;
-}
 
 function liveRefereeSelectedEffectGroup(prompt, selectedPlayerId = liveRefereeControlledPlayerId()) {
   const effectName = state.liveRefereeSelectedEffectName || "";
@@ -29356,19 +29283,6 @@ function liveRefereeEffectUseScreenMarkup(prompt, selectedPlayerId = liveReferee
       submitLabel: `Use ${tokenName}`,
       submitDisabled: !prompt.pendingEvent,
       className: "current-prompt"
-    });
-  }
-  if (targetType === EFFECT_TARGET_TYPES.ENCOUNTER_RESULT) {
-    const encounterLine = liveRefereeCurrentEncounterLine(prompt);
-    return liveRefereeEffectTargetScreenMarkup({
-      prompt,
-      tokenName,
-      metadata,
-      situation: encounterLine ? (slugify(tokenName).includes("reroll") ? "Reroll this encounter?" : `Use ${tokenName} on this encounter?`) : "No encounter result is waiting.",
-      fields: encounterLine ? `<p class="live-referee-target-summary">${escapeHtml(encounterLine)}</p>` : "",
-      submitLabel: slugify(tokenName).includes("reroll") ? "Reroll" : `Use ${tokenName}`,
-      submitDisabled: !encounterLine,
-      className: "encounter-target"
     });
   }
   if (metadata.id === "incinerate") {
@@ -40976,9 +40890,9 @@ function recordRerollTokenHistory({ snapshot, actor, token, sourceEffectId, targ
   const summary = `${actor.name} superseded ${previousName || "the previous result"} with ${nextName || "a replacement result"}.`;
   return addLogEntry({
     action: "token", category: "pokemon", player: actor.name,
-    item: summary, title: "Reroll replaced an encounter result", summary,
-    type: "encounter-reroll-token", categories: ["tokens", "pokemon", "encounter"],
-    tags: ["reroll-token", "encounter-result", resultKind || "result"],
+    item: summary, title: "Reroll replaced a Pokemon result", summary,
+    type: "pokemon-reroll-token", categories: ["tokens", "pokemon"],
+    tags: ["reroll-token", "pokemon-result", resultKind || "result"],
     playerIds: [actor.id, targetPlayerId].filter(Boolean), pokemonNames: [previousName, nextName].filter(Boolean),
     tokenNames: [metadata.name || "Reroll"], linkedEventId: sourceEffectId,
     targetResultId, previousResultName: previousName, replacementResultName: nextName,
@@ -41329,7 +41243,7 @@ async function rerollRandomPokemonSession(sessionId = state.selectedRandomPokemo
     linkedEventId: randomSession.interactionEventId || "",
     linkedResponseId: savedRerollResponse?.id || "",
     promptId: savedRerollResponse?.respondingToPromptId || "",
-    source: "encounter-reroll"
+    source: "pokemon-reroll"
   });
   randomSession.rerollCount = Number(randomSession.rerollCount || 0) + 1;
   randomSession.resultPokemonName = next.key || next.pokemonName || next.displayName;

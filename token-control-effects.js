@@ -966,7 +966,6 @@
       copiedActivations: state.copiedActivations || [],
       copiedTokenRelationships: state.copiedTokenRelationships || [],
       privateEffectRecords: state.privateEffectRecords || [],
-      encounterCopyRecords: state.encounterCopyRecords || []
     });
   }
 
@@ -987,7 +986,6 @@
     state.copiedActivations = clone(saved.copiedActivations || []);
     state.copiedTokenRelationships = clone(saved.copiedTokenRelationships || []);
     state.privateEffectRecords = clone(saved.privateEffectRecords || []);
-    state.encounterCopyRecords = clone(saved.encounterCopyRecords || []);
     return state;
   }
 
