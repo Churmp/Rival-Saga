@@ -1,17 +1,14 @@
-name: Repair Route Runtime Readiness
+name: Diagnose Route Runtime Boot
 
 on:
   push:
     branches:
       - audit/purge-v1-runtime
 
-permissions:
-  contents: write
-
 jobs:
-  repair-and-check:
+  diagnose-boot:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 3
     steps:
       - name: Check out branch
         uses: actions/checkout@v4
@@ -19,32 +16,26 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Repair unsafe readiness checks
+      - name: Add temporary browser diagnostics
         shell: bash
         run: |
           node <<'NODE'
           const fs = require('fs');
           const file = 'scripts/test-v2-route-runtime-sequences.js';
           let text = fs.readFileSync(file, 'utf8');
-          const from = 'typeof v2EnsureRouteSeriesState === "function" && state?.marker === ${JSON.stringify(marker)}';
-          const to = 'typeof state !== "undefined" && typeof v2EnsureRouteSeriesState === "function" && state.marker === ${JSON.stringify(marker)}';
-          const count = text.split(from).length - 1;
-          if (count !== 2) throw new Error(`Expected exactly 2 unsafe readiness checks, found ${count}.`);
-          text = text.split(from).join(to);
-          if (text.includes(from)) throw new Error('Unsafe readiness expression survived replacement.');
+          const readiness = 'typeof state !== "undefined" && typeof v2EnsureRouteSeriesState === "function" && state.marker === ${JSON.stringify(marker)}';
+          const guarded = '(() => { try { return typeof v2EnsureRouteSeriesState === "function" && state.marker === ${JSON.stringify(marker)}; } catch { return false; } })()';
+          const readinessCount = text.split(readiness).length - 1;
+          if (readinessCount !== 2) throw new Error(`Expected 2 readiness expressions, found ${readinessCount}.`);
+          text = text.split(readiness).join(guarded);
+          const enableBlock = `  await Promise.all([\n    cdp.send("Page.enable"),\n    cdp.send("Runtime.enable")\n  ]);`;
+          const diagnosticBlock = `${enableBlock}\n  cdp.on("Runtime.exceptionThrown", (params) => {\n    const details = params?.exceptionDetails || {};\n    const description = details.exception?.description || details.text || JSON.stringify(details);\n    console.error("BROWSER_EXCEPTION", description);\n  });`;
+          if ((text.split(enableBlock).length - 1) !== 1) throw new Error('Runtime enable block was not unique.');
+          text = text.replace(enableBlock, diagnosticBlock);
+          text = text.replace('async function waitUntil(expression, timeoutMs = 30000) {', 'async function waitUntil(expression, timeoutMs = 30000) {\n  timeoutMs = Math.min(timeoutMs, 15000);');
           fs.writeFileSync(file, text);
           NODE
           node --check scripts/test-v2-route-runtime-sequences.js
-          git diff --check
-          git diff -- scripts/test-v2-route-runtime-sequences.js
-      - name: Commit verifier repair
-        shell: bash
-        run: |
-          git config user.name "Rival Saga Verification Bot"
-          git config user.email "actions@users.noreply.github.com"
-          git add scripts/test-v2-route-runtime-sequences.js
-          git commit -m "Make Route runtime readiness wait safe [skip ci]"
-          git push origin HEAD:audit/purge-v1-runtime
       - name: Bridge Chromium
         shell: bash
         run: |
@@ -62,7 +53,16 @@ jobs:
           printf '%s\n' 'C:*chrome.exe' >> .git/info/exclude
           ln -sf "$SHIM_BIN/$WIN_CHROME" "$WIN_CHROME"
           echo "$SHIM_BIN" >> "$GITHUB_PATH"
-      - name: First Route runtime scenario
+      - name: Diagnose first Route runtime scenario
         shell: bash
         run: |
-          timeout 90s node --test --test-name-pattern='V2 normal Route Action persists and remains exactly once through reload' scripts/test-v2-route-runtime-sequences.js
+          set +e
+          timeout 45s node --test --test-name-pattern='V2 normal Route Action persists and remains exactly once through reload' scripts/test-v2-route-runtime-sequences.js
+          code=$?
+          echo "route_test_exit=$code"
+          if [ -s /tmp/rival-saga-chromium.log ]; then
+            echo '--- Chromium tail ---'
+            tail -n 60 /tmp/rival-saga-chromium.log
+            echo '--- end Chromium tail ---'
+          fi
+          exit "$code"
