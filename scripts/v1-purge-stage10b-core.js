@@ -68,9 +68,9 @@ module.exports = function core(c){
   s=rep(s,'test("phase advancement is blocked while a V1 Action operation is unresolved", () => {','test("phase advancement is blocked while a current Action operation is unresolved", () => {',"operation title");
   s=rmTest(s,"Hidden Grotto supports direct type choice starts");
   for(const x of[
-    '  assert.match(appSource, /function startEncounterSession\\(\\{ skipConfirmCheck = false \\} = \\{\\}\\)\\//);',
-    '  assert.match(appSource, /startEncounterSession\\(\\{ skipConfirmCheck: true \\}\\)\\//);',
-    '  assert.match(appSource, /if \\(!startEncounterSession\\([\\s\\S]*throw new Error\\("The Encounter location could not start\\."\\)\\//);',
+    '  assert.match(appSource, /function startEncounterSession\\(\\{ skipConfirmCheck = false \\} = \\{\\}\\)/);',
+    '  assert.match(appSource, /startEncounterSession\\(\\{ skipConfirmCheck: true \\}\\)/);',
+    '  assert.match(appSource, /if \\(!startEncounterSession\\([\\s\\S]*throw new Error\\("The Encounter location could not start\\."\\)/);',
     '  assert.match(appSource, /if \\(location\\?\\.id === "encounter"\\)[\\s\\S]*await persistStartedActionDestination\\(\\);[\\s\\S]*return;/);'
   ])s=line(s,x,1,`stale assertion ${x}`);
   absent(s,["startHiddenGrottoSession","startEncounterSession","encounter-session-closed","hidden-grotto-choice-complete","V1 Action operation"],"action operations"); edits.set("scripts/test-action-operation-contract.js",s);
