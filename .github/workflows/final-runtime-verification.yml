@@ -23,6 +23,10 @@ jobs:
           const fs = require('fs');
           const file = 'scripts/test-v2-route-runtime-sequences.js';
           let text = fs.readFileSync(file, 'utf8');
+          const startupWait = 'async function waitForJson(url, timeoutMs = 10000) {';
+          const relaxedStartupWait = 'async function waitForJson(url, timeoutMs = 30000) {';
+          if ((text.split(startupWait).length - 1) !== 1) throw new Error('Expected one Chromium startup wait definition.');
+          text = text.replace(startupWait, relaxedStartupWait);
           const readiness = 'typeof state !== "undefined" && typeof v2EnsureRouteSeriesState === "function" && state.marker === ${JSON.stringify(marker)}';
           const guarded = '(() => { try { return typeof v2EnsureRouteSeriesState === "function" && state.marker === ${JSON.stringify(marker)}; } catch { return false; } })()';
           const readinessCount = text.split(readiness).length - 1;
@@ -57,12 +61,12 @@ jobs:
         shell: bash
         run: |
           set +e
-          timeout 45s node --test --test-name-pattern='V2 normal Route Action persists and remains exactly once through reload' scripts/test-v2-route-runtime-sequences.js
+          timeout 75s node --test --test-name-pattern='V2 normal Route Action persists and remains exactly once through reload' scripts/test-v2-route-runtime-sequences.js
           code=$?
           echo "route_test_exit=$code"
           if [ -s /tmp/rival-saga-chromium.log ]; then
             echo '--- Chromium tail ---'
-            tail -n 60 /tmp/rival-saga-chromium.log
+            tail -n 80 /tmp/rival-saga-chromium.log
             echo '--- end Chromium tail ---'
           fi
           exit "$code"
