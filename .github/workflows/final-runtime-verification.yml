@@ -1,0 +1,157 @@
+name: Final Current Runtime Verification
+
+on:
+  push:
+    branches:
+      - audit/purge-v1-runtime
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Check out branch
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Bridge Chromium for Route runtime QA
+        shell: bash
+        run: |
+          set -euo pipefail
+          CHROME="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser || true)"
+          if [ -z "$CHROME" ]; then
+            echo "No Chromium executable is installed on this runner." >&2
+            exit 1
+          fi
+          WIN_CHROME='C:\Program Files\Google\Chrome\Application\chrome.exe'
+          SHIM_BIN="$RUNNER_TEMP/runtime-verify-bin"
+          mkdir -p "$SHIM_BIN"
+          cat > "$SHIM_BIN/$WIN_CHROME" <<EOF
+          #!/usr/bin/env bash
+          exec "$CHROME" --disable-dev-shm-usage "\$@" 2>>/tmp/rival-saga-chromium.log
+          EOF
+          chmod +x "$SHIM_BIN/$WIN_CHROME"
+          printf '%s\n' 'C:*chrome.exe' >> .git/info/exclude
+          ln -sf "$SHIM_BIN/$WIN_CHROME" "$WIN_CHROME"
+          test -e "$WIN_CHROME"
+
+      - name: Syntax — app.js
+        id: app_syntax
+        continue-on-error: true
+        run: node --check app.js
+
+      - name: Syntax — server.js
+        id: server_syntax
+        continue-on-error: true
+        run: node --check server.js
+
+      - name: Runtime boundary
+        id: runtime_boundary
+        continue-on-error: true
+        run: npm run test:runtime-boundary
+
+      - name: Action operations
+        id: action_operations
+        continue-on-error: true
+        run: npm run test:action-operations
+
+      - name: Game shell
+        id: game_shell
+        continue-on-error: true
+        run: npm run test:game-shell
+
+      - name: Backend persistence
+        id: persistence
+        continue-on-error: true
+        run: npm run test:persistence
+
+      - name: Provisional declarations
+        id: provisional
+        continue-on-error: true
+        run: npm run test:provisional-declarations
+
+      - name: Token controller
+        id: token_controller
+        continue-on-error: true
+        run: npm run test:token-controller
+
+      - name: Token sandbox
+        id: token_sandbox
+        continue-on-error: true
+        run: npm run test:token-sandbox
+
+      - name: Route browser
+        id: route_browser
+        continue-on-error: true
+        run: npm run test:v2-route-browser
+
+      - name: Route runtime
+        id: route_runtime
+        continue-on-error: true
+        run: npm run test:v2-route-runtime
+
+      - name: Route engine
+        id: route_engine
+        continue-on-error: true
+        run: npm run test:v2-routes
+
+      - name: Route generation audit
+        id: route_audit
+        continue-on-error: true
+        run: npm run audit:v2-routes
+
+      - name: Final verification gate
+        shell: bash
+        env:
+          APP_SYNTAX: ${{ steps.app_syntax.outcome }}
+          SERVER_SYNTAX: ${{ steps.server_syntax.outcome }}
+          RUNTIME_BOUNDARY: ${{ steps.runtime_boundary.outcome }}
+          ACTION_OPERATIONS: ${{ steps.action_operations.outcome }}
+          GAME_SHELL: ${{ steps.game_shell.outcome }}
+          PERSISTENCE: ${{ steps.persistence.outcome }}
+          PROVISIONAL: ${{ steps.provisional.outcome }}
+          TOKEN_CONTROLLER: ${{ steps.token_controller.outcome }}
+          TOKEN_SANDBOX: ${{ steps.token_sandbox.outcome }}
+          ROUTE_BROWSER: ${{ steps.route_browser.outcome }}
+          ROUTE_RUNTIME: ${{ steps.route_runtime.outcome }}
+          ROUTE_ENGINE: ${{ steps.route_engine.outcome }}
+          ROUTE_AUDIT: ${{ steps.route_audit.outcome }}
+        run: |
+          set -euo pipefail
+          failed=0
+          for item in \
+            "app syntax:$APP_SYNTAX" \
+            "server syntax:$SERVER_SYNTAX" \
+            "runtime boundary:$RUNTIME_BOUNDARY" \
+            "action operations:$ACTION_OPERATIONS" \
+            "game shell:$GAME_SHELL" \
+            "persistence:$PERSISTENCE" \
+            "provisional declarations:$PROVISIONAL" \
+            "token controller:$TOKEN_CONTROLLER" \
+            "token sandbox:$TOKEN_SANDBOX" \
+            "route browser:$ROUTE_BROWSER" \
+            "route runtime:$ROUTE_RUNTIME" \
+            "route engine:$ROUTE_ENGINE" \
+            "route audit:$ROUTE_AUDIT"
+          do
+            name="${item%%:*}"
+            outcome="${item#*:}"
+            printf '%-28s %s\n' "$name" "$outcome"
+            if [ "$outcome" != "success" ]; then failed=1; fi
+          done
+          if [ "$failed" -ne 0 ]; then
+            if [ -s /tmp/rival-saga-chromium.log ]; then
+              echo '--- Chromium diagnostic tail ---'
+              tail -n 80 /tmp/rival-saga-chromium.log
+              echo '--- end Chromium diagnostic tail ---'
+            fi
+            exit 1
+          fi
