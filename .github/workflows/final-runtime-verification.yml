@@ -1,6 +1,5 @@
 name: Diagnose Route Runtime Boot
 
-# Trigger restored Action service balance runtime recheck.
 on:
   push:
     branches:
