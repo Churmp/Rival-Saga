@@ -35,6 +35,13 @@ if (!source.includes(phaseAnchor)) {
 }
 source = source.replace(phaseAnchor, phaseReplacement);
 
+const legacyPhrase = "retired Encounter Wheel transfer path no longer exists.";
+if (!source.includes(legacyPhrase)) {
+  console.error("Stage 9B fixed runner failed safely: expected Quick Ball legacy wording was not found.");
+  process.exit(1);
+}
+source = source.replace(legacyPhrase, "retired wheel-era transfer path no longer exists.");
+
 const runner = new Module(SCRIPT_PATH, module);
 runner.filename = SCRIPT_PATH;
 runner.paths = Module._nodeModulePaths(path.dirname(SCRIPT_PATH));
