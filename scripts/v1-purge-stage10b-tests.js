@@ -56,8 +56,9 @@ module.exports = function tests(c){
   absent(s,['locationId: "encounter"','serviceId: "encounter-wheel"',"encounterSessions",'linkedFeatureType: "encounter"'],"persistence"); edits.set("scripts/test-backend-persistence.js",s);
 
   s=read("scripts/test-provisional-declaration-runtime.js");
-  s=reps(s,'locationId: "encounter", serviceId: "encounter-roll"','locationId: "department-store", serviceId: "department-store-primary"',2,"runtime destinations");
-  s=rep(s,'locationId: "pc", serviceId: "pc-service"','locationId: "department-store", serviceId: "department-store-primary"',"retired PC fixture");
+  s=rep(s,'    locationId: "encounter",\n    serviceId: "encounter-roll"','    locationId: "department-store",\n    serviceId: "department-store-primary"',"runtime multiline destination");
+  s=rep(s,'locationId: "encounter", serviceId: "encounter-roll"','locationId: "department-store", serviceId: "department-store-primary"',"runtime inline destination");
+  s=reps(s,'locationId: "pc", serviceId: "pc-service"','locationId: "department-store", serviceId: "department-store-primary"',2,"retired PC fixtures");
   absent(s,['locationId: "encounter"','serviceId: "encounter-roll"','locationId: "pc"','serviceId: "pc-service"'],"provisional runtime"); edits.set("scripts/test-provisional-declaration-runtime.js",s);
 
   s=read("scripts/test-provisional-declaration-server.js");
