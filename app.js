@@ -32314,12 +32314,6 @@ async function handleLiveTableClick(event) {
     resolveRevengePostPayoutProcedureFromForm(revengeProcedureConfirm.closest("[data-revenge-procedure-form]"));
     return;
   }
-  const honeySkip = liveClosestEventTarget(event, "[data-honey-procedure-skip]");
-  if (honeySkip) {
-    event.preventDefault();
-    skipHoneyEndOfActionProcedure(honeySkip.dataset.honeyProcedureSkip || "");
-    return;
-  }
   const smokescreenSpin = liveClosestEventTarget(event, "[data-smokescreen-spin]");
   if (smokescreenSpin) {
     event.preventDefault();
@@ -48843,18 +48837,6 @@ function phaseAdvanceBlockedByActionOperation(target = nextPhaseTarget()) {
 
 
 
-function skipHoneyEndOfActionProcedure(activityId) {
-  const activity = liveActivityById(activityId);
-  const procedure = honeyProcedureForActivity(activity);
-  if (!procedure) return false;
-  procedure.status = "skipped";
-  procedure.resolvedAt = new Date().toISOString();
-  activity.status = "resolved";
-  activity.resolution = "skipped-without-consumption";
-  saveState({ immediate: true });
-  render();
-  return true;
-}
 
 
 function renderPhaseSeriesChoice(target = pendingPhaseAdvance) {
@@ -48976,8 +48958,6 @@ async function performPhaseAdvance(target = nextPhaseTarget()) {
   const phaseState = currentGymPhaseState();
   const now = new Date().toISOString();
   const previousPhase = phaseState.currentPhase;
-  if (!target.flowOnly && previousPhase === "action" && target.phase === "battle") {
-  }
   if (target.flowOnly) {
     if (target.requiresTeamsLocked && !phaseTeamsLocked()) {
       alert("All players must lock legal teams before this gameflow step can begin.");
