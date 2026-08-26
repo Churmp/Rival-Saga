@@ -6,7 +6,7 @@ module.exports = function tests(c){
   s=line(s,"    encounterCopyRecords: [],",1);
   s=reps(s,'"encounter-result-1"','"pokemon-result-1"',4,"Honey result id");
   s=reps(s,'sourceType: "encounter"','sourceType: "pokemon-result"',1,"Honey source");
-  s=line(s,'    encounterSessionId: "encounter-1",',1);
+  s=rep(s,'    encounterSessionId: "encounter-1", resultDisplayName:','    resultDisplayName:',"Honey retired session link");
   absent(s,["encounterCopyRecords",'sourceType: "encounter"',"encounterSessionId"],"settled batch"); edits.set("scripts/test-settled-effect-batch.js",s);
 
   s=read("scripts/test-token-lifecycle-slice.js");
