@@ -19,7 +19,7 @@ module.exports = {
     status: "active",
     updatedAt: "2026-07-24T12:00:00.000Z",
     version: 42,
-    actionPhaseVersion: "action-phase-v1-current-series",
+    actionPhaseVersion: "action-phase-v2-real-series",
     maxPlayers: 5,
     members: [{ userId: "steven", role: "owner" }],
     state: progressedState
@@ -30,13 +30,6 @@ module.exports = {
     status: "lobby",
     updatedAt: "2026-07-24T11:00:00.000Z",
     state: { series: "Kanto", gym: 1, currentPhase: "start", ruleset: { schemaVersion: 1 }, players: [] }
-  },
-  supportedLegacy: {
-    id: "legacy-supported",
-    name: "Legacy Supported",
-    actionPhaseVersion: "action-phase-v1-current-series",
-    updatedAt: "2026-07-23T10:00:00.000Z",
-    state: { series: "Johto", gym: 3, players: [{ id: "legacy-trainer", name: "Legacy" }] }
   },
   modernTokenReferee: {
     id: "modern-token-referee",

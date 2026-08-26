@@ -24,8 +24,6 @@ const interactionSituationLifecycle = globalThis.rivalSagaInteractionSituationLi
 if (!interactionSituationLifecycle) throw new Error("Interaction situation lifecycle failed to load.");
 const provisionalDeclarationRuntime = globalThis.rivalSagaProvisionalDeclarationRuntime;
 if (!provisionalDeclarationRuntime) throw new Error("Provisional declaration runtime failed to load.");
-const encounterTokenRuntime = globalThis.rivalSagaEncounterTokenRuntime;
-if (!encounterTokenRuntime) throw new Error("Encounter Token runtime failed to load.");
 const API_ORIGIN = gameShellContract.resolveApiOrigin(window.location, globalThis.RIVAL_SAGA_CONFIG?.apiOrigin || "");
 const DEVELOPMENT_DIAGNOSTICS = ["127.0.0.1", "localhost", "::1"].includes(window.location.hostname);
 const POKEMON_BUILD_DATA_SCRIPT_SRC = "pokemon-build-data.js?v=7";
@@ -84,8 +82,6 @@ const CLIENT_LOCAL_STATE_KEYS = Object.freeze([
   "wheelDrawerOpen",
   "selectedWheelSessionId",
   "skipWheelAnimation",
-  "encounterModalOpen",
-  "selectedEncounterSessionId",
   "randomPokemonDrawerOpen",
   "selectedRandomPokemonSessionId",
   "opponentDrawer",
@@ -524,7 +520,6 @@ const ITEM_SHOP_FOLDERS = Object.freeze({
   }
 });
 const SAGA_TIERS = Object.freeze(["LC", "LC Elite", "Safari", "Safari Elite", "Poke", "Poke Elite", "Great", "Great Elite", "Ultra", "Ultra Elite", "Master", "Master Elite"]);
-const HIDDEN_GROTTO_TIER_STEP_BONUS = 2;
 const ACQUISITION_TIER_FAMILIES = Object.freeze([
   { id: "lc", label: "LC", battleTierIds: ["lc", "lc-elite"], rank: 1 },
   { id: "safari", label: "Safari", battleTierIds: ["safari", "safari-elite"], rank: 2 },
@@ -636,10 +631,6 @@ const activityResponseRules = Object.freeze({
     label: "Curse Token",
     responseTypes: ["immunity"]
   },
-  encounterResult: {
-    label: "Encounter Result",
-    responseTypes: ["encounter-reroll", "steal-encounter"]
-  },
   "class-activation": {
     label: "Class Activation",
     responseTypes: ["immunity"]
@@ -650,11 +641,7 @@ const activityResponseRules = Object.freeze({
   },
   "pokemon-result": {
     label: "Pokemon Result",
-    responseTypes: ["encounter-reroll", "steal-encounter"]
-  },
-  "encounter-result": {
-    label: "Encounter Result",
-    responseTypes: ["encounter-reroll", "steal-encounter"]
+    responseTypes: ["pokemon-reroll"]
   }
 });
 
@@ -665,24 +652,17 @@ const activityResponseDefinitions = Object.freeze({
     tokenNames: ["Immunity", "Emergency Immunity Token"],
     description: "Cancel a token, perk, or class effect targeting you."
   },
-  "encounter-reroll": {
-    id: "encounter-reroll",
-    label: "Reroll Encounter",
+  "pokemon-reroll": {
+    id: "pokemon-reroll",
+    label: "Reroll Pokemon Result",
     tokenNames: ["Reroll Token"],
-    description: "Future hook: force a Pokemon result to be rerolled."
+    description: "Reroll an eligible unresolved Pokemon result."
   },
-  "steal-encounter": {
-    id: "steal-encounter",
-    label: "Steal Encounter",
-    tokenNames: ["Quick Ball Token", "Steal"],
-    description: "Future hook: take a Pokemon result before it is claimed."
-  }
 });
 
 const TOKEN_TIMING_CATEGORIES = Object.freeze({
   CONTROL: "control",
   PROTECTION: "protection",
-  ENCOUNTER: "encounter",
   CURSE: "curse",
   MANUAL: "manual"
 });
@@ -705,7 +685,6 @@ const EFFECT_TARGET_CATEGORIES = Object.freeze({
   POKEMON: "pokemon",
   TEAM: "team",
   PARTY_ROSTER: "partyRoster",
-  ENCOUNTER_RESULT: "encounterResult",
   TOKEN: "token",
   ITEM: "item",
   TM: "tm",
@@ -723,7 +702,6 @@ const EFFECT_TARGET_TYPES = Object.freeze({
   POKEMON: "pokemon",
   PLAYER: "player",
   TEAM: "team",
-  ENCOUNTER_RESULT: "encounterResult",
   RESOURCE: "resource",
   TABLE: "table",
   MANUAL: "manual"
@@ -776,7 +754,6 @@ const TOKEN_CONSUMPTION_MODES = Object.freeze({
 const TOKEN_USE_TYPES = Object.freeze({
   ACTIVATION: "activation",
   RESPONSE: "response",
-  ENCOUNTER_MODIFIER: "encounterModifier"
 });
 
 const TOKEN_OBJECT_TYPES = Object.freeze({
@@ -833,11 +810,9 @@ const TOKEN_RESOLUTION_PAYLOADS = Object.freeze({
 });
 
 const TOKEN_PENDING_EVENT_TYPES = Object.freeze({
-  ENCOUNTER_RESULT: "encounterResult",
   CONTROL_TOKEN: "controlToken",
   PROTECTION_RESPONSE: "protectionResponse",
   CURSE_TOKEN: "curseToken",
-  ENCOUNTER_TOKEN: "encounterToken",
   CLASS_EFFECT: "classEffect",
   MANUAL_EVENT: "manualEvent",
   TRANSACTION_ONLY: "transactionOnly",
@@ -865,15 +840,6 @@ const TOKEN_TIMING_DEFAULTS = Object.freeze({
     transactionsAllowed: true,
     responseRole: "protection",
     livePromptType: TOKEN_PENDING_EVENT_TYPES.PROTECTION_RESPONSE
-  }),
-  [TOKEN_TIMING_CATEGORIES.ENCOUNTER]: Object.freeze({
-    timingCategory: TOKEN_TIMING_CATEGORIES.ENCOUNTER,
-    useType: TOKEN_USE_TYPES.ENCOUNTER_MODIFIER,
-    createsPendingEvent: false,
-    requiresPendingEvent: true,
-    requiredPendingType: TOKEN_PENDING_EVENT_TYPES.ENCOUNTER_RESULT,
-    responseRole: "encounterModifier",
-    livePromptType: TOKEN_PENDING_EVENT_TYPES.ENCOUNTER_TOKEN
   }),
   [TOKEN_TIMING_CATEGORIES.CURSE]: Object.freeze({
     timingCategory: TOKEN_TIMING_CATEGORIES.CURSE,
@@ -2227,14 +2193,6 @@ const actionPhaseRules = Object.freeze({
   maxSeriesDiscountStacks: 5,
   locations: [
     {
-      id: "encounter",
-      name: "Encounter",
-      category: "pokemon",
-      actionCost: 1,
-      summary: "Roll the Encounter Wheel for the current gym twice.",
-      effects: [{ type: "roll-wheel", wheel: "encounter", rolls: 2 }]
-    },
-    {
       id: "department-store",
       name: "Department Store",
       category: "shop",
@@ -2330,15 +2288,6 @@ const actionPhaseRules = Object.freeze({
       ]
     },
     {
-      id: "hidden-grotto",
-      name: "Hidden Grotto",
-      category: "pokemon",
-      actionCost: 1,
-      cost: 1500,
-      summary: "Roll 3 types, choose one, then roll 3 Pokemon of that type from up to 2 Battle Tiers above the current Gym tier and choose one. LC/LC Elite Pokemon that can still evolve are excluded.",
-      effects: [{ type: "typed-tier-random-pokemon", typeRolls: 3, pokemonRolls: 3, usesNaturalTierCap: true, tierStepsAboveNaturalCap: HIDDEN_GROTTO_TIER_STEP_BONUS }]
-    },
-    {
       id: "dragons-den",
       name: "Dragon's Den",
       category: "pokemon",
@@ -2396,17 +2345,14 @@ const placeholderTrainerTitles = Object.freeze([
 ]);
 
 const CURRENT_RULESET_VERSION = "S3-dev";
-const ACTION_PHASE_VERSION_V1 = "action-phase-v1-current-series";
 const ACTION_PHASE_VERSION_V2 = "action-phase-v2-real-series";
 const DEFAULT_ACTION_PHASE_VERSION = ACTION_PHASE_VERSION_V2;
 const ACTION_PHASE_VERSION_LABELS = Object.freeze({
-  [ACTION_PHASE_VERSION_V1]: "Action Phase V1 / Legacy",
   [ACTION_PHASE_VERSION_V2]: "Action Phase V2 / Current"
 });
 
-function normalizeActionPhaseVersion(value) {
-  if (value === ACTION_PHASE_VERSION_V1) return ACTION_PHASE_VERSION_V1;
-  return value === ACTION_PHASE_VERSION_V2 ? ACTION_PHASE_VERSION_V2 : DEFAULT_ACTION_PHASE_VERSION;
+function normalizeActionPhaseVersion() {
+  return DEFAULT_ACTION_PHASE_VERSION;
 }
 
 function actionPhaseVersionLabel(value) {
@@ -2420,7 +2366,7 @@ function createDefaultRuleset() {
     version: CURRENT_RULESET_VERSION,
     schemaVersion: 1,
     actionPhaseVersion: DEFAULT_ACTION_PHASE_VERSION,
-    supportedActionPhaseVersions: [ACTION_PHASE_VERSION_V1, ACTION_PHASE_VERSION_V2],
+    supportedActionPhaseVersions: [ACTION_PHASE_VERSION_V2],
     updateMode: "manual",
     contentLibraries: {
       tokenArt: {},
@@ -2436,9 +2382,8 @@ function createDefaultRuleset() {
     },
     notes: [
       "Ruleset/content data is separate from one game's current save state.",
-      "Action Phase V2 is the current/default Rival Saga ruleset for newly created games.",
-      "Action Phase V1 is archived/maintenance-only and remains available for explicitly persisted legacy saves.",
-      "New feature development targets Action Phase V2 exclusively."
+      "The current Action Phase is the only playable Rival Saga ruleset.",
+      "Historical Action Phase implementations live in Git archives, not production runtime code."
     ]
   };
 }
@@ -2544,7 +2489,6 @@ function createCleanInitialState() {
     endOfActionProcedures: [],
     copiedTokenRelationships: [],
     privateEffectRecords: [],
-    encounterCopyRecords: [],
     chronologyCounter: 0,
     perkSystem: {
       pendingRolls: [],
@@ -2563,9 +2507,6 @@ function createCleanInitialState() {
     selectedWheelSessionId: "",
     wheelDrawerOpen: false,
     skipWheelAnimation: false,
-    encounterSessions: [],
-    selectedEncounterSessionId: "",
-    encounterModalOpen: false,
     randomPokemonSessions: [],
     pokemonFamilyTierCache: {},
     pokemonSpriteVariants: {},
@@ -2613,7 +2554,6 @@ function createCleanInitialState() {
     gameCornerUnlocks: [],
     breederDeposits: [],
     dragonsDenSessions: [],
-    hiddenGrottoSessions: [],
     silphCoSessions: [],
     bulletinBoardSessions: [],
     graveyardSessions: [],
@@ -2716,14 +2656,14 @@ const defaultTokenShopData = Object.freeze([
     { id: "seven-tools", name: "7 Tools Of The Bandit", tokenType: "protection", tier: "Protection", category: "Protection", price: 9000, description: "When A Player Activates A Protection Token, Use This Token Immediately After. Negate That Protection Token, Then Copy It. The Copied Token Must Be Used During This Gym Or It Is Lost." },
     { id: "immunity", name: "Immunity", tokenType: "protection", tier: "Protection", category: "Protection", price: 9000, description: "Negate any effect or global effect. Does not stop series restricts or bans." },
     { id: "revenge", name: "Revenge", tokenType: "protection", tier: "Protection", category: "Protection", price: 10000, description: "After a Battle Phase where an opponent cursed a Pokemon you brought, release 2 Pokemon from their brought team and destroy the held item." },
-    { id: "reroll-token", name: "Reroll", tokenType: "reroll", tier: "Encounter", category: "Encounter", price: 1000, description: "Reroll any wheel result." },
-    { id: "extra-encounter-token", name: "Extra Encounter Token", tokenType: "encounter", tier: "Encounter", category: "Encounter", price: 3500, description: "Use in Action Phase to roll an extra encounter." },
-    { id: "repel-token", name: "Repel", tokenType: "encounter", tier: "Encounter", category: "Encounter", price: 3500, description: "Remove one Pokemon for every 5 entries on an encounter wheel." },
-    { id: "quick-ball-token", name: "Quick Ball Token", tokenType: "encounter", tier: "Encounter", category: "Encounter", price: 12500, description: "Release an encounter and steal another player's encounter." },
-    { id: "dream-ball-token", name: "Dream Ball Token", tokenType: "encounter", tier: "Encounter", category: "Encounter", price: 8000, description: "Before an encounter wheel, name almost any ability. The encounter has access to that ability." },
-    { id: "honey-token", name: "Honey", tokenType: "encounter", tier: "Encounter", category: "Encounter", price: 7000, description: "At End of Action Phase, choose an eligible Pokemon encountered during that Action Phase and copy that encounter." },
-    { id: "master-ball-token", name: "Master Ball Token", tokenType: "encounter", tier: "Encounter", category: "Encounter", price: 12500, description: "Choose your encounter. Other players cannot change it." },
-    { id: "beast-ball-token", name: "Beast Ball", tokenType: "encounter", tier: "Encounter", category: "Encounter", price: 8000, description: "Before an encounter wheel, name any move. The encounter has access to that move." },
+    { id: "reroll-token", name: "Reroll", tokenType: "reroll", tier: "Encounter", category: "Encounter", price: 1000, description: "Reroll an eligible unresolved Pokemon result." },
+    { id: "extra-encounter-token", name: "Extra Encounter Token", tokenType: "encounter", tier: "Encounter", category: "Encounter", price: 3500, description: "Gain one additional encounter opportunity on a currently legal Route." },
+    { id: "repel-token", name: "Repel", tokenType: "encounter", tier: "Encounter", category: "Encounter", price: 3500, description: "On a Route, suppress five eligible residents of a chosen Battle Tier." },
+    { id: "quick-ball-token", name: "Quick Ball Token", tokenType: "encounter", tier: "Encounter", category: "Encounter", price: 12500, description: "Route-era transfer rules pending review. Generic activation is currently unavailable." },
+    { id: "dream-ball-token", name: "Dream Ball Token", tokenType: "encounter", tier: "Encounter", category: "Encounter", price: 8000, description: "Route-era ability-grant rules pending review. Generic activation is currently unavailable." },
+    { id: "honey-token", name: "Honey", tokenType: "encounter", tier: "Encounter", category: "Encounter", price: 7000, description: "Route-era encounter-copy rules pending review. Generic activation is currently unavailable." },
+    { id: "master-ball-token", name: "Master Ball Token", tokenType: "encounter", tier: "Encounter", category: "Encounter", price: 12500, description: "Use a pending Route opportunity to choose a known eligible resident." },
+    { id: "beast-ball-token", name: "Beast Ball", tokenType: "encounter", tier: "Encounter", category: "Encounter", price: 8000, description: "Route-era move-grant rules pending review. Generic activation is currently unavailable." },
     { id: "move-deleter", legacyIds: ["move-deleter-curse"], name: "Move Deleter", tokenType: "control", tier: "Control", category: "Control", price: 1500, description: "Ban one move from being brought for 1 week. Cannot be used after team submission." },
     { id: "toxic-curse", name: "Toxic Curse", tokenType: "curse", tier: "Curses", category: "Curses", price: 3000, description: "Force a Pokemon to carry a Toxic Orb for 2 gyms." },
     { id: "iron-ball-curse", name: "Iron Ball Curse", tokenType: "curse", tier: "Curses", category: "Curses", price: 3000, description: "Force a Pokemon to carry an Iron Ball for 2 gyms." },
@@ -2749,16 +2689,15 @@ const tokenEffectDefinitions = Object.freeze({
     id: "reroll-token",
     name: "Reroll Token",
     sourceType: "token",
-    timingCategory: TOKEN_TIMING_CATEGORIES.ENCOUNTER,
-    useType: TOKEN_USE_TYPES.ENCOUNTER_MODIFIER,
+    timingCategory: TOKEN_TIMING_CATEGORIES.MANUAL,
+    useType: TOKEN_USE_TYPES.RESPONSE,
     createsPendingEvent: false,
-    requiresPendingEvent: true,
-    requiredPendingType: TOKEN_PENDING_EVENT_TYPES.ENCOUNTER_RESULT,
-    responseRole: "encounterModifier",
-    livePromptType: "encounterToken",
-    timing: "pending-result",
-    targetType: "pending-random-result",
-    validTargets: ["random-pokemon-result", "encounter-result", "quest-roll"],
+    requiresPendingEvent: false,
+    responseRole: "resultModifier",
+    livePromptType: TOKEN_PENDING_EVENT_TYPES.MANUAL_EVENT,
+    timing: "contextual-result",
+    targetType: "manual",
+    validTargets: ["random-pokemon-result", "pokemon-result", "quest-roll"],
     excludedSources: ["game-corner-gamble-wheel"],
     effect: "reroll"
   }
@@ -2788,13 +2727,13 @@ const utilityTokenDefinitions = Object.freeze({
   "smokescreen": { names: ["Smokescreen"], category: "protection", targetMode: "player", targetType: EFFECT_TARGET_TYPES.CURRENT_PROMPT, targetScope: EFFECT_TARGET_SCOPES.CURRENT_PROMPT, effectType: "log", note: "Spins every player once and replaces the original target only when another player has a legal corresponding target." },
   "immunity": { names: ["Immunity", "Emergency Immunity Token"], category: "protection", targetMode: "player", targetType: EFFECT_TARGET_TYPES.CURRENT_PROMPT, targetScope: EFFECT_TARGET_SCOPES.CURRENT_PROMPT, effectType: "player-buff", buff: "Immunity", note: "Negates one effect/global effect." },
   "revenge": { names: ["Revenge"], category: "protection", targetMode: "player", targetType: EFFECT_TARGET_TYPES.CURRENT_PROMPT, targetScope: EFFECT_TARGET_SCOPES.CURRENT_PROMPT, effectType: "player-buff", buff: "Revenge Pending", note: "Post-curse revenge marker." },
-  "extra-encounter-token": { names: ["Extra Encounter Token"], category: "encounter", targetMode: "player", targetType: EFFECT_TARGET_TYPES.ENCOUNTER_RESULT, targetScope: EFFECT_TARGET_SCOPES.CURRENT_PROMPT, effectType: "player-buff", buff: "Extra Encounter Available", note: "Spend during Action Phase to roll an extra encounter." },
-  "repel-token": { names: ["Repel"], category: "encounter", targetMode: "none", targetType: EFFECT_TARGET_TYPES.ENCOUNTER_RESULT, targetScope: EFFECT_TARGET_SCOPES.CURRENT_PROMPT, choiceLabel: "Pokemon Name", effectType: "log", note: "Remove one Pokemon per 5 entries from Encounter Wheel. Wheel editor hook pending." },
-  "quick-ball-token": { names: ["Quick Ball Token"], category: "encounter", targetMode: "player", targetType: EFFECT_TARGET_TYPES.ENCOUNTER_RESULT, targetScope: EFFECT_TARGET_SCOPES.CURRENT_PROMPT, effectType: "player-buff", buff: "Quick Ball Pending", note: "Release/steal encounter marker." },
-  "dream-ball-token": { names: ["Dream Ball Token"], category: "encounter", targetMode: "player", targetType: EFFECT_TARGET_TYPES.ENCOUNTER_RESULT, targetScope: EFFECT_TARGET_SCOPES.CURRENT_PROMPT, effectType: "player-buff", buff: "Dream Ball Pending", note: "Encounter ability choice marker." },
-  "honey-token": { names: ["Honey"], category: "encounter", targetMode: "none", targetType: EFFECT_TARGET_TYPES.ENCOUNTER_RESULT, targetScope: EFFECT_TARGET_SCOPES.MANUAL, effectType: "log", note: "At End of Action, copies one immutable completed Encounter result into a new acquisition-ready Encounter without rerolling." },
-  "master-ball-token": { names: ["Master Ball Token"], category: "encounter", targetMode: "player", targetType: EFFECT_TARGET_TYPES.ENCOUNTER_RESULT, targetScope: EFFECT_TARGET_SCOPES.CURRENT_PROMPT, effectType: "player-buff", buff: "Master Ball Pending", note: "Choose encounter; cannot be changed by other players." },
-  "beast-ball-token": { names: ["Beast Ball"], category: "encounter", targetMode: "player", targetType: EFFECT_TARGET_TYPES.ENCOUNTER_RESULT, targetScope: EFFECT_TARGET_SCOPES.CURRENT_PROMPT, effectType: "player-buff", buff: "Beast Ball Pending", note: "Encounter move choice marker." }
+  "extra-encounter-token": { names: ["Extra Encounter Token"], category: "encounter", targetMode: "none", targetType: EFFECT_TARGET_TYPES.MANUAL, targetScope: EFFECT_TARGET_SCOPES.MANUAL, effectType: "log", note: "Resolved directly inside the current Route action." },
+  "repel-token": { names: ["Repel"], category: "encounter", targetMode: "none", targetType: EFFECT_TARGET_TYPES.MANUAL, targetScope: EFFECT_TARGET_SCOPES.MANUAL, effectType: "log", note: "Resolved directly inside the current Route action." },
+  "quick-ball-token": { names: ["Quick Ball Token"], category: "encounter", targetMode: "none", targetType: EFFECT_TARGET_TYPES.MANUAL, targetScope: EFFECT_TARGET_SCOPES.MANUAL, effectType: "log", note: "Route-era transfer rules pending review; generic activation unavailable." },
+  "dream-ball-token": { names: ["Dream Ball Token"], category: "encounter", targetMode: "none", targetType: EFFECT_TARGET_TYPES.MANUAL, targetScope: EFFECT_TARGET_SCOPES.MANUAL, effectType: "log", note: "Route-era ability-grant rules pending review; generic activation unavailable." },
+  "honey-token": { names: ["Honey"], category: "encounter", targetMode: "none", targetType: EFFECT_TARGET_TYPES.MANUAL, targetScope: EFFECT_TARGET_SCOPES.MANUAL, effectType: "log", note: "Route-era encounter-copy rules pending review; generic activation unavailable." },
+  "master-ball-token": { names: ["Master Ball Token"], category: "encounter", targetMode: "none", targetType: EFFECT_TARGET_TYPES.MANUAL, targetScope: EFFECT_TARGET_SCOPES.MANUAL, effectType: "log", note: "Resolved directly inside the current Route action." },
+  "beast-ball-token": { names: ["Beast Ball"], category: "encounter", targetMode: "none", targetType: EFFECT_TARGET_TYPES.MANUAL, targetScope: EFFECT_TARGET_SCOPES.MANUAL, effectType: "log", note: "Route-era move-grant rules pending review; generic activation unavailable." }
 });
 
 const statusTokenDefinitions = Object.freeze({
@@ -2997,31 +2936,7 @@ const statusTokenDefinitions = Object.freeze({
   }
 });
 
-const TOKEN_TIMING_ENGINE_V1_DEFINITIONS = Object.freeze({
-  "extra-encounter-token": Object.freeze({
-    id: "extra-encounter-token",
-    names: ["Extra Encounter Token", "Extra Encounter"],
-    objectType: TOKEN_OBJECT_TYPES.TOKEN,
-    family: ["encounter"],
-    timingCategory: TOKEN_TIMING_CATEGORIES.ENCOUNTER,
-    timingWindows: [TOKEN_TIMING_WINDOWS.ACTION_OPEN, TOKEN_TIMING_WINDOWS.MANUAL_HOST],
-    activationPattern: TOKEN_ACTIVATION_PATTERNS.PROACTIVE,
-    persistence: TOKEN_PERSISTENCE_BUCKETS.INSTANT,
-    resolutionPayloads: [TOKEN_RESOLUTION_PAYLOADS.WHEEL, TOKEN_RESOLUTION_PAYLOADS.ROSTER_CHANGE],
-    targetType: EFFECT_TARGET_TYPES.PLAYER,
-    targetScope: EFFECT_TARGET_SCOPES.SINGLE_PLAYER,
-    selfOnly: true,
-    duration: "instant",
-    consumesOnLegalUse: true,
-    consumeIfMisses: true,
-    consumeIfBlocked: true,
-    canOpenPendingEvent: false,
-    canBeRespondedTo: false,
-    canRespondTo: [],
-    visibility: "public",
-    logType: "tokenUsed",
-    resolverId: "extraEncounter"
-  }),
+const TOKEN_TIMING_ENGINE_DEFINITIONS = Object.freeze({
   "restrict-token": Object.freeze({
     id: "restrict-token",
     names: ["Restrict Token", "Restrict"],
@@ -3148,13 +3063,13 @@ const TOKEN_TIMING_ENGINE_V1_DEFINITIONS = Object.freeze({
     names: ["Reroll Token", "Reroll"],
     objectType: TOKEN_OBJECT_TYPES.TOKEN,
     family: ["reroll"],
-    timingCategory: TOKEN_TIMING_CATEGORIES.ENCOUNTER,
+    timingCategory: TOKEN_TIMING_CATEGORIES.MANUAL,
     timingWindows: [TOKEN_TIMING_WINDOWS.WHEEL_WINDOW, TOKEN_TIMING_WINDOWS.MANUAL_HOST],
     activationPattern: TOKEN_ACTIVATION_PATTERNS.RESPONSE,
     persistence: TOKEN_PERSISTENCE_BUCKETS.INSTANT,
-    resolutionPayloads: [TOKEN_RESOLUTION_PAYLOADS.WHEEL, TOKEN_RESOLUTION_PAYLOADS.REPLACEMENT],
-    targetType: EFFECT_TARGET_TYPES.ENCOUNTER_RESULT,
-    targetScope: EFFECT_TARGET_SCOPES.CURRENT_PROMPT,
+    resolutionPayloads: [TOKEN_RESOLUTION_PAYLOADS.REPLACEMENT],
+    targetType: EFFECT_TARGET_TYPES.MANUAL,
+    targetScope: EFFECT_TARGET_SCOPES.MANUAL,
     duration: "instant",
     consumesOnLegalUse: true,
     consumeIfMisses: true,
@@ -3170,10 +3085,9 @@ const TOKEN_TIMING_ENGINE_V1_DEFINITIONS = Object.freeze({
 
 function tokenTimingCategoryFromRaw(value = "") {
   const key = String(value || "").toLowerCase().trim();
-  if (key === "reroll") return TOKEN_TIMING_CATEGORIES.ENCOUNTER;
+  if (key === "reroll" || key === "encounter" || key === "encounters") return TOKEN_TIMING_CATEGORIES.MANUAL;
   if (Object.values(TOKEN_TIMING_CATEGORIES).includes(key)) return key;
   if (key === "curses") return TOKEN_TIMING_CATEGORIES.CURSE;
-  if (key === "encounters") return TOKEN_TIMING_CATEGORIES.ENCOUNTER;
   if (key === "manual" || key === "other") return TOKEN_TIMING_CATEGORIES.MANUAL;
   return "";
 }
@@ -3181,9 +3095,9 @@ function tokenTimingCategoryFromRaw(value = "") {
 function tokenEngineDefinitionByName(tokenName = "") {
   const key = slugify(tokenName);
   if (!key) return null;
-  const entry = Object.entries(TOKEN_TIMING_ENGINE_V1_DEFINITIONS)
+  const entry = Object.entries(TOKEN_TIMING_ENGINE_DEFINITIONS)
     .find(([id, definition]) => slugify(id) === key || (definition.names || []).some((name) => slugify(name) === key));
-  return entry ? { ...entry[1], id: entry[1].id || entry[0], source: "engine-v1" } : null;
+  return entry ? { ...entry[1], id: entry[1].id || entry[0], source: "engine" } : null;
 }
 
 function tokenTimingDefinitionByName(tokenName = "") {
@@ -3192,7 +3106,7 @@ function tokenTimingDefinitionByName(tokenName = "") {
   const legacy = TOKEN_TIMING_LEGACY_OVERRIDES[key];
   if (legacy) return { id: key, source: "legacy", ...legacy };
   const engine = tokenEngineDefinitionByName(tokenName);
-  if (engine) return { id: engine.id || key, source: "engine-v1", ...engine };
+  if (engine) return { id: engine.id || key, source: "engine", ...engine };
   const effectDefinition = Object.values(tokenEffectDefinitions).find((definition) => slugify(definition.name || definition.id) === key);
   if (effectDefinition?.timingCategory) return { id: effectDefinition.id, source: "effect", ...effectDefinition };
   const utilityEntry = Object.entries(utilityTokenDefinitions).find(([, definition]) => definition.names.some((candidate) => slugify(candidate) === key));
@@ -3225,8 +3139,6 @@ function normalizeEffectTargetType(value = "") {
   const values = Object.values(EFFECT_TARGET_TYPES);
   if (values.includes(raw)) return raw;
   if (key === "current-prompt") return EFFECT_TARGET_TYPES.CURRENT_PROMPT;
-  if (key === "pending-random-result" || key === "pending-result") return EFFECT_TARGET_TYPES.ENCOUNTER_RESULT;
-  if (/encounter|random/.test(key)) return EFFECT_TARGET_TYPES.ENCOUNTER_RESULT;
   if (/pokemon/.test(key)) return EFFECT_TARGET_TYPES.POKEMON;
   if (/player/.test(key)) return EFFECT_TARGET_TYPES.PLAYER;
   if (/team/.test(key)) return EFFECT_TARGET_TYPES.TEAM;
@@ -3260,7 +3172,6 @@ function effectTargetTypeFromDefinition(definition = {}, category = "") {
   const explicit = normalizeEffectTargetType(definition.targetType);
   if (explicit) return explicit;
   if (category === TOKEN_TIMING_CATEGORIES.PROTECTION) return EFFECT_TARGET_TYPES.CURRENT_PROMPT;
-  if (category === TOKEN_TIMING_CATEGORIES.ENCOUNTER) return EFFECT_TARGET_TYPES.ENCOUNTER_RESULT;
   const mode = String(definition.targetMode || "").toLowerCase();
   if (/pokemon/.test(mode) || mode === "banned-pokemon") return EFFECT_TARGET_TYPES.POKEMON;
   if (/player/.test(mode)) return EFFECT_TARGET_TYPES.PLAYER;
@@ -3274,7 +3185,6 @@ function effectTargetScopeFromDefinition(definition = {}, targetType = "", categ
   const explicit = normalizeEffectTargetScope(definition.targetScope);
   if (explicit) return explicit;
   if (targetType === EFFECT_TARGET_TYPES.CURRENT_PROMPT) return EFFECT_TARGET_SCOPES.CURRENT_PROMPT;
-  if (targetType === EFFECT_TARGET_TYPES.ENCOUNTER_RESULT) return EFFECT_TARGET_SCOPES.CURRENT_PROMPT;
   if (targetType === EFFECT_TARGET_TYPES.PLAYER) return EFFECT_TARGET_SCOPES.SINGLE_PLAYER;
   if (targetType === EFFECT_TARGET_TYPES.TABLE) return EFFECT_TARGET_SCOPES.TABLE_WIDE;
   if (targetType === EFFECT_TARGET_TYPES.RESOURCE) return definition.targetMode === "none"
@@ -3292,7 +3202,6 @@ function effectTargetScopeFromDefinition(definition = {}, targetType = "", categ
 
 function targetCategoryFromEffectBucket(targetType = "", targetScope = "") {
   if (targetType === EFFECT_TARGET_TYPES.POKEMON) return EFFECT_TARGET_CATEGORIES.POKEMON;
-  if (targetType === EFFECT_TARGET_TYPES.ENCOUNTER_RESULT) return EFFECT_TARGET_CATEGORIES.ENCOUNTER_RESULT;
   if (targetType === EFFECT_TARGET_TYPES.PLAYER) return EFFECT_TARGET_CATEGORIES.PLAYER;
   if (targetType === EFFECT_TARGET_TYPES.RESOURCE) return EFFECT_TARGET_CATEGORIES.TOKEN;
   if (targetType === EFFECT_TARGET_TYPES.TABLE || targetType === EFFECT_TARGET_TYPES.TEAM) return EFFECT_TARGET_CATEGORIES.WHOLE_TABLE;
@@ -3326,7 +3235,6 @@ function tokenResolutionModeForDefinition(definition = {}) {
   if (key === "reroll-token" || key === "reroll") return EFFECT_RESOLUTION_MODES.AUTOMATIC;
   if (["restrict", "immunity", "counterProtection", "substituteAttach"].includes(definition.resolverId)) return EFFECT_RESOLUTION_MODES.AUTOMATIC;
   if (definition.resolverId === "safeguard") return EFFECT_RESOLUTION_MODES.AUTOMATIC;
-  if (definition.resolverId === "extraEncounter") return EFFECT_RESOLUTION_MODES.AUTOMATIC;
   return EFFECT_RESOLUTION_MODES.HOST_CONFIRMED;
 }
 
@@ -3466,7 +3374,6 @@ function tokenTimingCategoryLabel(category) {
   return {
     [TOKEN_TIMING_CATEGORIES.CONTROL]: "Control Token",
     [TOKEN_TIMING_CATEGORIES.PROTECTION]: "Protection Token",
-    [TOKEN_TIMING_CATEGORIES.ENCOUNTER]: "Encounter Token",
     [TOKEN_TIMING_CATEGORIES.CURSE]: "Curse Token",
     [TOKEN_TIMING_CATEGORIES.MANUAL]: "Manual Token"
   }[category] || "Token";
@@ -3515,11 +3422,8 @@ function tokenTimingWindowsForContext(context = {}) {
     windows.add(TOKEN_TIMING_WINDOWS.RESPONSE_WINDOW);
     const resultSession = liveResultSessionForActivity?.(pendingEvent);
     const pendingKind = `${pendingEvent.type || ""} ${pendingEvent.sourceType || ""}`;
-    if (resultSession || /encounter-result|pokemon-result/i.test(pendingKind)) {
-      windows.add("encounterResult");
+    if (resultSession || /pokemon-result/i.test(pendingKind)) {
       windows.add(TOKEN_TIMING_WINDOWS.WHEEL_WINDOW);
-    } else if (pendingEvent.payload?.encounterStage === "beforeRoll" || /encounter-before|wheel-before/i.test(pendingKind)) {
-      windows.add("encounterBeforeRoll");
     } else if (/wheel/i.test(pendingKind)) {
       windows.add(TOKEN_TIMING_WINDOWS.WHEEL_WINDOW);
     }
@@ -3552,8 +3456,6 @@ function tokenTimingWindowsForContext(context = {}) {
   }
   if (context.teamBuilding) windows.add(TOKEN_TIMING_WINDOWS.TEAM_BUILDING);
   if (context.battlePrep) windows.add(TOKEN_TIMING_WINDOWS.BATTLE_PREP);
-  if (context.encounterBeforeRoll) windows.add("encounterBeforeRoll");
-  if (context.encounterResult) windows.add("encounterResult");
   return [...windows];
 }
 
@@ -3826,10 +3728,7 @@ function tokenUseRollbackSnapshot() {
     previousTokenConsumptions: structuredClone(state.tokenConsumptions || []),
     previousPlayerNotifications: structuredClone(state.playerNotifications || []),
     previousWheelSessions: structuredClone(state.wheelSessions || []),
-    previousEncounterSessions: structuredClone(state.encounterSessions || []),
     previousRandomPokemonSessions: structuredClone(state.randomPokemonSessions || []),
-    previousSelectedEncounterSessionId: state.selectedEncounterSessionId || "",
-    previousEncounterModalOpen: Boolean(state.encounterModalOpen),
     previousInteractionEvents: structuredClone(state.interactionEvents || []),
     previousTransactions: structuredClone(state.transactions || []),
     previousGlobalPokemonRules: structuredClone(state.globalPokemonRules || {}),
@@ -3848,7 +3747,6 @@ function tokenUseRollbackSnapshot() {
     previousEndOfActionProcedures: structuredClone(state.endOfActionProcedures || []),
     previousCopiedTokenRelationships: structuredClone(state.copiedTokenRelationships || []),
     previousPrivateEffectRecords: structuredClone(state.privateEffectRecords || []),
-    previousEncounterCopyRecords: structuredClone(state.encounterCopyRecords || [])
   };
 }
 
@@ -3926,18 +3824,6 @@ async function resolveImmediateTokenUse(draft, { context = {} } = {}) {
     alert(timingCheck.reason);
     return null;
   }
-  let extraEncounterValidation = null;
-  if (metadata.resolverId === "extraEncounter") {
-    extraEncounterValidation = encounterTokenRuntime.validateExtraEncounter(state, {
-      playerId: draft.targetPlayerId
-    }, {
-      wheelDefinition: encounterWheelDefinition(state.series, state.gym)
-    });
-    if (!extraEncounterValidation.ok) {
-      alert(extraEncounterValidation.reason);
-      return null;
-    }
-  }
   if (metadata.id === "substitute") {
     const legality = controlTokenDraftLegality(draft, metadata);
     if (!legality.ok) {
@@ -3965,7 +3851,7 @@ async function resolveImmediateTokenUse(draft, { context = {} } = {}) {
       player: draft.actor,
       tokenName: draft.tokenName,
       metadata,
-      source: "token-engine-v1"
+      source: "token-engine"
     })
     : { token: null, consumption: null };
   if (metadata.consumesOnLegalUse && !consumed?.token) {
@@ -3980,44 +3866,8 @@ async function resolveImmediateTokenUse(draft, { context = {} } = {}) {
     `Pattern: ${metadata.activationPattern || "manual"}`
   ];
   const statusIds = [];
-  let encounterSessionId = "";
   let result = "resolved";
-  if (metadata.resolverId === "extraEncounter") {
-    const grant = encounterTokenRuntime.grantExtraEncounter(state, {
-      playerId: extraEncounterValidation.player.id,
-      sourceTokenId: consumedToken.id || "",
-      sourceActivationId: consumedToken.id || ""
-    }, {
-      wheelDefinition: extraEncounterValidation.wheel,
-      now
-    });
-    if (!grant.ok || !grant.session) {
-      restoreTokenEffectContractUndoData(rollbackSnapshot);
-      alert(grant.reason || "The extra Encounter session could not be created. The Token was not consumed.");
-      return null;
-    }
-    encounterSessionId = grant.session.id;
-    state.selectedEncounterSessionId = grant.session.id;
-    state.encounterModalOpen = true;
-    result = "extra-encounter-created";
-    details.push(`${extraEncounterValidation.player.name} gained one Encounter Wheel roll.`);
-    details.push(grant.created ? "Created a one-roll Encounter session." : "Added one roll to the player's open Encounter session.");
-    createPlayerNotification(extraEncounterValidation.player.id, {
-      type: "token",
-      title: "Extra Encounter Ready",
-      message: `${draft.actor.name} used ${consumedToken.name || draft.tokenName}. ${extraEncounterValidation.player.name} may roll one extra encounter now.`,
-      sourceType: "token-engine-v1",
-      sourceId: consumedToken.id || metadata.id,
-      priority: 1,
-      requiresAction: false,
-      payload: {
-        tokenName: consumedToken.name || draft.tokenName,
-        resolverId: metadata.resolverId,
-        encounterSessionId,
-        extraEncounterGrantId: grant.grant.id
-      }
-    });
-  } else if (metadata.resolverId === "safeguard") {
+  if (metadata.resolverId === "safeguard") {
     const expires = statusExpiresAt(1);
     const status = applyLingeringEffect({
       type: "safeguard",
@@ -4086,14 +3936,13 @@ async function resolveImmediateTokenUse(draft, { context = {} } = {}) {
     title: `${draft.actor?.name || "A player"} used ${consumedToken.name || draft.tokenName}`,
     summary: details.join("\n"),
     details,
-    type: "token-engine-v1",
+    type: "token-engine",
     categories: ["tokens", metadata.timingCategory, metadata.persistence, metadata.objectType].filter(Boolean),
-    tags: ["token-engine-v1", metadata.resolverId, ...(metadata.family || []), consumedToken.name || draft.tokenName].filter(Boolean),
+    tags: ["token-engine", metadata.resolverId, ...(metadata.family || []), consumedToken.name || draft.tokenName].filter(Boolean),
     playerIds: [draft.actorPlayerId, draft.targetPlayerId].filter(Boolean),
     tokenNames: [consumedToken.name || draft.tokenName],
     tokenId: consumedToken.id || "",
     tokenActivationId: activation.id,
-    encounterSessionId,
     effectAuditId: resolutionAudit.id,
     tokenConsumptionIds: consumed?.consumption ? [consumed.consumption.id] : [],
     statusIds,
@@ -4120,9 +3969,7 @@ async function resolveImmediateTokenUse(draft, { context = {} } = {}) {
     }
   });
   resolutionAudit.undoLogId = resolutionLog?.id || "";
-  const outcomeTitle = metadata.resolverId === "extraEncounter"
-      ? `Extra Encounter ready for ${extraEncounterValidation?.player?.name || "the chosen player"}.`
-    : metadata.resolverId === "safeguard"
+  const outcomeTitle = metadata.resolverId === "safeguard"
       ? "Safeguard active."
       : metadata.resolverId === "substituteAttach"
         ? "Substitute attached."
@@ -4152,11 +3999,7 @@ async function resolveImmediateTokenUse(draft, { context = {} } = {}) {
       createdStatusIds: statusIds,
       affectedRosterInstanceIds: [draft.targetPokemonId].filter(Boolean),
       consumedTokenRecords: consumed?.consumption ? [consumed.consumption] : [],
-      operations: encounterSessionId ? [{
-        type: "extraEncounterGrant",
-        targetPlayerId: extraEncounterValidation?.player?.id || "",
-        encounterSessionId
-      }] : []
+      operations: []
     },
     continuation: details.slice(-2).join(" ")
   });
@@ -4219,8 +4062,8 @@ async function resolveTokenUse(draft, { context = {} } = {}) {
     return null;
   }
   if (pendingEvent) {
-    if (metadata.timingWindows.includes(TOKEN_TIMING_WINDOWS.WHEEL_WINDOW) || metadata.timingCategory === TOKEN_TIMING_CATEGORIES.ENCOUNTER) {
-      return recordEncounterTokenUse(draft);
+    if (metadata.timingWindows.includes(TOKEN_TIMING_WINDOWS.WHEEL_WINDOW) && liveResultSessionForActivity(pendingEvent)) {
+      return recordPokemonResultTokenUse(draft);
     }
     if (metadata.activationPattern === TOKEN_ACTIVATION_PATTERNS.RESPONSE || metadata.timingCategory === TOKEN_TIMING_CATEGORIES.PROTECTION) {
       return recordProtectionTokenUse(draft);
@@ -4405,12 +4248,10 @@ function buildCausalTokenEffectUndo(snapshot, activity, metadata) {
     copiedActivations: causalIdCollectionDelta(snapshot.previousCopiedActivations, state.copiedActivations),
     copiedTokenRelationships: causalIdCollectionDelta(snapshot.previousCopiedTokenRelationships, state.copiedTokenRelationships),
     wheelSessions: causalIdCollectionDelta(snapshot.previousWheelSessions, state.wheelSessions),
-    encounterSessions: causalIdCollectionDelta(snapshot.previousEncounterSessions, state.encounterSessions),
     randomPokemonSessions: causalIdCollectionDelta(snapshot.previousRandomPokemonSessions, state.randomPokemonSessions),
     delayedEffects: causalIdCollectionDelta(snapshot.previousDelayedEffects, state.delayedEffects),
     broughtTeamSnapshots: causalIdCollectionDelta(snapshot.previousBroughtTeamSnapshots, state.broughtTeamSnapshots),
     postPayoutProcedures: causalIdCollectionDelta(snapshot.previousPostPayoutProcedures, state.postPayoutProcedures),
-    encounterCopyRecords: causalIdCollectionDelta(snapshot.previousEncounterCopyRecords, state.encounterCopyRecords),
     teambuilderFields: causalTopLevelFieldDelta(snapshot.previousTeambuilder || {}, state.teambuilder || {}, ["moveAccessGrantsByPlayerId"]),
     battleTeamFields: causalTopLevelFieldDelta(snapshot.previousBattleTeams || {}, state.battleTeams || {}),
     pokemonDeltas,
@@ -4430,9 +4271,9 @@ function mergeCausalTokenUndoData(base = {}, later = {}) {
   const merged = structuredClone(base || {});
   const collectionKeys = [
     "pokemonRecords", "statuses", "activations", "consumptions", "transactions", "notifications",
-    "effectOperations", "copiedActivations", "copiedTokenRelationships", "wheelSessions", "encounterSessions",
+    "effectOperations", "copiedActivations", "copiedTokenRelationships", "wheelSessions",
     "randomPokemonSessions", "delayedEffects", "broughtTeamSnapshots", "postPayoutProcedures",
-    "encounterCopyRecords", "pokemonLog", "banlistHistory"
+    "pokemonLog", "banlistHistory"
   ];
   collectionKeys.forEach((key) => {
     merged[key] = mergeCausalIdCollectionDelta(merged[key], later[key]);
@@ -4537,12 +4378,10 @@ function restoreCausalTokenEffectUndoData(undoData) {
   state.copiedActivations = applyCausalIdCollectionUndo(state.copiedActivations, undoData.copiedActivations);
   state.copiedTokenRelationships = applyCausalIdCollectionUndo(state.copiedTokenRelationships, undoData.copiedTokenRelationships);
   state.wheelSessions = applyCausalIdCollectionUndo(state.wheelSessions, undoData.wheelSessions);
-  state.encounterSessions = applyCausalIdCollectionUndo(state.encounterSessions, undoData.encounterSessions);
   state.randomPokemonSessions = applyCausalIdCollectionUndo(state.randomPokemonSessions, undoData.randomPokemonSessions);
   state.delayedEffects = applyCausalIdCollectionUndo(state.delayedEffects, undoData.delayedEffects);
   state.broughtTeamSnapshots = applyCausalIdCollectionUndo(state.broughtTeamSnapshots, undoData.broughtTeamSnapshots);
   state.postPayoutProcedures = applyCausalIdCollectionUndo(state.postPayoutProcedures, undoData.postPayoutProcedures);
-  state.encounterCopyRecords = applyCausalIdCollectionUndo(state.encounterCopyRecords, undoData.encounterCopyRecords);
   state.teambuilder ||= {};
   applyCausalTopLevelFieldUndo(state.teambuilder, undoData.teambuilderFields);
   state.battleTeams ||= {};
@@ -6050,7 +5889,6 @@ function tokenTimingCategoryOptions(selected = "") {
   return [
     [TOKEN_TIMING_CATEGORIES.CONTROL, "Control Token"],
     [TOKEN_TIMING_CATEGORIES.PROTECTION, "Protection Token"],
-    [TOKEN_TIMING_CATEGORIES.ENCOUNTER, "Encounter Token"],
     [TOKEN_TIMING_CATEGORIES.CURSE, "Curse Token"],
   ].map(([value, label]) => `<option value="${escapeHtml(value)}" ${value === selected ? "selected" : ""}>${escapeHtml(label)}</option>`).join("");
 }
@@ -6062,150 +5900,6 @@ const GAME_CORNER_TIERS = Object.freeze({
   greatball: { id: "great", label: "Great", tokenName: "Great GC Ticket", rank: 4 },
   ultraball: { id: "ultra", label: "Ultra", tokenName: "Ultra GC Ticket", rank: 5 },
   masterball: { id: "master", label: "Master", tokenName: "Master GC Ticket", rank: 6 }
-});
-
-function normalizeEncounterEntryId(name, index = 0) {
-  const base = normalizePokemonName(name)
-    .replace(/-sf$/i, "")
-    .replace(/^hyperspace-hole$/i, "hyperspace-hole");
-  return index ? `${base}-${index + 1}` : base;
-}
-
-function encounterEntry(name, index = 0) {
-  const raw = String(name || "").trim();
-  const isWater = /\s+SF$/i.test(raw);
-  const displayName = raw.replace(/\s+SF$/i, "").trim();
-  const id = normalizeEncounterEntryId(displayName, index);
-  const isHyperspace = normalizePokemonName(displayName) === "hyperspace-hole";
-  return {
-    id,
-    pokemonName: displayName,
-    displayName,
-    weight: 1,
-    category: isWater ? "fishing" : isHyperspace ? "special" : "land",
-    enabledByDefault: !isWater,
-    removable: true,
-    ...(isWater ? { notes: "Fishing / Surf encounter." } : {}),
-    ...(isHyperspace ? { specialWheelId: "hoenn-hyperspace-hole", notes: "Hoenn-only Hyperspace Hole sub-wheel." } : {})
-  };
-}
-
-function makeEncounterWheel(series, gym, names) {
-  const seen = new Map();
-  return {
-    id: `${String(series).toLowerCase()}-gym-${gym}`,
-    series,
-    gym,
-    name: `${series} Gym ${gym} Encounter Wheel`,
-    rollsPerAction: 2,
-    rerollable: true,
-    entries: names.map((name) => {
-      const key = normalizePokemonName(String(name).replace(/\s+SF$/i, "").trim());
-      const count = seen.get(key) || 0;
-      seen.set(key, count + 1);
-      return encounterEntry(name, count);
-    })
-  };
-}
-
-const starterWheelDefinitions = Object.freeze({
-  "hoenn-gym-1": {
-    id: "hoenn-starter-wheel",
-    series: "Hoenn",
-    gym: 1,
-    name: "Hoenn Starter Wheel",
-    timing: "Start of Gym 1 Phase",
-    trigger: "natural-event",
-    entries: ["Treecko", "Mudkip", "Torchic"].map((name) => encounterEntry(name))
-  }
-});
-
-const hyperspaceWheelDefinitions = Object.freeze({
-  "hoenn-hyperspace-hole": {
-    id: "hoenn-hyperspace-hole",
-    series: "Hoenn",
-    name: "Hoenn Hyperspace Hole Wheel",
-    entries: [
-      "Rayquaza", "Cresselia", "Uxie", "Mesprit", "Azelf", "Landorus", "Thundurus", "Tornadus",
-      "Tornadus T", "Landorus T", "Thundurus T", "Dialga", "Palkia", "Giratina", "Groudon",
-      "Kyogre", "Jirachi", "Deoxys", "Deoxys A", "Deoxys S", "Deoxys D", "Kyurem", "Reshiram",
-      "Zekrom", "Cobalion", "Terrakion", "Virizion", "Regirock", "Regice", "Registeel",
-      "Regigigas", "Entei", "Raikou", "Suicune", "Latias", "Latios", "Heatran", "Ho-Oh", "Lugia"
-    ].map((name) => encounterEntry(name))
-  }
-});
-
-const encounterWheelDefinitions = Object.freeze({
-  "kanto-gym-1": makeEncounterWheel("Kanto", 1, ["Pidgey", "Shinx", "Oddish", "Magikarp SF", "Tentacool SF"]),
-  "hoenn-gym-1": makeEncounterWheel("Hoenn", 1, [
-    "Chikorita", "Cyndaquil", "Totodile", "Wurmple", "Zigzagoon", "Poochyena", "Lillipup", "Zorua",
-    "Sewaddle", "Turtwig", "Chimchar", "Piplup", "Snivy", "Oshawott", "Tepig", "Wingull",
-    "Wailmer SF", "Carvanha SF", "Chatot", "Shellos", "Tentacool SF", "Magikarp SF", "Lotad",
-    "Seedot", "Ralts", "Surskit", "Gothita", "Tympole", "Marill", "Corphish SF", "Goldeen SF",
-    "Taillow", "Pidove", "Shroomish", "Slakoth", "Cottonee", "Paras", "Phantump", "Omanyte",
-    "Kabuto", "Aerodactyl", "Lileep", "Anorith", "Cranidos", "Shieldon", "Tirtouga", "Archen",
-    "Tyrunt", "Amaura", "Makuhita", "Whismur", "Nincada", "Skitty", "Hyperspace Hole", "Joltik",
-    "Eevee", "Abra", "Geodude"
-  ]),
-  "hoenn-gym-2": makeEncounterWheel("Hoenn", 2, [
-    "Tentacool SF", "Wingull SF", "Wailmer SF", "Magikarp SF", "Zubat", "Makuhita", "Geodude",
-    "Abra", "Timburr", "Axew", "Onix", "Aron", "Sableye", "Mawile", "Nosepass", "Electrike",
-    "Zigzagoon", "Gulpin", "Plusle", "Minun", "Oddish", "Hyperspace Hole", "Voltorb", "Trubbish",
-    "Chatot", "Shellos", "Magnemite", "Poochyena"
-  ]),
-  "hoenn-gym-3": makeEncounterWheel("Hoenn", 3, [
-    "Zigzagoon", "Roselia", "Marill", "Volbeat", "Illumise", "Oddish", "Surskit", "Rattata",
-    "Deerling", "Tympole SF", "Corphish SF", "Magikarp SF", "Goldeen SF", "Poochyena", "Seedot",
-    "Numel", "Machop", "Ponyta", "Throh", "Sawk", "Tyrogue", "Hyperspace Hole"
-  ]),
-  "hoenn-gym-4": makeEncounterWheel("Hoenn", 4, [
-    "Spinda", "Sandshrew", "Skarmory", "Scraggy", "Klefki", "Bouffalant", "Slugma", "Numel",
-    "Koffing", "Torkoal", "Grimer", "Roggenrola", "Diglett", "Tyrogue", "Swablu", "Lombre",
-    "Nuzleaf", "Zangoose", "Seviper", "Surskit", "Skorupi", "Misdreavus", "Tympole", "Swablu",
-    "Azumarill SF", "Barboach SF", "Magikarp SF", "Goldeen SF", "Geodude", "Zubat", "Lunatone",
-    "Solrock", "Deino", "Druddigon", "Clefairy", "Bagon", "Taillow", "Jigglypuff", "Wingull",
-    "Pidove", "Wailmer", "Tentacool", "Spoink", "Mankey", "Ponyta", "Wynaut", "Hyperspace Hole"
-  ]),
-  "hoenn-gym-5": makeEncounterWheel("Hoenn", 5, [
-    "Sandshrew", "Trapinch", "Cacnea", "Baltoy", "Sandile", "Dwebble", "Gible", "Marill",
-    "Surskit", "Barboach SF", "Magikarp SF", "Goldeen SF", "Geodude", "Frillish SF", "Skrelp SF",
-    "Clauncher SF", "Krabby SF", "Tentacool SF", "Wingull SF", "Wailmer SF", "Clamperl SF",
-    "Lanturn SF", "Relicanth SF", "Spiritomb", "Hyperspace Hole"
-  ]),
-  "hoenn-gym-6": makeEncounterWheel("Hoenn", 6, [
-    "Linoone", "Manectric", "Pelipper", "Kecleon", "Raticate", "Luxio", "Aipom", "Tentacool SF",
-    "Sharpedo SF", "Magikarp SF", "Goldeen SF", "Gloom", "Tropius", "Feebas SF", "Castform",
-    "Skitty", "Plusle", "Shuppet", "Duskull", "Marill SF", "Surskit SF", "Corphish SF",
-    "Mightyena", "Wailmer SF", "Hyperspace Hole"
-  ]),
-  "hoenn-gym-7": makeEncounterWheel("Hoenn", 7, [
-    "Oddish", "Marill", "Kecleon", "Linoone", "Tropius", "Absol", "Surskit", "Barboach SF",
-    "Magikarp SF", "Tentacool SF", "Goldeen SF", "Mightyena", "Seedot", "Golbat", "Shuppet",
-    "Pelipper", "Elgyem", "Hypno", "Aipom", "Duskull", "Wailmer SF", "Doduo", "Psyduck",
-    "Rhyhorn", "Kakuna", "Pidgeotto", "Buneary", "Heracross", "Donphan", "Pinsir", "Xatu",
-    "Wobbuffet", "Pikachu", "Girafarig", "Teddiursa", "Hoothoot", "Pineco", "Houndour",
-    "Miltank", "Ledyba", "Sunkern", "Shuckle", "Geodude", "Mareep", "Gligar", "Snubbull",
-    "Stantler", "Spinarak", "Quagsire SF", "Octillery SF", "Frillish SF", "Finneon SF",
-    "Alomomola SF", "Sharpedo SF", "Meditite", "Vulpix", "Bronzor", "Growlithe", "Chimecho",
-    "Staryu", "Electrode", "Torkoal", "Hyperspace Hole", "Lanturn SF", "Clamperl SF",
-    "Relicanth SF", "Beldum", "Seel", "Spheal", "Snorunt", "Cubchoo", "Delibird"
-  ]),
-  "hoenn-gym-8": makeEncounterWheel("Hoenn", 8, [
-    "Frillish SF", "Finneon SF", "Alomomola SF", "Tentacool SF", "Pelipper SF", "Wailmer SF",
-    "Magikarp SF", "Chinchou SF", "Clamperl SF", "Relicanth SF", "Sharpedo SF", "Luvdisc SF",
-    "Corsola SF", "Golbat", "Graveler", "Hyperspace Hole", "Horsea SF", "Claydol", "Ariados",
-    "Sableye", "Mawile", "Swablu", "Banette", "Dusclops"
-  ]),
-  "hoenn-gym-9": makeEncounterWheel("Hoenn", 9, [
-    "Tentacool SF", "Pelipper SF", "Luvdisc SF", "Wailmer SF", "Corsola SF", "Magikarp SF",
-    "Golbat SF", "Lairon", "Hariyama", "Loudred", "Sableye", "Mawile", "Medicham", "Barboach SF",
-    "Goldeen SF", "Mantine SF", "Remoraid SF", "Hyperspace Hole", "Tangela", "Glameow",
-    "Sunkern", "Minccino", "Venomoth", "Zebstrika", "Xatu", "Maractus", "Graveler", "Binacle",
-    "Persian", "Audino", "Munna", "Ditto", "Darmanitan", "Larvesta", "Porygon", "Forretress",
-    "Stantler", "Donphan", "Kricketune", "Rufflet", "Vullaby", "Vulpix", "Girafarig", "Magby",
-    "Elekid", "Crustle", "Happiny", "Klink", "Tynamo", "Boldore", "Excadrill", "Onix",
-    "Cofagrigus", "Slowpoke", "Unown", "Petilil", "Cherrim"
-  ])
 });
 
 const silphCoMovePool = Object.freeze((window.rivalSagaSilphCoMovePool || [
@@ -16914,7 +16608,6 @@ const pokemonTypeLookupAliasMap = Object.freeze({
   "rotom-wash": "rotom-wash-rotom"
 });
 
-const hiddenGrottoTypes = Object.freeze(["Normal", "Fire", "Water", "Electric", "Grass", "Ice", "Fighting", "Poison", "Ground", "Flying", "Psychic", "Bug", "Rock", "Ghost", "Dragon", "Dark", "Steel", "Fairy"]);
 
 const tierCostScale = Object.freeze({
   lc: 1000,
@@ -17737,12 +17430,6 @@ function getNaturalGymTier(gymNumber) {
   return NATURAL_GYM_TIER_CAPS[Number(gymNumber)] || "Ultra";
 }
 
-function getHiddenGrottoTierCap(gymNumber = state.gym) {
-  const naturalTier = getNaturalGymTier(gymNumber);
-  const naturalTierIndex = getTierIndex(naturalTier);
-  if (naturalTierIndex < 0) return naturalTier;
-  return getTierNameByIndex(naturalTierIndex + HIDDEN_GROTTO_TIER_STEP_BONUS);
-}
 
 function isTierAtOrBelow(candidateTier, allowedTier) {
   const candidateIndex = getTierIndex(candidateTier);
@@ -18840,12 +18527,6 @@ const els = {
   skipWheelAnimation: document.querySelector("#skipWheelAnimation"),
   closeWheelPanel: document.querySelector("#closeWheelPanel"),
   wheelHistory: document.querySelector("#wheelHistory"),
-  encounterTab: document.querySelector("#encounterTab"),
-  encounterOverlay: document.querySelector("#encounterOverlay"),
-  closeEncounterOverlay: document.querySelector("#closeEncounterOverlay"),
-  encounterSessionList: document.querySelector("#encounterSessionList"),
-  encounterTitle: document.querySelector("#encounterTitle"),
-  encounterBody: document.querySelector("#encounterBody"),
   randomPokemonColumn: document.querySelector("#randomPokemonColumn"),
   randomPokemonTab: document.querySelector("#randomPokemonTab"),
   randomPokemonPanel: document.querySelector("#randomPokemonPanel"),
@@ -21151,7 +20832,6 @@ async function loadBackendState({ renderAfter = true } = {}) {
       state.ruleset.actionPhaseVersion = normalizeActionPhaseVersion(payload.actionPhaseVersion || state.ruleset.actionPhaseVersion);
       state.ruleset.supportedActionPhaseVersions = [...new Set([
         ...(state.ruleset.supportedActionPhaseVersions || []),
-        ACTION_PHASE_VERSION_V1,
         ACTION_PHASE_VERSION_V2
       ].map(normalizeActionPhaseVersion))];
       syncLobbyMembersToTrainerSlots(payload.members || [], { force: true });
@@ -21170,7 +20850,6 @@ async function loadBackendState({ renderAfter = true } = {}) {
       normalizedRemoteState.ruleset.actionPhaseVersion = normalizeActionPhaseVersion(payload.actionPhaseVersion);
       normalizedRemoteState.ruleset.supportedActionPhaseVersions = [...new Set([
         ...(normalizedRemoteState.ruleset.supportedActionPhaseVersions || []),
-        ACTION_PHASE_VERSION_V1,
         ACTION_PHASE_VERSION_V2
       ].map(normalizeActionPhaseVersion))];
     }
@@ -22144,7 +21823,6 @@ function normalizeState(nextState) {
   nextState.endOfActionProcedures = Array.isArray(nextState.endOfActionProcedures) ? nextState.endOfActionProcedures : [];
   nextState.copiedTokenRelationships = Array.isArray(nextState.copiedTokenRelationships) ? nextState.copiedTokenRelationships : [];
   nextState.privateEffectRecords = Array.isArray(nextState.privateEffectRecords) ? nextState.privateEffectRecords : [];
-  nextState.encounterCopyRecords = Array.isArray(nextState.encounterCopyRecords) ? nextState.encounterCopyRecords : [];
   syncLinkedTransactions(nextState);
   normalizeChronologyState(nextState);
   nextState.perkSystem ||= {};
@@ -22212,12 +21890,6 @@ function normalizeState(nextState) {
   nextState.gameCornerSessions ||= [];
   nextState.gameCornerUnlocks ||= [];
   nextState.dragonsDenSessions ||= [];
-  nextState.hiddenGrottoSessions ||= [];
-  nextState.hiddenGrottoSessions.forEach((session) => {
-    session.status = ["type-choice", "pokemon-choice", "completed", "undone"].includes(session.status) ? session.status : "type-choice";
-    session.rolledTypes ||= [];
-    session.rolledPokemon ||= [];
-  });
   nextState.silphCoSessions ||= [];
   nextState.silphCoSessions.forEach((session) => {
     session.status = ["pending-choice", "completed", "undone"].includes(session.status) ? session.status : "pending-choice";
@@ -22312,21 +21984,6 @@ function normalizeState(nextState) {
   nextState.selectedWheelSessionId ||= "";
   nextState.wheelDrawerOpen = Boolean(nextState.wheelDrawerOpen);
   nextState.skipWheelAnimation = Boolean(nextState.skipWheelAnimation);
-  nextState.encounterSessions ||= [];
-  nextState.encounterSessions.forEach((session) => {
-    session.status = ["pending", "review", "completed", "undone", "cancelled"].includes(session.status) ? session.status : "pending";
-    session.rolls ||= [];
-    session.removedEntryIds ||= [];
-    session.temporaryEntries ||= [];
-    session.weightOverrides ||= {};
-    session.weightEditing = Boolean(session.weightEditing);
-    session.resultSessionIds ||= [];
-    session.visualRotation = Number(session.visualRotation || 0);
-    session.isSpinning = false;
-    session.pendingEntryId = "";
-  });
-  nextState.selectedEncounterSessionId ||= "";
-  nextState.encounterModalOpen = Boolean(nextState.encounterModalOpen);
   nextState.randomPokemonSessions ||= [];
   nextState.pokemonFamilyTierCache ||= {};
   pokemonFamilyTierCache = nextState.pokemonFamilyTierCache;
@@ -22867,7 +22524,7 @@ function normalizeRuleset(ruleset = {}, legacyState = {}) {
     schemaVersion: Number(source.schemaVersion || base.schemaVersion),
     actionPhaseVersion: persistedActionPhaseVersion
       ? normalizeActionPhaseVersion(persistedActionPhaseVersion)
-      : ACTION_PHASE_VERSION_V1,
+      : DEFAULT_ACTION_PHASE_VERSION,
     supportedActionPhaseVersions: [...new Set([
       ...base.supportedActionPhaseVersions,
       ...(Array.isArray(source.supportedActionPhaseVersions) ? source.supportedActionPhaseVersions : [])
@@ -23412,16 +23069,15 @@ function createInteractionEvent({
 function createPokemonResultTimingWindow(session, player) {
   if (!session || session.interactionEventId || !player) return null;
   const resultName = session.resultDisplayName || session.resultPokemonName || "Pokemon result";
-  const isEncounter = session.sourceType === "encounter";
   const activity = createInteractionEvent({
-    type: isEncounter ? "encounter-result" : "pokemon-result",
+    type: "pokemon-result",
     title: `${player.name} rolled ${resultName}`,
     message: `${session.sourceLabel || "Pokemon result"} is pending before it resolves.`,
     actorPlayerId: player.id,
     targetPlayerId: player.id,
     sourceType: session.sourceType || "random-pokemon",
     sourceId: session.id,
-    responseTypes: ["encounter-reroll", "steal-encounter"],
+    responseTypes: ["pokemon-reroll"],
     eligiblePlayerIds: state.players.map((entry) => entry.id),
     series: session.series || state.series,
     gym: Number(session.gym || state.gym),
@@ -23430,8 +23086,6 @@ function createPokemonResultTimingWindow(session, player) {
       randomPokemonSessionId: session.id,
       gameCornerSessionId: session.gameCornerSessionId || "",
       actionVisitId: session.actionVisitId || "",
-      encounterSessionId: session.encounterSessionId || "",
-      encounterRollId: session.encounterRollId || "",
       resultName,
       sourceLabel: session.sourceLabel || ""
     }
@@ -25771,7 +25425,7 @@ function canShowLiveTransactionControls(targetState = state) {
 function liveResultSessionForActivity(activity, targetState = state) {
   if (!activity) return null;
   const sessionId = activity.payload?.randomPokemonSessionId
-    || (/pokemon-result|encounter-result/.test(activity.type || "") ? activity.sourceId : "");
+    || (activity.type === "pokemon-result" ? activity.sourceId : "");
   if (!sessionId) return null;
   return (targetState.randomPokemonSessions || []).find((session) => session.id === sessionId && session.status === "pending") || null;
 }
@@ -25781,7 +25435,6 @@ function liveActivityTimingCategory(activity) {
   if (activity.payload?.tokenTimingCategory) return tokenTimingCategoryFromRaw(activity.payload.tokenTimingCategory);
   if (activity.type === TOKEN_PENDING_EVENT_TYPES.CONTROL_TOKEN) return TOKEN_TIMING_CATEGORIES.CONTROL;
   if (activity.type === TOKEN_PENDING_EVENT_TYPES.CURSE_TOKEN) return TOKEN_TIMING_CATEGORIES.CURSE;
-  if (activity.type === TOKEN_PENDING_EVENT_TYPES.ENCOUNTER_RESULT || activity.type === "encounter-result") return TOKEN_TIMING_CATEGORIES.ENCOUNTER;
   return "";
 }
 
@@ -25794,16 +25447,16 @@ function liveTokenPromptDetails(activity, resultSession = null, targetState = st
   const teamLockText = activity?.payload?.teamLock
     ? " This is happening during Sabotage. Submitted teams are locked before Team Preview."
     : "";
-  if (resultSession || activity?.type === "encounter-result" || activity?.type === TOKEN_PENDING_EVENT_TYPES.ENCOUNTER_RESULT) {
+  if (resultSession) {
     const resultOwnerId = resultSession?.resultOwnerPlayerId || resultSession?.ownerPlayerId || resultSession?.playerId || activity?.actorPlayerId || "";
     const resultOwner = targetState.players.find((player) => player.id === resultOwnerId);
-    const resultName = resultSession?.resultDisplayName || activity?.payload?.resultName || "an encounter";
+    const resultName = resultSession?.resultDisplayName || activity?.payload?.resultName || "a Pokemon result";
     return {
-      type: "encounter-result-pending",
+      type: "pokemon-result-pending",
       statusLabel: "Waiting to Resolve",
-      title: "Encounter Result Pending",
-      body: `${resultOwner?.name || actor?.name || "A player"} rolled ${resultName}. Encounter modifiers, rerolls, responses, and trades may happen before this result is finalized.`,
-      helperText: "Use Encounter Tokens during this window, trade, record No Response, then finalize the result."
+      title: "Pokemon Result Pending",
+      body: `${resultOwner?.name || actor?.name || "A player"} rolled ${resultName}. Legal rerolls, responses, and trades may happen before this result is finalized.`,
+      helperText: "Use any legal result response during this window, trade, record No Response, then finalize the result."
     };
   }
   if (category === TOKEN_TIMING_CATEGORIES.CONTROL) {
@@ -26427,13 +26080,12 @@ function getCurrentLivePrompt(targetState = state) {
     const resultOwner = targetState.players.find((player) => player.id === resultOwnerId);
     const resultName = resultSession?.resultDisplayName || pendingEvent.payload?.resultName || "";
     const sourceLabel = resultSession?.sourceLabel || pendingEvent.payload?.sourceLabel || pendingEvent.sourceType || "Event";
-    const isEncounterResult = Boolean(resultSession?.sourceType === "encounter" || pendingEvent.type === "encounter-result");
     const tokenPrompt = liveTokenPromptDetails(pendingEvent, resultSession, targetState);
     const promptDisplay = liveCurrentPromptDetails(pendingEvent, tokenPrompt, currentPromptStep, respondingToPromptStep);
     if (resultSession) {
       return {
         id: `live-${pendingEvent.id}`,
-        type: tokenPrompt?.type || (isEncounterResult ? "encounter-result-pending" : "pokemon-result-pending"),
+        type: tokenPrompt?.type || "pokemon-result-pending",
         statusLabel: promptDisplay.statusLabel || "Waiting to Resolve",
         title: promptDisplay.title || (resultName ? `${resultOwner?.name || "A player"} rolled ${resultName}` : pendingEvent.title || "Pokemon result pending"),
         body: promptDisplay.body || `${resultName || "This Pokemon result"} from ${sourceLabel} is waiting to resolve.`,
@@ -26665,7 +26317,6 @@ function liveManualEventTypeOptions(selected = "manual-event") {
     ["class-effect", "Class Effect"],
     [TOKEN_PENDING_EVENT_TYPES.CONTROL_TOKEN, "Control Token"],
     [TOKEN_PENDING_EVENT_TYPES.CURSE_TOKEN, "Curse"],
-    [TOKEN_PENDING_EVENT_TYPES.ENCOUNTER_RESULT, "Encounter"],
     [TOKEN_PENDING_EVENT_TYPES.PROTECTION_RESPONSE, "Protection / Response Note"],
     ["item-effect", "Item"],
     ["other", "Other"]
@@ -26676,7 +26327,6 @@ function liveManualEventTypeOptions(selected = "manual-event") {
 function liveTimingWindowOptions(selected = "normal") {
   const options = [
     ["normal", "Normal"],
-    [TOKEN_PENDING_EVENT_TYPES.ENCOUNTER_RESULT, "Encounter Result"],
     [TOKEN_PENDING_EVENT_TYPES.TEAM_LOCK_WINDOW, "Sabotage"],
     ["team-preview", "Team Preview"],
     ["battle-phase", "Battle Phase"],
@@ -27400,9 +27050,7 @@ function createLiveManualEventFromForm(form) {
   }
   const finalEventType = timingWindow === TOKEN_PENDING_EVENT_TYPES.TEAM_LOCK_WINDOW
     ? TOKEN_PENDING_EVENT_TYPES.TEAM_LOCK_WINDOW
-    : timingWindow === TOKEN_PENDING_EVENT_TYPES.ENCOUNTER_RESULT
-      ? TOKEN_PENDING_EVENT_TYPES.ENCOUNTER_RESULT
-      : eventType;
+    : eventType;
   const activity = createInteractionEvent({
     type: finalEventType,
     title,
@@ -27852,13 +27500,10 @@ function recordTokenResponseToActivity(activity, draft, responseType) {
   return savedResponse;
 }
 
-function currentEncounterPendingActivity() {
+function currentPokemonResultPendingActivity() {
   const activity = getCurrentPendingEvent();
   if (!activity || activity.status !== "open") return null;
-  const session = liveResultSessionForActivity(activity);
-  if (activity.type === "encounter-result" || activity.type === TOKEN_PENDING_EVENT_TYPES.ENCOUNTER_RESULT) return activity;
-  if (session?.sourceType === "encounter") return activity;
-  return null;
+  return liveResultSessionForActivity(activity) ? activity : null;
 }
 
 function tokenNameIsReroll(tokenName) {
@@ -27866,33 +27511,23 @@ function tokenNameIsReroll(tokenName) {
   return key === "reroll" || key === "reroll-token";
 }
 
-async function recordEncounterTokenUse(draft) {
-  const activity = currentEncounterPendingActivity();
+async function recordPokemonResultTokenUse(draft) {
+  const activity = currentPokemonResultPendingActivity();
   if (!activity) {
-    alert("Encounter Tokens are used during an encounter result window before the result is finalized.");
+    alert("This Token is used from a pending Pokemon result window.");
     return null;
   }
-  if (!playerCanRespondToActivity(activity, draft.actorPlayerId)) {
-    alert(`${draft.actor.name} is not eligible to respond to this encounter result.`);
+  if (!tokenNameIsReroll(draft.tokenName)) {
+    alert(String(draft.tokenName || "This Token") + " is not supported from the generic Pokemon result window. Route Encounter Tokens are used from Routes.");
     return null;
   }
-  if (playerAlreadyAnsweredActivity(activity, draft.actorPlayerId, currentInteractionPromptStep(activity).id)) {
-    alert(`${draft.actor.name} has already responded or chosen No Response for the current prompt.`);
+  const session = liveResultSessionForActivity(activity);
+  if (!session) {
+    alert("The pending Pokemon result is no longer available.");
     return null;
   }
-  if (tokenNameIsReroll(draft.tokenName)) {
-    const session = liveResultSessionForActivity(activity);
-    if (!session) {
-      alert("Reroll Token needs a pending encounter result before it can be used here.");
-      return null;
-    }
-    await rerollRandomPokemonSession(session.id, { actorPlayerId: draft.actorPlayerId });
-    state.liveTable = normalizeLiveTableState({ ...(state.liveTable || {}), currentPendingEventId: activity.id });
-    saveState({ immediate: true });
-    render();
-    return activity;
-  }
-  return recordTokenResponseToActivity(activity, draft, "encounter-token");
+  await rerollRandomPokemonSession(session.id, { actorPlayerId: draft.actorPlayerId });
+  return activity;
 }
 
 function recordProtectionTokenUse(draft) {
@@ -28262,7 +27897,6 @@ function liveRefereeTokenInventoryGroups(player) {
   const categoryOrder = {
     [TOKEN_TIMING_CATEGORIES.CONTROL]: 1,
     [TOKEN_TIMING_CATEGORIES.PROTECTION]: 2,
-    [TOKEN_TIMING_CATEGORIES.ENCOUNTER]: 3,
     [TOKEN_TIMING_CATEGORIES.CURSE]: 4,
     [TOKEN_TIMING_CATEGORIES.MANUAL]: 9
   };
@@ -28270,12 +27904,9 @@ function liveRefereeTokenInventoryGroups(player) {
     || a.name.localeCompare(b.name));
 }
 
-function liveRefereePromptIsEncounterResult(prompt) {
+function liveRefereePromptHasPokemonResult(prompt) {
   const activity = prompt?.pendingEvent;
-  return Boolean(prompt?.resultSession
-    || activity?.type === "encounter-result"
-    || activity?.type === TOKEN_PENDING_EVENT_TYPES.ENCOUNTER_RESULT
-    || liveResultSessionForActivity(activity));
+  return Boolean(prompt?.resultSession || liveResultSessionForActivity(activity));
 }
 
 function liveRefereeTokenCanUseNow(group, prompt, player) {
@@ -28300,7 +27931,7 @@ function liveRefereeTokenCanUseNow(group, prompt, player) {
   }
   if (group.metadata?.resolverId === "delayParent"
     && !teleportDelayableParentPlan(prompt?.pendingEvent, step).ok) return false;
-  if (group.metadata?.timingWindows?.includes(TOKEN_TIMING_WINDOWS.WHEEL_WINDOW)) return liveRefereePromptIsEncounterResult(prompt);
+  if (group.metadata?.timingWindows?.includes(TOKEN_TIMING_WINDOWS.WHEEL_WINDOW)) return liveRefereePromptHasPokemonResult(prompt);
   return true;
 }
 
@@ -28553,7 +28184,6 @@ function liveRefereeAvailableTokenGroups(prompt, playerId = liveRefereeControlle
 function liveRefereeTokenUseIntentLabel(group, prompt) {
   const category = group?.metadata?.timingCategory || "";
   if (prompt?.pendingEvent && category === TOKEN_TIMING_CATEGORIES.PROTECTION) return "Respond";
-  if (prompt?.pendingEvent && category === TOKEN_TIMING_CATEGORIES.ENCOUNTER) return "Modify";
   return "Open Window";
 }
 
@@ -29280,14 +28910,6 @@ function persistLiveRefereeGenericEffectDraft(form, { immediate = false } = {}) 
   persistProvisionalDeclarationDraft({ immediate })?.catch((error) => console.warn("Declaration draft save failed.", error));
 }
 
-function liveRefereeCurrentEncounterLine(prompt) {
-  const session = prompt.resultSession || liveResultSessionForActivity(prompt.pendingEvent);
-  if (!session) return "";
-  const ownerId = session.resultOwnerPlayerId || session.ownerPlayerId || session.playerId || "";
-  const ownerName = livePlayerName(ownerId, "A player");
-  const resultName = session.resultDisplayName || session.resultPokemonName || "an encounter";
-  return `${ownerName} rolled ${resultName}.`;
-}
 
 function liveRefereeSelectedEffectGroup(prompt, selectedPlayerId = liveRefereeControlledPlayerId()) {
   const effectName = state.liveRefereeSelectedEffectName || "";
@@ -29661,19 +29283,6 @@ function liveRefereeEffectUseScreenMarkup(prompt, selectedPlayerId = liveReferee
       submitLabel: `Use ${tokenName}`,
       submitDisabled: !prompt.pendingEvent,
       className: "current-prompt"
-    });
-  }
-  if (targetType === EFFECT_TARGET_TYPES.ENCOUNTER_RESULT) {
-    const encounterLine = liveRefereeCurrentEncounterLine(prompt);
-    return liveRefereeEffectTargetScreenMarkup({
-      prompt,
-      tokenName,
-      metadata,
-      situation: encounterLine ? (slugify(tokenName).includes("reroll") ? "Reroll this encounter?" : `Use ${tokenName} on this encounter?`) : "No encounter result is waiting.",
-      fields: encounterLine ? `<p class="live-referee-target-summary">${escapeHtml(encounterLine)}</p>` : "",
-      submitLabel: slugify(tokenName).includes("reroll") ? "Reroll" : `Use ${tokenName}`,
-      submitDisabled: !encounterLine,
-      className: "encounter-target"
     });
   }
   if (metadata.id === "incinerate") {
@@ -31420,9 +31029,6 @@ function renderLiveRefereeMainPromptScreen(prompt, context = {}) {
   if (pending?.sourceType === "revenge-post-payout") {
     return liveRefereeRevengeProcedureScreenMarkup(prompt, pending);
   }
-  if (pending?.sourceType === "honey-end-action") {
-    return liveRefereeHoneyProcedureScreenMarkup(prompt, pending);
-  }
   const provisional = currentProvisionalDeclaration();
   if (provisional) {
     const declarerId = String(provisional.payload?.declaringPlayerId || provisional.actorPlayerId || "");
@@ -32580,18 +32186,6 @@ async function handleLiveTableClick(event) {
   if (revengeProcedureConfirm) {
     event.preventDefault();
     resolveRevengePostPayoutProcedureFromForm(revengeProcedureConfirm.closest("[data-revenge-procedure-form]"));
-    return;
-  }
-  const honeySkip = liveClosestEventTarget(event, "[data-honey-procedure-skip]");
-  if (honeySkip) {
-    event.preventDefault();
-    skipHoneyEndOfActionProcedure(honeySkip.dataset.honeyProcedureSkip || "");
-    return;
-  }
-  const honeyChoice = liveClosestEventTarget(event, "[data-honey-result-choice]");
-  if (honeyChoice) {
-    event.preventDefault();
-    resolveHoneyEndOfActionProcedure(honeyChoice.dataset.activityId || "", honeyChoice.dataset.honeyResultChoice || "");
     return;
   }
   const smokescreenSpin = liveClosestEventTarget(event, "[data-smokescreen-spin]");
@@ -34723,24 +34317,6 @@ function ensureActionPhaseGymState(series = state.series, gym = state.gym) {
       completedAt: operation.completedAt || "",
       completionReason: operation.completionReason || ""
     }));
-  gymState.actionOperations.forEach((operation) => {
-    if (operation.status !== "resolving" || operation.linkedFeatureType !== "encounter") return;
-    const encounterSession = (state.encounterSessions || []).find((session) => session.id === operation.linkedFeatureSessionId);
-    if (!encounterSessionReadyForAutomaticCompletion(encounterSession)) return;
-    const completedAt = encounterSession.completedAt || new Date().toISOString();
-    encounterSession.status = "completed";
-    encounterSession.completedAt = completedAt;
-    operation.status = "completed";
-    operation.completedAt = completedAt;
-    operation.completionReason = "encounter-results-obtained";
-    const visit = gymState.playerVisits?.[operation.playerId]?.find((entry) => entry.id === operation.visitId);
-    if (visit) visit.actionOperationStatus = "completed";
-    if (gymState.destinationCommit?.operationId === operation.id) {
-      gymState.destinationCommit.status = provisionalDeclarationRuntime.DESTINATION_STATES.COMPLETED;
-      gymState.destinationCommit.completedAt = completedAt;
-    }
-    actionPhaseStateRepairQueued = true;
-  });
   if (!gymState.actionOperations.some((operation) => operation.id === gymState.activeActionOperationId && operation.status === "resolving")) {
     gymState.activeActionOperationId = gymState.actionOperations.find((operation) => operation.status === "resolving")?.id || "";
   }
@@ -34901,8 +34477,6 @@ function linkedActionOperationSession(operation) {
   if (!operation?.linkedFeatureSessionId) return null;
   const collections = {
     wheel: state.wheelSessions,
-    encounter: state.encounterSessions,
-    "hidden-grotto": state.hiddenGrottoSessions,
     "silph-co": state.silphCoSessions,
     "bulletin-board": state.bulletinBoardSessions,
     breeder: null,
@@ -38653,23 +38227,6 @@ function actionLocationServices(location, player = activePlayer(), tracker = ens
   if (location.id === "pokemon-breeder") return [];
   if (location.id === "ranger-base") return [];
   if (location.id === "pokemon-center") return [];
-  if (location.id === "encounter") {
-    const wheel = encounterWheelDefinition();
-    return [{
-      id: "encounter-wheel",
-      label: "Open Encounter Wheel",
-      buttonLabel: "Spend 1 Action",
-      description: wheel
-        ? `Spend 1 Action to roll ${wheel.name} twice. Encounter results can be confirmed as Pokemon Results.`
-        : "No encounter wheel is defined for the current gym yet.",
-      actionCost: 1,
-      maxUsesPerAction: wheel?.rollsPerAction || 2,
-      allowsMultipleUses: false,
-      disabled: !wheel,
-      disabledReason: wheel ? "" : "No Encounter Wheel is defined for this Series/Gym.",
-      implementationStatus: "Implemented MVP"
-    }];
-  }
   if (location.id === "gamecorner") {
     const gcTokens = gameCornerTokensForPlayer(player);
     const tokenCount = gcTokens.length;
@@ -39403,103 +38960,6 @@ function renderSilphCoDetails(location, player) {
   `;
 }
 
-function renderHiddenGrottoDetails(location, player) {
-  if (!pokemonBuildDataReady()) ensurePokemonBuildDataLoaded();
-  const cost = Number(location?.cost || 1500);
-  const naturalTier = getNaturalGymTier(state.gym);
-  const grottoTierCap = getHiddenGrottoTierCap(state.gym);
-  const session = activeHiddenGrottoSession(player.id);
-  const sessionTierCap = getHiddenGrottoTierCap(session?.gym || state.gym);
-  if (session?.status === "type-choice") {
-    return `
-      <div><span>Balance</span><strong>${formatMoney(player.balance || 0)}</strong></div>
-      <div><span>Cost Paid</span><strong>${formatMoney(session.cost || cost)}</strong></div>
-      <div><span>Hidden Grotto Tier Cap</span><strong>${escapeHtml(formatPokemonBalanceTierLabel(sessionTierCap))}</strong></div>
-      <p class="gc-rule-note">Choose one rolled type. Hidden Grotto then rolls 3 Pokemon of that type from up to 2 Battle Tier steps above this Gym's normal tier. LC/LC Elite Pokemon that can still evolve are excluded.</p>
-      <section class="location-services">
-        ${session.rolledTypes.map((type) => {
-          const eligible = getHiddenGrottoPool(session.gym || state.gym, type);
-          return `
-            <article class="location-service-card">
-              <div>
-                <strong>${escapeHtml(type)}</strong>
-                <p>${eligible.length ? `${eligible.length} eligible Pokemon` : "No eligible Pokemon"}</p>
-              </div>
-              <button class="buy-button" type="button" data-grotto-type="${escapeHtml(type)}"${eligible.length ? "" : " disabled"}>Choose ${escapeHtml(type)}</button>
-            </article>
-          `;
-        }).join("")}
-      </section>
-    `;
-  }
-  if (session?.status === "pokemon-choice") {
-    return `
-      <div><span>Cost Paid</span><strong>${formatMoney(session.cost || cost)}</strong></div>
-      <div><span>Chosen Type</span><strong>${escapeHtml(session.chosenType || "Unknown")}</strong></div>
-      <div><span>Hidden Grotto Tier Cap</span><strong>${escapeHtml(formatPokemonBalanceTierLabel(sessionTierCap))}</strong></div>
-      <p class="gc-rule-note">Choose 1 of the 3 rolled Pokemon. The pool includes tiers up to 2 Battle Tier steps above this Gym's normal tier and excludes LC/LC Elite Pokemon that can still evolve.</p>
-      <section class="location-services">
-        ${(session.rolledPokemon || []).map((choice) => {
-          const name = choice.displayName || choice.pokemonName || "Unknown";
-          return `
-            <article class="location-service-card">
-              <div>
-                <strong>${escapeHtml(name)}</strong>
-                <p>${escapeHtml((choice.types || []).join(" / ") || "Unknown Type")} - ${escapeHtml(formatPokemonBalanceTierLabel(choice.tier || "Unassigned"))}</p>
-              </div>
-              <button class="buy-button" type="button" data-grotto-pokemon="${escapeHtml(name)}">Choose ${escapeHtml(name)}</button>
-            </article>
-          `;
-        }).join("")}
-      </section>
-    `;
-  }
-  const pool = getHiddenGrottoPool(state.gym);
-  const availableTypes = hiddenGrottoAvailableTypes(state.gym);
-  const typeChoiceCards = hiddenGrottoTypes.map((type) => {
-    const eligible = getHiddenGrottoPool(state.gym, type);
-    return `
-      <button class="ghost-button grotto-type-direct-button" type="button" data-grotto-start-type="${escapeHtml(type)}"${eligible.length ? "" : " disabled"}>
-        ${escapeHtml(type)} <span>${eligible.length}</span>
-      </button>
-    `;
-  }).join("");
-  const recentSession = (state.hiddenGrottoSessions || []).find((entry) => entry.playerId === player.id
-    && entry.series === state.series
-    && Number(entry.gym) === Number(state.gym)
-    && entry.status === "completed"
-    && !entry.undone);
-  const recentPokemon = recentSession?.rosterPokemonId ? findPokemonRecord(recentSession.rosterPokemonId) : null;
-  return `
-    <div><span>Balance</span><strong>${formatMoney(player.balance || 0)}</strong></div>
-    <div><span>Cost</span><strong>${formatMoney(cost)}</strong></div>
-    <div><span>Current Gym Battle Tier</span><strong>${escapeHtml(formatPokemonBalanceTierLabel(naturalTier))}</strong></div>
-    <div><span>Hidden Grotto Tier Cap</span><strong>${escapeHtml(formatPokemonBalanceTierLabel(grottoTierCap))}</strong></div>
-    <div><span>Available Pokemon in Pool</span><strong>${pool.length}</strong></div>
-    <div><span>Available Types</span><strong>${availableTypes.length}</strong></div>
-    <p class="gc-rule-note">Spend 1 Action and ${formatMoney(cost)} to roll 3 types, choose one, then roll 3 Pokemon of that type and choose one. The pool reaches 2 Battle Tier steps above this Gym's normal tier. LC/LC Elite Pokemon that can still evolve remain excluded.</p>
-    ${recentSession ? `
-      <article class="location-service-card">
-        <div class="pokemon-result-inline">
-          <div class="pokemon-avatar${pokemonSpriteClassSuffix(recentPokemon)}">
-            ${recentPokemon ? renderPokemonSpriteContent(recentPokemon) : `<span>${escapeHtml((recentSession.chosenPokemon || "?").slice(0, 1))}</span>`}
-          </div>
-          <div>
-            <strong>Latest Find: ${escapeHtml(recentSession.chosenPokemon || "Unknown")}</strong>
-            <p>${escapeHtml(recentSession.chosenType || "Unknown Type")} - ${escapeHtml(pokemonBattleTierSummary(recentSession.chosenPokemon || "", "Unassigned"))}</p>
-          </div>
-        </div>
-      </article>
-    ` : ""}
-    <button class="buy-button" type="button" data-grotto-start="true"${availableTypes.length ? "" : " disabled"}>Explore Hidden Grotto</button>
-    <section class="gc-token-use-panel grotto-type-direct-panel">
-      <h3>Choose Type</h3>
-      <p>Use this when a trainer class or effect lets you pick the Hidden Grotto type directly.</p>
-      <div class="grotto-type-direct-grid">${typeChoiceCards}</div>
-    </section>
-  `;
-}
-
 function renderRangerBaseDetails(location, player, tracker) {
   const visits = Number(tracker.rangerVisits || 0);
   const credits = Number(tracker.rangerCredits || 0);
@@ -40155,221 +39615,6 @@ function renderSilphCoDetails(location, player) {
     <label>Pokémon (Ctrl/Cmd-click for multiple)<select id="silphPokemonSelect" multiple size="${Math.min(8, Math.max(3, eligible.length))}">${eligible.map((pokemon) => { const tier = pokemonConsolidatedBattleTier(pokemon); const cost = globalThis.rivalSagaActionPhaseBalance.SILPH_COSTS[tier] || 0; return `<option value="${escapeHtml(pokemon.id)}">${escapeHtml(pokemon.name)} - ${escapeHtml(globalThis.rivalSagaActionPhaseBalance.tierLabel(tier) || "Tier required")} - ${cost ? formatMoney(cost) : "Unavailable"}</option>`; }).join("")}</select></label>
     <div class="breeder-select-panel" data-silph-preview><span>Select one to three Pokémon.</span></div>
     <button class="buy-button" type="button" data-silph-start ${eligible.length ? "" : "disabled"}>Start Silph Co. R&D</button>`;
-}
-
-async function startHiddenGrottoSession({ chosenType = "" } = {}) {
-  const player = activePlayer();
-  const location = actionLocationById("hidden-grotto");
-  const cost = Number(location?.cost || 1500);
-  if (Number(player.balance || 0) < cost) {
-    alert(`Hidden Grotto costs ${formatMoney(cost)}. You do not have enough money.`);
-    return;
-  }
-  await ensurePokemonBuildDataLoaded({ renderOnLoad: false });
-  const naturalTier = getNaturalGymTier(state.gym);
-  const targetTier = getHiddenGrottoTierCap(state.gym);
-  const pool = getHiddenGrottoPool(state.gym);
-  const availableTypes = hiddenGrottoAvailableTypes(state.gym);
-  if (!pool.length || !availableTypes.length) {
-    alert(`No eligible Pokemon are currently available for Hidden Grotto at ${formatPokemonBalanceTierLabel(targetTier)} or lower.`);
-    return;
-  }
-  const directType = hiddenGrottoTypes.find((type) => normalizePokemonName(type) === normalizePokemonName(chosenType)) || "";
-  if (chosenType && !directType) {
-    alert("Choose a valid Hidden Grotto type.");
-    return;
-  }
-  if (directType && !availableTypes.includes(directType)) {
-    alert(`No eligible ${directType} Pokemon are currently available for this Hidden Grotto tier pool.`);
-    return;
-  }
-  const directTypeOptions = directType ? getHiddenGrottoPool(state.gym, directType) : [];
-  const directTypeChoices = directType ? randomUniqueSample(directTypeOptions, Math.min(3, directTypeOptions.length)) : [];
-  if (directType && !directTypeChoices.length) {
-    alert(`No eligible ${directType} Pokemon are available for this Hidden Grotto tier pool after low-tier evolution filtering.`);
-    return;
-  }
-  const check = actionLocationCanConfirm(location, player.id, 1);
-  if (!check.ok) {
-    alert(check.reason);
-    return;
-  }
-  const previousVisits = structuredClone(actionVisitsForPlayer(player.id));
-  const previousBalance = Number(player.balance || 0);
-  const previousMoneyLedger = structuredClone(state.moneyLedger || []);
-  const previousPokemonRecords = structuredClone(state.pokemonRecords || []);
-  const previousHiddenGrottoSessions = structuredClone(state.hiddenGrottoSessions || []);
-  const visit = {
-    id: `action-visit-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-    playerId: player.id,
-    locationId: "hidden-grotto",
-    locationName: "Hidden Grotto",
-    serviceId: "hidden-grotto-start",
-    serviceLabel: "Explore Hidden Grotto",
-    actionCost: 1,
-    series: state.series,
-    gym: Number(state.gym),
-    phase: currentPhase(),
-    createdAt: new Date().toISOString(),
-    placeholder: false
-  };
-  commitActionVisit(visit);
-  player.balance = previousBalance - cost;
-  const ledgerEntry = addMoneyLedgerEntry(player, {
-    amount: -cost,
-    direction: "spend",
-    sourceType: "hidden-grotto",
-    sourceLabel: "Hidden Grotto",
-    note: "Hidden Grotto exploration",
-    balanceBefore: previousBalance,
-    balanceAfter: player.balance,
-    actionVisitId: visit.id,
-    sourceVisitId: visit.id
-  });
-  const rolledTypes = directType ? [directType] : randomUniqueSample(availableTypes, Math.min(3, availableTypes.length));
-  const session = {
-    id: `grotto-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-    playerId: player.id,
-    series: state.series,
-    gym: Number(state.gym),
-    actionVisitId: visit.id,
-    locationId: "hidden-grotto",
-    cost,
-    ledgerEntryId: ledgerEntry.id,
-    naturalTier,
-    targetTier,
-    tierStepBonus: HIDDEN_GROTTO_TIER_STEP_BONUS,
-    poolCount: pool.length,
-    rolledTypes,
-    chosenType: directType || null,
-    rolledPokemon: directType ? directTypeChoices : [],
-    chosenPokemon: null,
-    rosterPokemonId: "",
-    status: directType ? "pokemon-choice" : "type-choice",
-    createdAt: new Date().toISOString()
-  };
-  state.hiddenGrottoSessions ||= [];
-  state.hiddenGrottoSessions.unshift(session);
-  linkActionOperation(visit.id, { featureType: "hidden-grotto", featureSessionId: session.id });
-  addLogEntry({
-    action: "phase",
-    category: "action",
-    player: player.name,
-    item: `${player.name} explored Hidden Grotto`,
-    title: `${player.name} explored Hidden Grotto`,
-    summary: directType
-      ? `Spent 1 Action at Hidden Grotto\nSpent ${formatMoney(cost)}\nGrotto Tier Cap: ${formatPokemonBalanceTierLabel(targetTier)}\nChose ${directType}\nChoose 1 Pokemon`
-      : `Spent 1 Action at Hidden Grotto\nSpent ${formatMoney(cost)}\nGrotto Tier Cap: ${formatPokemonBalanceTierLabel(targetTier)}\nChoose a type`,
-    details: [
-      `Current Gym Battle Tier: ${formatPokemonBalanceTierLabel(naturalTier)}`,
-      `Hidden Grotto Tier Cap: ${formatPokemonBalanceTierLabel(targetTier)}`,
-      `Available Pokemon in Pool: ${pool.length}`,
-      directType ? `Direct Type Choice: ${directType}` : `Rolled Types: ${rolledTypes.join(", ")}`,
-      directType ? `Eligible ${directType} Pool: ${directTypeOptions.length}` : "",
-      directType ? `Pokemon Choices: ${directTypeChoices.map((choice) => choice.displayName || choice.pokemonName).join(", ")}` : ""
-    ].filter(Boolean),
-    type: "hidden-grotto-action",
-    categories: ["action", "money", "pokemon"],
-    tags: ["hidden-grotto", "money"],
-    playerIds: [player.id],
-    moneyChanges: [{ amount: -cost, direction: "spend", ledgerEntryId: ledgerEntry.id, sourceType: "hidden-grotto" }],
-    actionVisitId: visit.id,
-    visitId: visit.id,
-    hiddenGrottoSessionId: session.id,
-    ledgerEntryIds: [ledgerEntry.id],
-    undoable: true,
-    undone: false,
-    undoData: {
-      actionType: "undoHiddenGrottoAction",
-      visitId: visit.id,
-      playerId: player.id,
-      hiddenGrottoSessionId: session.id,
-      series: state.series,
-      gym: Number(state.gym),
-      previousVisits,
-      previousBalance,
-      previousMoneyLedger,
-      previousPokemonRecords,
-      previousHiddenGrottoSessions
-    }
-  });
-  saveState();
-  render();
-}
-
-async function chooseHiddenGrottoType(type) {
-  const session = activeHiddenGrottoSession(activePlayer().id);
-  if (!session || session.status !== "type-choice" || !session.rolledTypes.includes(type)) return;
-  await ensurePokemonBuildDataLoaded({ renderOnLoad: false });
-  const options = getHiddenGrottoPool(session.gym || state.gym, type);
-  const choices = randomUniqueSample(options, Math.min(3, options.length));
-  if (!choices.length) {
-    alert(`No eligible ${type} Pokemon are available for this Hidden Grotto tier pool after low-tier evolution filtering. Choose another rolled type.`);
-    return;
-  }
-  session.chosenType = type;
-  session.rolledPokemon = choices;
-  session.status = "pokemon-choice";
-  session.naturalTier = getNaturalGymTier(session.gym || state.gym);
-  session.targetTier = getHiddenGrottoTierCap(session.gym || state.gym);
-  session.tierStepBonus = HIDDEN_GROTTO_TIER_STEP_BONUS;
-  const entry = (state.log || []).find((logEntry) => logEntry.hiddenGrottoSessionId === session.id);
-  if (entry) {
-    entry.summary = `Spent 1 Action at Hidden Grotto\nSpent ${formatMoney(session.cost)}\nGrotto Tier Cap: ${formatPokemonBalanceTierLabel(session.targetTier)}\nChose ${type}\nChoose 1 Pokemon`;
-    entry.details = [
-      `Current Gym Battle Tier: ${formatPokemonBalanceTierLabel(session.naturalTier)}`,
-      `Hidden Grotto Tier Cap: ${formatPokemonBalanceTierLabel(session.targetTier)}`,
-      `Rolled Types: ${session.rolledTypes.join(", ")}`,
-      `Chosen Type: ${type}`,
-      `Eligible ${type} Pool: ${options.length}`,
-      `Pokemon Choices: ${choices.map((choice) => choice.displayName || choice.pokemonName).join(", ")}`
-    ];
-    appendUniqueLogValue(entry, "tags", "hidden-grotto-pokemon-choice");
-  }
-  saveState();
-  render();
-}
-
-async function chooseHiddenGrottoPokemon(name) {
-  const player = activePlayer();
-  const session = activeHiddenGrottoSession(player.id);
-  if (!session || session.status !== "pokemon-choice") return;
-  const choice = (session.rolledPokemon || []).find((pokemon) => pokemon.displayName === name || pokemon.pokemonName === name);
-  if (!choice) return;
-  await ensurePokemonBuildDataLoaded({ renderOnLoad: false });
-  const acquisition = resolvePokemonAcquisitionSpecies(choice.displayName || choice.pokemonName);
-  const sprite = await fetchStablePokemonSprite(acquisition.receivedSpecies || choice.displayName || choice.pokemonName);
-  const pokemon = createPokemonRecord(player, choice.displayName || choice.pokemonName, "Hidden Grotto", {
-    rosterType: "Active",
-    receivedSpriteUrl: sprite.spriteUrl || "",
-    receivedSpriteKey: sprite.spriteKey || "",
-    sourceTier: getPokemonAcquisitionTier(choice.displayName || choice.pokemonName),
-    acquisitionTier: getPokemonAcquisitionTier(choice.displayName || choice.pokemonName),
-    gameCornerMetadata: getPokemonGameCornerMetadata(choice.displayName || choice.pokemonName)
-  });
-  session.chosenPokemon = choice.displayName || choice.pokemonName;
-  session.rosterPokemonId = pokemon.id;
-  session.status = "completed";
-  session.completedAt = new Date().toISOString();
-  const entry = (state.log || []).find((logEntry) => logEntry.hiddenGrottoSessionId === session.id);
-  if (entry) {
-    entry.summary = `Spent 1 Action at Hidden Grotto\nSpent ${formatMoney(session.cost)}\nChose ${session.chosenType} Type\nCaught ${session.chosenPokemon}`;
-    entry.details = [
-      `Current Gym Battle Tier: ${formatPokemonBalanceTierLabel(session.naturalTier || getNaturalGymTier(session.gym))}`,
-      `Hidden Grotto Tier Cap: ${formatPokemonBalanceTierLabel(session.targetTier || getHiddenGrottoTierCap(session.gym))}`,
-      `Rolled Types: ${session.rolledTypes.join(", ")}`,
-      `Chosen Type: ${session.chosenType}`,
-      `Pokemon Choices: ${(session.rolledPokemon || []).map((pokemon) => pokemon.displayName).join(", ")}`,
-      `Chosen Pokemon: ${session.chosenPokemon}`,
-      `Battle Tier: ${pokemonBattleTierSummary(session.chosenPokemon, "Unassigned").replace(/^Battle:\s*/, "")}`,
-      `Types: ${(choice.types || []).join(" / ") || "Unknown"}`
-    ];
-    appendUniqueLogValue(entry, "pokemonNames", session.chosenPokemon);
-    appendUniqueLogValue(entry, "tags", "hidden-grotto-result");
-  }
-  completeActionOperationForVisit(session.actionVisitId, "hidden-grotto-choice-complete");
-  saveState();
-  render();
 }
 
 function renderBulletinBoardDetails(location, player) {
@@ -41608,228 +40853,12 @@ function getPokemonByType(type) {
   return sourceEntries.filter((entry) => (entry.types || []).some((candidate) => String(candidate).toLowerCase() === target));
 }
 
-function getHiddenGrottoEligiblePokemonByType(type) {
-  const seen = new Set();
-  return Object.entries(rivalSagaPokemonTierMap)
-    .map(([key, metadata]) => ({
-      pokemonName: key,
-      displayName: metadata.displayName || key,
-      types: getPokemonTypes(metadata.displayName || key),
-      tier: metadata.tier,
-      metadata
-    }))
-    .filter((entry) => {
-      const groupKey = pokemonRollGroupKey({ key: entry.pokemonName, displayName: entry.displayName, rollGroup: entry.metadata?.rollGroup });
-      if (seen.has(groupKey)) return false;
-      seen.add(groupKey);
-      return (entry.types || []).some((candidate) => String(candidate).toLowerCase() === String(type || "").toLowerCase())
-        && currentPokemonRuleStatusByName(entry.displayName) !== "Banned";
-    });
-}
-
-function isHiddenGrottoEncounterEligible(entry) {
-  const key = entry?.indexKey || normalizePokemonName(entry?.displayName || "");
-  const name = entry?.displayName || key;
-  if (!key || !name) return false;
-  if (entry?.encounterEligible === false) return false;
-  if (/(^|-)(mega|gmax|gigantamax|primal)(-|$)/i.test(key)) return false;
-  if (currentPokemonRuleStatusByName(name) === "Banned") return false;
-  return true;
-}
-
-let hiddenGrottoFinalEvolutionSpeciesIdsCache = null;
-
-function hiddenGrottoLowTierNfeCutoffIndex() {
-  return getTierIndex("LC Elite");
-}
-
-function hiddenGrottoEntryHasNoEvolutionNote(entry = {}) {
-  const notes = [
-    entry.note,
-    entry.metadata?.note,
-    ...(Array.isArray(entry.notes) ? entry.notes : []),
-    entry.displayName,
-    entry.metadata?.displayName
-  ];
-  return notes.some((note) => /(?:no\s*evo|doesn['’]?t\s+evolve|does\s+not\s+evolve)/i.test(String(note || "")));
-}
-
-function hiddenGrottoFinalEvolutionSpeciesIds() {
-  if (!pokemonBuildDataReady()) {
-    ensurePokemonBuildDataLoaded();
-    return null;
-  }
-  if (hiddenGrottoFinalEvolutionSpeciesIdsCache) return hiddenGrottoFinalEvolutionSpeciesIdsCache;
-  const childrenByParent = teambuilderEvolutionChildrenByParent({ requestLoad: false });
-  hiddenGrottoFinalEvolutionSpeciesIdsCache = new Set(teambuilderSpeciesEntries({ requestLoad: false })
-    .map((species) => String(species.speciesId || ""))
-    .filter((speciesId) => speciesId && !childrenByParent.has(speciesId)));
-  return hiddenGrottoFinalEvolutionSpeciesIdsCache;
-}
-
-function hiddenGrottoSpeciesForEntry(entry = {}) {
-  const candidates = [
-    entry.indexKey,
-    entry.displayName,
-    entry.metadata?.displayName,
-    entry.metadata?.pokemonName,
-    entry.metadata?.pokeapiKey
-  ].map((value) => String(value || "").trim()).filter(Boolean);
-  for (const candidate of candidates) {
-    const pokemon = teambuilderPokemonData(candidate);
-    const speciesId = String(pokemon?.speciesKey || pokemon?.speciesId || "");
-    if (speciesId) {
-      const species = teambuilderSpeciesById(speciesId, { requestLoad: false });
-      if (species) return species;
-    }
-  }
-  for (const candidate of candidates) {
-    const species = teambuilderSpeciesByName(candidate, { requestLoad: false });
-    if (species) return species;
-  }
-  return null;
-}
-
-function isHiddenGrottoFullyEvolvedEntry(entry = {}) {
-  if (hiddenGrottoEntryHasNoEvolutionNote(entry)) return true;
-  const finalSpeciesIds = hiddenGrottoFinalEvolutionSpeciesIds();
-  if (!finalSpeciesIds) return true;
-  const species = hiddenGrottoSpeciesForEntry(entry);
-  if (!species?.speciesId) return true;
-  return finalSpeciesIds.has(String(species.speciesId));
-}
-
-function hiddenGrottoExcludesLowTierNfe(entry = {}, tier = "") {
-  const tierIndex = getTierIndex(tier);
-  const cutoffIndex = hiddenGrottoLowTierNfeCutoffIndex();
-  if (tierIndex < 0 || cutoffIndex < 0 || tierIndex > cutoffIndex) return false;
-  return !isHiddenGrottoFullyEvolvedEntry(entry);
-}
-
-function getHiddenGrottoPool(gymNumber = state.gym, type = "") {
-  const targetTier = getHiddenGrottoTierCap(gymNumber);
-  const seen = new Set();
-  return buildPokemonIndexEntries()
-    .filter((entry) => {
-      if (!isHiddenGrottoEncounterEligible(entry)) return false;
-      const tier = entry.balanceTierLabel || getPokemonBalanceTierLabel(entry.balanceTier);
-      const tierIndex = getTierIndex(tier);
-      if (tierIndex < 0) return false;
-      if (!isTierAtOrBelow(tier, targetTier)) return false;
-      if (hiddenGrottoExcludesLowTierNfe(entry, tier)) return false;
-      if (type && !(entry.types || []).some((candidate) => String(candidate).toLowerCase() === String(type).toLowerCase())) return false;
-      const groupKey = pokemonRollGroupKey({ key: entry.indexKey, displayName: entry.displayName, rollGroup: entry.policy?.rollGroup });
-      if (seen.has(groupKey)) return false;
-      seen.add(groupKey);
-      return true;
-    })
-    .map((entry) => ({
-      pokemonName: entry.indexKey,
-      displayName: entry.displayName,
-      types: entry.types || [],
-      tier: entry.balanceTierLabel || getPokemonBalanceTierLabel(entry.balanceTier),
-      metadata: entry
-    }));
-}
-
-function hiddenGrottoAvailableTypes(gymNumber = state.gym) {
-  return hiddenGrottoTypes.filter((type) => getHiddenGrottoPool(gymNumber, type).length > 0);
-}
-
 function pendingSilphCoSession(playerId = activePlayer().id) {
   return (state.silphCoSessions || []).find((session) => session.playerId === playerId && session.status === "pending-choice") || null;
 }
 
-function activeHiddenGrottoSession(playerId = activePlayer().id) {
-  return (state.hiddenGrottoSessions || []).find((session) => session.playerId === playerId && ["type-choice", "pokemon-choice"].includes(session.status)) || null;
-}
-
-function encounterWheelKey(series = state.series, gym = state.gym) {
-  return `${String(series || "").toLowerCase()}-gym-${Number(gym || 1)}`;
-}
-
-function encounterWheelDefinition(series = state.series, gym = state.gym) {
-  return encounterWheelDefinitions[encounterWheelKey(series, gym)] || null;
-}
-
-function pendingEncounterSessions() {
-  state.encounterSessions ||= [];
-  return state.encounterSessions.filter((session) => ["pending", "review"].includes(session.status));
-}
-
-function selectedEncounterSession() {
-  const pending = pendingEncounterSessions();
-  if (!pending.length) return null;
-  let session = pending.find((entry) => entry.id === state.selectedEncounterSessionId);
-  if (!session) {
-    session = pending[0];
-    state.selectedEncounterSessionId = session.id;
-  }
-  return session;
-}
-
-function encounterEntriesForSession(session) {
-  const definition = encounterWheelDefinition(session?.series, session?.gym);
-  if (!definition) return [];
-  const includeFishing = Boolean(session.includeFishing);
-  const includeSurf = Boolean(session.includeSurf);
-  const removed = new Set(session.removedEntryIds || []);
-  const baseEntries = (definition.entries || []).filter((entry) => {
-    if (removed.has(entry.id)) return false;
-    const category = String(entry.category || "land").toLowerCase();
-    if (category === "fishing" && !includeFishing) return false;
-    if (category === "surf" && !includeSurf) return false;
-    if (entry.enabledByDefault === false && !["fishing", "surf"].includes(category)) return false;
-    return currentPokemonRuleStatusByName(entry.pokemonName || entry.displayName) !== "Banned";
-  });
-  return [...baseEntries, ...(session.temporaryEntries || [])].map((entry) => ({
-    ...entry,
-    weight: Math.max(0, Number(session.weightOverrides?.[entry.id] ?? entry.weight ?? 1))
-  })).filter((entry) => Number(entry.weight) > 0);
-}
-
-function weightedEncounterEntry(entries) {
-  const totalWeight = entries.reduce((total, entry) => total + Number(entry.weight || 1), 0);
-  if (!entries.length || totalWeight <= 0) return null;
-  let roll = Math.random() * totalWeight;
-  for (const entry of entries) {
-    roll -= Number(entry.weight || 1);
-    if (roll <= 0) return entry;
-  }
-  return entries[entries.length - 1];
-}
-
-const ENCOUNTER_POINTER_ANGLE_DEGREES = 0;
-
 function normalizeAngle(angle) {
   return ((Number(angle || 0) % 360) + 360) % 360;
-}
-
-function buildEncounterWheelSegments(entries) {
-  const totalWeight = entries.reduce((total, entry) => total + Number(entry.weight || 1), 0) || 1;
-  let cursor = 0;
-  return entries.map((entry) => {
-    const span = (Number(entry.weight || 1) / totalWeight) * 360;
-    const segment = {
-      entryId: entry.id,
-      displayName: entry.displayName || entry.pokemonName || "Unknown",
-      startAngle: cursor,
-      endAngle: cursor + span,
-      weight: Number(entry.weight || 1),
-      category: entry.category || "land"
-    };
-    cursor += span;
-    return segment;
-  });
-}
-
-function getEncounterSegmentAtPointer(rotationAngle, segments) {
-  if (!segments?.length) return null;
-  const angleUnderPointer = normalizeAngle(ENCOUNTER_POINTER_ANGLE_DEGREES - rotationAngle);
-  return segments.find((segment, index) => {
-    const end = index === segments.length - 1 ? 360.000001 : segment.endAngle;
-    return angleUnderPointer >= segment.startAngle && angleUnderPointer < end;
-  }) || segments[segments.length - 1];
 }
 
 function rotationFromTransform(transform) {
@@ -41837,86 +40866,6 @@ function rotationFromTransform(transform) {
   const values = transform.match(/matrix\(([^)]+)\)/)?.[1]?.split(",").map((value) => Number(value.trim()));
   if (!values || values.length < 2) return 0;
   return Math.atan2(values[1], values[0]) * (180 / Math.PI);
-}
-
-function updateEncounterLivePointerDisplay({ root = els.encounterOverlay, status = "Passing", finalName = "", finalMeta = "" } = {}) {
-  const display = root?.querySelector("[data-encounter-live-display]");
-  const wheelDisc = root?.querySelector(".encounter-wheel-visual .wheel-disc");
-  if (!display) return null;
-  const segments = JSON.parse(display.dataset.segments || "[]");
-  let segment = null;
-  if (finalName) {
-    segment = segments.find((entry) => entry.entryId === display.dataset.finalEntryId) || null;
-  } else {
-    if (!wheelDisc) return null;
-    segment = getEncounterSegmentAtPointer(rotationFromTransform(getComputedStyle(wheelDisc).transform), segments);
-  }
-  const name = finalName || segment?.displayName || "Ready";
-  const meta = finalMeta || (segment ? `${segment.category || "land"} / W${segment.weight || 1}` : "");
-  display.innerHTML = `
-    <span>${escapeHtml(status)}</span>
-    <strong>${escapeHtml(name)}</strong>
-    ${meta ? `<em>${escapeHtml(meta)}</em>` : ""}
-  `;
-  root?.querySelectorAll(".encounter-entry.pointer-active").forEach((entry) => entry.classList.remove("pointer-active"));
-  const activeEntryId = finalName ? display.dataset.finalEntryId : segment?.entryId;
-  if (activeEntryId) root?.querySelector(`[data-encounter-entry-id="${CSS.escape(activeEntryId)}"]`)?.classList.add("pointer-active");
-  return segment;
-}
-
-function animateEncounterLivePointer(root, duration = 5200) {
-  const start = performance.now();
-  function tick(now) {
-    if (!root?.isConnected) return;
-    updateEncounterLivePointerDisplay({ root, status: "Passing" });
-    if (now - start < duration) requestAnimationFrame(tick);
-  }
-  requestAnimationFrame(tick);
-}
-
-function resolveEncounterSpecialResult(entry) {
-  if (!entry?.specialWheelId) return { result: entry, special: null };
-  const subWheel = hyperspaceWheelDefinitions[entry.specialWheelId];
-  const subResult = subWheel ? weightedEncounterEntry(subWheel.entries || []) : null;
-  if (!subResult) return { result: entry, special: null };
-  return {
-    result: {
-      ...subResult,
-      category: "hyperspace",
-      sourceSpecialEntryId: entry.id,
-      sourceSpecialName: entry.displayName || entry.pokemonName,
-      specialWheelId: entry.specialWheelId,
-      specialWheelName: subWheel.name
-    },
-    special: {
-      triggerEntryId: entry.id,
-      triggerName: entry.displayName || entry.pokemonName,
-      wheelId: subWheel.id,
-      wheelName: subWheel.name,
-      resultEntryId: subResult.id,
-      resultName: subResult.displayName || subResult.pokemonName
-    }
-  };
-}
-
-function encounterEntryCenterDegrees(entries, entryId) {
-  const totalWeight = entries.reduce((total, entry) => total + Number(entry.weight || 1), 0) || 1;
-  let cursor = 0;
-  for (const entry of entries) {
-    const span = (Number(entry.weight || 1) / totalWeight) * 360;
-    if (entry.id === entryId) return cursor + (span / 2);
-    cursor += span;
-  }
-  return 0;
-}
-
-function nextEncounterLandingRotation(session, entries, entryId) {
-  const current = Number(session.visualRotation || 0);
-  const currentTurn = ((current % 360) + 360) % 360;
-  const targetTurn = (360 - encounterEntryCenterDegrees(entries, entryId)) % 360;
-  let delta = targetTurn - currentTurn;
-  if (delta < 0) delta += 360;
-  return current + 2160 + delta;
 }
 
 function isRerollToken(item) {
@@ -41927,14 +40876,6 @@ function isRerollToken(item) {
 
 function playerRerollTokenIndex(player) {
   return (player.inventory || []).findIndex(isRerollToken);
-}
-
-function encounterRollFreeRerollReason(player, roll) {
-  const pokemonName = roll?.resultDisplayName || roll?.resultPokemonName || "";
-  if (!pokemonName) return "";
-  if (currentPokemonRuleStatusByName(pokemonName) === "Banned") return "Banned Pokemon";
-  if (playerHasPokemonFamily(player.id, pokemonName)) return "Evolution line already owned";
-  return "";
 }
 
 function rerollOperationForSource(sourceEffectId = "") {
@@ -41949,9 +40890,9 @@ function recordRerollTokenHistory({ snapshot, actor, token, sourceEffectId, targ
   const summary = `${actor.name} superseded ${previousName || "the previous result"} with ${nextName || "a replacement result"}.`;
   return addLogEntry({
     action: "token", category: "pokemon", player: actor.name,
-    item: summary, title: "Reroll replaced an encounter result", summary,
-    type: "encounter-reroll-token", categories: ["tokens", "pokemon", "encounter"],
-    tags: ["reroll-token", "encounter-result", resultKind || "result"],
+    item: summary, title: "Reroll replaced a Pokemon result", summary,
+    type: "pokemon-reroll-token", categories: ["tokens", "pokemon"],
+    tags: ["reroll-token", "pokemon-result", resultKind || "result"],
     playerIds: [actor.id, targetPlayerId].filter(Boolean), pokemonNames: [previousName, nextName].filter(Boolean),
     tokenNames: [metadata.name || "Reroll"], linkedEventId: sourceEffectId,
     targetResultId, previousResultName: previousName, replacementResultName: nextName,
@@ -41981,26 +40922,6 @@ function pendingRerollTargets() {
         resultName: session.resultDisplayName || "Pending result",
         meta: `${session.series || state.series} Gym ${session.gym || state.gym}`
       });
-    });
-  (state.encounterSessions || [])
-    .filter((session) => ["pending", "review"].includes(session.status))
-    .forEach((session) => {
-      const owner = state.players.find((player) => player.id === session.playerId);
-      (session.rolls || [])
-        .filter((roll) => !roll.rosterPokemonId)
-        .forEach((roll) => {
-          targets.push({
-            id: `encounter-roll:${session.id}:${roll.id}`,
-            kind: "encounter-roll",
-            targetResultId: roll.id,
-            encounterSessionId: session.id,
-            ownerPlayerId: session.playerId,
-            ownerName: owner?.name || "Unknown",
-            sourceLabel: roll.specialEncounter ? "Encounter / Hyperspace" : "Encounter Wheel",
-            resultName: roll.resultDisplayName || "Pending encounter",
-            meta: `${session.series || state.series} Gym ${session.gym || state.gym}`
-          });
-        });
     });
   return targets;
 }
@@ -42046,16 +40967,6 @@ function renderRerollTargetModal() {
 async function rerollRandomPokemonResult({ targetResultId, actorPlayerId, mode = "result" }) {
   const actor = state.players.find((player) => player.id === actorPlayerId);
   if (!actor) return;
-  if (String(targetResultId || "").startsWith("encounter-roll:")) {
-    const [, sessionId, rollId] = targetResultId.split(":");
-    const session = (state.encounterSessions || []).find((entry) => entry.id === sessionId);
-    const roll = (session?.rolls || []).find((entry) => entry.id === rollId);
-    const effectiveMode = mode === "result" && roll?.specialEncounter && session?.playerId && session.playerId !== actor.id
-      ? "encounter"
-      : mode;
-    await rerollEncounterRoll(sessionId, rollId, { actorPlayerId: actor.id, mode: effectiveMode });
-    return;
-  }
   const randomSessionId = String(targetResultId || "").replace(/^random-pokemon:/, "");
   await rerollRandomPokemonSession(randomSessionId, { actorPlayerId: actor.id });
 }
@@ -42124,274 +41035,6 @@ async function createRandomPokemonSession({ sourceType, sourceLabel, player, tie
   return session;
 }
 
-async function createEncounterPokemonResultSession({ player, encounterSession, roll, result }) {
-  const session = {
-    id: `random-pokemon-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-    sourceType: "encounter",
-    sourceLabel: "Encounter Wheel",
-    playerId: player.id,
-    ownerPlayerId: player.id,
-    resultOwnerPlayerId: player.id,
-    series: encounterSession.series,
-    gym: Number(encounterSession.gym),
-    phase: "action",
-    encounterSessionId: encounterSession.id,
-    actionVisitId: encounterSession.actionVisitId,
-    encounterRollId: roll.id,
-    wheelId: encounterSession.wheelId,
-    tokenId: "",
-    tokenName: "",
-    tierId: getPokemonAcquisitionTier(result.displayName || result.pokemonName || "") || "",
-    status: "pending",
-    resultPokemonName: result.pokemonName || result.displayName,
-    resultDisplayName: result.displayName || result.pokemonName,
-    resultSprite: "",
-    chosenSpriteKey: "",
-    resultMetadata: structuredClone(result),
-    rerollable: true,
-    interactionLocked: false,
-    rerollCount: 0,
-    createdAt: new Date().toISOString(),
-    confirmedAt: null
-  };
-  state.randomPokemonSessions ||= [];
-  state.randomPokemonSessions.unshift(session);
-  encounterSession.resultSessionIds ||= [];
-  encounterSession.resultSessionIds.push(session.id);
-  roll.randomPokemonSessionId = session.id;
-  state.selectedRandomPokemonSessionId = session.id;
-  state.randomPokemonDrawerOpen = true;
-  createPokemonResultTimingWindow(session, player);
-  saveState();
-  render();
-  const sprite = await fetchStablePokemonSprite(session.resultDisplayName, session.chosenSpriteKey);
-  const latest = (state.randomPokemonSessions || []).find((entry) => entry.id === session.id);
-  if (latest && latest.status === "pending") {
-    latest.chosenSpriteKey = sprite.spriteKey || "";
-    latest.resultSprite = sprite.spriteUrl || "";
-    saveState();
-    renderRandomPokemonPanel();
-  }
-  return session;
-}
-
-function augmentHoneyCausalUndoAfterAcquisition(randomSession, causalBeforeAcquisition) {
-  if (!randomSession?.copiedFromRandomPokemonSessionId || !causalBeforeAcquisition) return;
-  const historyLog = (state.log || []).find((entry) => !entry.undone
-    && entry.undoData?.tokenDefinitionId === "honey-token"
-    && entry.copiedRandomPokemonSessionId === randomSession.id);
-  if (!historyLog?.undoData) return;
-  const later = buildCausalTokenEffectUndo(causalBeforeAcquisition, {
-    id: historyLog.linkedEventId || historyLog.undoData.effectId || "",
-    payload: { tokenName: "Honey" }
-  }, { id: "honey-token", name: "Honey" });
-  historyLog.undoData = mergeCausalTokenUndoData(historyLog.undoData, later);
-  historyLog.honeyAcquisitionCompleted = true;
-  historyLog.acquiredPokemonId = randomSession.rosterPokemonId || "";
-}
-
-async function hydrateEncounterRollSprite(roll) {
-  if (!roll || roll.resultSprite) return roll;
-  const sprite = await fetchStablePokemonSprite(roll.resultDisplayName || roll.resultPokemonName, roll.chosenSpriteKey || "");
-  roll.chosenSpriteKey = sprite.spriteKey || roll.chosenSpriteKey || "";
-  roll.resultSprite = sprite.spriteUrl || roll.resultSprite || "";
-  return roll;
-}
-
-function encounterRollWasObtained(roll) {
-  return Boolean(roll?.rosterPokemonId || roll?.confirmedPokemonId);
-}
-
-function encounterSessionReadyForAutomaticCompletion(session) {
-  if (!session || ["completed", "cancelled", "undone"].includes(session.status)) return false;
-  const rolls = session.rolls || [];
-  return rolls.length >= Number(session.maxRolls || 2)
-    && rolls.every(encounterRollWasObtained);
-}
-
-function completeObtainedEncounterSession(session, completionReason = "encounter-results-obtained") {
-  if (!encounterSessionReadyForAutomaticCompletion(session)) return false;
-  session.status = "completed";
-  session.completedAt ||= new Date().toISOString();
-  (session.actionVisitIds || [session.actionVisitId]).filter(Boolean).forEach((visitId) => {
-    completeActionOperationForVisit(visitId, completionReason, session.series, session.gym);
-  });
-  const next = pendingEncounterSessions().find((entry) => entry.id !== session.id);
-  state.selectedEncounterSessionId = next?.id || "";
-  state.encounterModalOpen = Boolean(next);
-  return true;
-}
-
-async function addEncounterRollToRoster(sessionId, rollId, { skipPendingGuard = false } = {}) {
-  if (!skipPendingGuard && !guardPendingEventBeforeAction("Accept Encounter Result", () => addEncounterRollToRoster(sessionId, rollId, { skipPendingGuard: true }))) return;
-  const session = (state.encounterSessions || []).find((entry) => entry.id === sessionId);
-  const roll = (session?.rolls || []).find((entry) => entry.id === rollId);
-  if (!session || !roll || roll.rosterPokemonId) return;
-  const player = state.players.find((entry) => entry.id === session.playerId) || activePlayer();
-  await hydrateEncounterRollSprite(roll);
-  await ensurePokemonBuildDataLoaded({ renderOnLoad: false });
-  const acquisition = resolvePokemonAcquisitionSpecies(roll.resultDisplayName || roll.resultPokemonName);
-  const receivedSprite = acquisition.receivedSpecies && teambuilderDataKey(acquisition.receivedSpecies) !== teambuilderDataKey(roll.resultDisplayName || roll.resultPokemonName)
-    ? await fetchStablePokemonSprite(acquisition.receivedSpecies)
-    : { spriteUrl: roll.resultSprite || "", spriteKey: roll.chosenSpriteKey || "" };
-  const pokemon = createPokemonRecord(player, roll.resultDisplayName || roll.resultPokemonName, "Encounter Wheel", {
-    rosterType: "Active",
-    receivedSpriteUrl: receivedSprite.spriteUrl || "",
-    receivedSpriteKey: receivedSprite.spriteKey || "",
-    sourceTier: getPokemonAcquisitionTier(roll.resultDisplayName || roll.resultPokemonName),
-    acquisitionTier: getPokemonAcquisitionTier(roll.resultDisplayName || roll.resultPokemonName),
-    gameCornerMetadata: getPokemonGameCornerMetadata(roll.resultDisplayName || roll.resultPokemonName)
-  });
-  roll.rosterPokemonId = pokemon.id;
-  roll.addedAt = new Date().toISOString();
-  updateEncounterActionLog(session, player, (entry) => {
-    appendLogCategory(entry, "pokemon");
-    appendUniqueLogValue(entry, "pokemonNames", roll.resultDisplayName);
-    appendGroupedLogDetail(entry, `Encounter caught: ${roll.resultDisplayName}.`);
-    entry.childEvents ||= [];
-    entry.childEvents.push({
-      type: "encounter-caught",
-      category: "pokemon",
-      pokemonName: roll.resultDisplayName,
-      pokemonId: pokemon.id,
-      encounterRollId: roll.id,
-      encounterSessionId: session.id,
-      actionVisitId: session.actionVisitId,
-      timestamp: roll.addedAt
-    });
-  });
-  completeObtainedEncounterSession(session);
-  saveState();
-  render();
-}
-
-async function rerollEncounterRoll(sessionId, rollId, options = {}) {
-  const session = (state.encounterSessions || []).find((entry) => entry.id === sessionId);
-  const roll = (session?.rolls || []).find((entry) => entry.id === rollId);
-  if (!session || !roll || roll.rosterPokemonId) return;
-  const player = state.players.find((entry) => entry.id === session.playerId) || activePlayer();
-  const actor = state.players.find((entry) => entry.id === (options.actorPlayerId || session.playerId)) || player;
-  if (!requirePrivatePrepAccess(actor, "reroll token")) return;
-  const rerollMode = options.mode || "result";
-  const freeRerollReason = actor.id === player.id ? encounterRollFreeRerollReason(player, roll) : "";
-  const tokenIndex = freeRerollReason ? -1 : playerRerollTokenIndex(actor);
-  if (!freeRerollReason && tokenIndex < 0) {
-    alert(`${actor.name} needs a Reroll Token.`);
-    return;
-  }
-  const exactToken = tokenIndex >= 0 ? actor.inventory[tokenIndex] : null;
-  const sourceEffectId = options.sourceEffectId || (exactToken ? `reroll:${exactToken.id}:${session.id}:${roll.id}` : "");
-  const duplicateOperation = rerollOperationForSource(sourceEffectId);
-  if (duplicateOperation) return duplicateOperation;
-  const shouldStayInSpecialWheel = rerollMode !== "encounter" && roll.specialEncounter?.wheelId;
-  const entries = shouldStayInSpecialWheel
-    ? (hyperspaceWheelDefinitions[roll.specialEncounter.wheelId]?.entries || [])
-    : encounterEntriesForSession(session);
-  if (!entries.length) {
-    alert("No Pokemon are available in this Encounter pool.");
-    return;
-  }
-  const currentKey = normalizePokemonName(roll.resultPokemonName || roll.resultDisplayName);
-  const next = randomSample(entries.filter((entry) => normalizePokemonName(entry.key || entry.pokemonName || entry.displayName) !== currentKey), 1)[0] || randomSample(entries, 1)[0];
-  if (!next) return;
-  const causalBeforeReroll = exactToken ? tokenUseRollbackSnapshot() : null;
-  const rerollToken = freeRerollReason ? null : actor.inventory.splice(tokenIndex, 1)[0];
-  const previousResult = {
-    resultPokemonName: roll.resultPokemonName,
-    resultDisplayName: roll.resultDisplayName,
-    resultSprite: roll.resultSprite || "",
-    chosenSpriteKey: roll.chosenSpriteKey || "",
-    entryId: roll.entryId,
-    visualEntryId: roll.visualEntryId || roll.entryId,
-    category: roll.category || "land",
-    weight: Number(roll.weight || 1),
-    specialEncounter: structuredClone(roll.specialEncounter || null)
-  };
-  const { result: resolvedNext, special: nextSpecial } = shouldStayInSpecialWheel
-    ? { result: next, special: { ...roll.specialEncounter, resultEntryId: next.id, resultName: next.displayName || next.pokemonName || next.key } }
-    : resolveEncounterSpecialResult(next);
-  const nextName = resolvedNext.displayName || resolvedNext.pokemonName || resolvedNext.key;
-  roll.rerollHistory ||= [];
-  const previousRevisionId = roll.resultRevisionId || `${roll.id}:original`;
-  const rerollRecordId = `encounter-reroll-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-  roll.rerollHistory.push({
-    id: rerollRecordId,
-    actorPlayerId: actor.id,
-    targetPlayerId: player.id,
-    targetResultId: roll.id,
-    token: rerollToken ? structuredClone(rerollToken) : null,
-    free: Boolean(freeRerollReason),
-    freeReason: freeRerollReason,
-    mode: rerollMode,
-    previousResult: { ...previousResult, resultRevisionId: previousRevisionId, status: "superseded" },
-    newResultPokemonName: resolvedNext.key || resolvedNext.pokemonName || resolvedNext.displayName,
-    newResultDisplayName: nextName,
-    usedAt: new Date().toISOString()
-  });
-  roll.entryId = resolvedNext.id;
-  roll.visualEntryId = nextSpecial?.triggerEntryId || next.id;
-  roll.resultPokemonName = resolvedNext.pokemonName || resolvedNext.displayName;
-  roll.resultDisplayName = nextName;
-  roll.category = resolvedNext.category || "land";
-  roll.weight = Number(resolvedNext.weight || 1);
-  roll.specialEncounter = nextSpecial;
-  roll.resultSprite = "";
-  roll.chosenSpriteKey = "";
-  roll.resultRevisionId = `${roll.id}:replacement:${rerollRecordId}`;
-  roll.supersedesResultRevisionId = previousRevisionId;
-  await hydrateEncounterRollSprite(roll);
-  if (rerollToken) {
-    addTokenConsumptionRecord({
-      player: actor, token: rerollToken, tokenName: rerollToken.name,
-      metadata: tokenEffectMetadataByName(rerollToken.name), linkedEventId: sourceEffectId, source: "encounter-result-reroll"
-    });
-    const operation = {
-      id: `effect-operation-${rerollRecordId}`,
-      operationType: "rerollEncounterResult", sourceEffectId, sourceTokenId: rerollToken.id,
-      targetResultId: roll.id, targetSessionId: session.id, resultKind: "encounter-roll",
-      previousResultRevisionId: previousRevisionId, replacementResultRevisionId: roll.resultRevisionId,
-      status: "completed", createdAt: new Date().toISOString()
-    };
-    state.effectOperations ||= [];
-    state.effectOperations.push(operation);
-    recordRerollTokenHistory({ snapshot: causalBeforeReroll, actor, token: rerollToken, sourceEffectId,
-      targetResultId: roll.id, targetPlayerId: player.id, previousName: previousResult.resultDisplayName,
-      nextName, resultKind: "encounter-roll" });
-  }
-  updateEncounterActionLog(session, player, (entry) => {
-    appendLogCategory(entry, "items");
-    appendLogCategory(entry, "pokemon");
-    appendUniqueLogValue(entry, "tags", "encounter-reroll");
-    if (rerollToken?.name) appendUniqueLogValue(entry, "tokenNames", rerollToken.name);
-    appendUniqueLogValue(entry, "playerIds", actor.id);
-    appendUniqueLogValue(entry, "pokemonNames", nextName);
-    const modeLabel = rerollMode === "encounter" ? "Encounter respin" : shouldStayInSpecialWheel ? "Hyperspace reroll" : "Encounter reroll";
-    appendGroupedLogDetail(entry, freeRerollReason
-      ? `${modeLabel} (${freeRerollReason}): ${previousResult.resultDisplayName} -> ${nextName}.`
-      : `${actor.name} used Reroll Token on ${player.name}'s ${modeLabel}: ${previousResult.resultDisplayName} -> ${nextName}.`);
-    entry.childEvents ||= [];
-    entry.childEvents.push({
-      type: "encounter-reroll",
-      category: "items",
-      tokenId: rerollToken?.id || "",
-      tokenName: rerollToken?.name || "",
-      actorPlayerId: actor.id,
-      targetPlayerId: player.id,
-      targetResultId: roll.id,
-      free: Boolean(freeRerollReason),
-      freeReason: freeRerollReason,
-      mode: rerollMode,
-      previousPokemon: previousResult.resultDisplayName,
-      newPokemon: nextName,
-      encounterRollId: roll.id,
-      encounterSessionId: session.id,
-      actionVisitId: session.actionVisitId,
-      timestamp: new Date().toISOString()
-    });
-  });
-  saveState();
-  renderEncounterOverlay();
-}
 
 function useGameCornerToken(tier) {
   const player = activePlayer();
@@ -42433,7 +41076,6 @@ async function confirmRandomPokemonSession(sessionId = state.selectedRandomPokem
   if (!skipPendingGuard && !guardPendingEventBeforeAction("Confirm Pokemon Result", () => confirmRandomPokemonSession(sessionId, { skipPendingGuard: true }))) return;
   const randomSession = (state.randomPokemonSessions || []).find((entry) => entry.id === sessionId);
   if (!randomSession || randomSession.status !== "pending") return;
-  const honeyAcquisitionSnapshot = randomSession.copiedFromRandomPokemonSessionId ? tokenUseRollbackSnapshot() : null;
   const player = state.players.find((entry) => entry.id === (randomSession.resultOwnerPlayerId || randomSession.ownerPlayerId || randomSession.playerId));
   if (!player) return;
   if (!requirePrivatePrepAccess(player, "random Pokemon result")) return;
@@ -42472,36 +41114,6 @@ async function confirmRandomPokemonSession(sessionId = state.selectedRandomPokem
   randomSession.confirmedAt = new Date().toISOString();
   randomSession.rosterPokemonId = pokemon.id;
   resolvePokemonResultTimingWindow(randomSession, "resolved");
-  augmentHoneyCausalUndoAfterAcquisition(randomSession, honeyAcquisitionSnapshot);
-  if (randomSession.sourceType === "encounter") {
-    const encounterSession = (state.encounterSessions || []).find((entry) => entry.id === randomSession.encounterSessionId);
-    if (encounterSession) {
-      const roll = (encounterSession.rolls || []).find((entry) => entry.id === randomSession.encounterRollId);
-      if (roll) {
-        roll.confirmedPokemonId = pokemon.id;
-        roll.confirmedAt = randomSession.confirmedAt;
-      }
-      updateEncounterActionLog(encounterSession, player, (entry) => {
-        appendLogCategory(entry, "pokemon");
-        appendUniqueLogValue(entry, "pokemonNames", randomSession.resultDisplayName);
-        appendGroupedLogDetail(entry, `Caught ${randomSession.resultDisplayName}.`);
-        entry.childEvents ||= [];
-        entry.childEvents.push({
-          type: "encounter-caught",
-          category: "pokemon",
-          pokemonId: pokemon.id,
-          pokemonName: randomSession.resultDisplayName,
-          randomPokemonSessionId: randomSession.id,
-          encounterSessionId: encounterSession.id,
-          timestamp: randomSession.confirmedAt
-        });
-      });
-      completeObtainedEncounterSession(encounterSession);
-    }
-    saveState();
-    render();
-    return;
-  }
   if (randomSession.sourceType !== "game-corner-token" || !session || !token) {
     saveState();
     render();
@@ -42578,10 +41190,7 @@ async function rerollRandomPokemonSession(sessionId = state.selectedRandomPokemo
   const sourceEffectId = options.sourceEffectId || `reroll:${exactToken.id}:${randomSession.id}`;
   const duplicateOperation = rerollOperationForSource(sourceEffectId);
   if (duplicateOperation) return duplicateOperation;
-  const encounterSession = randomSession.sourceType === "encounter"
-    ? (state.encounterSessions || []).find((entry) => entry.id === randomSession.encounterSessionId)
-    : null;
-  const available = encounterSession ? encounterEntriesForSession(encounterSession) : availablePokemonForGameCornerTier(randomSession.tierId);
+  const available = availablePokemonForGameCornerTier(randomSession.tierId);
   if (!available.length) {
     alert("No Pokemon are available in this result pool.");
     return;
@@ -42618,7 +41227,7 @@ async function rerollRandomPokemonSession(sessionId = state.selectedRandomPokemo
   let savedRerollResponse = null;
   if (randomSession.interactionEventId) {
     const updatedActivity = addInteractionResponse(randomSession.interactionEventId, {
-      type: encounterSession ? "encounter-reroll" : "pokemon-reroll",
+      type: "pokemon-reroll",
       playerId: actor.id,
       tokenId: rerollToken.id,
       tokenName: rerollToken.name,
@@ -42634,7 +41243,7 @@ async function rerollRandomPokemonSession(sessionId = state.selectedRandomPokemo
     linkedEventId: randomSession.interactionEventId || "",
     linkedResponseId: savedRerollResponse?.id || "",
     promptId: savedRerollResponse?.respondingToPromptId || "",
-    source: "encounter-reroll"
+    source: "pokemon-reroll"
   });
   randomSession.rerollCount = Number(randomSession.rerollCount || 0) + 1;
   randomSession.resultPokemonName = next.key || next.pokemonName || next.displayName;
@@ -42675,31 +41284,6 @@ async function rerollRandomPokemonSession(sessionId = state.selectedRandomPokemo
       });
     }
   }
-  if (encounterSession) {
-    updateEncounterActionLog(encounterSession, player, (entry) => {
-      appendLogCategory(entry, "items");
-      appendLogCategory(entry, "pokemon");
-      appendUniqueLogValue(entry, "tags", "encounter-reroll");
-      appendUniqueLogValue(entry, "tokenNames", rerollToken.name);
-      appendUniqueLogValue(entry, "playerIds", actor.id);
-      appendGroupedLogDetail(entry, `${actor.name} used Reroll Token on ${player.name}'s Encounter result: ${previousResult.resultDisplayName} -> ${nextName}.`);
-      entry.childEvents ||= [];
-      entry.childEvents.push({
-        type: "encounter-reroll",
-        category: "items",
-        tokenId: rerollToken.id,
-        tokenName: rerollToken.name,
-        actorPlayerId: actor.id,
-        targetPlayerId: player.id,
-        targetResultId: randomSession.id,
-        previousPokemon: previousResult.resultDisplayName,
-        newPokemon: nextName,
-        randomPokemonSessionId: randomSession.id,
-        encounterSessionId: encounterSession.id,
-        timestamp: new Date().toISOString()
-      });
-    });
-  }
   saveState();
   renderRandomPokemonPanel();
   const sprite = await fetchStablePokemonSprite(nextName, randomSession.chosenSpriteKey);
@@ -42715,7 +41299,7 @@ async function rerollRandomPokemonSession(sessionId = state.selectedRandomPokemo
   const operation = {
     id: `effect-operation-${rerollRecord.id}`,
     operationType: "rerollEncounterResult", sourceEffectId, sourceTokenId: rerollToken.id,
-    targetResultId: randomSession.id, resultKind: encounterSession ? "encounter-result" : "wheel-result",
+    targetResultId: randomSession.id, resultKind: "wheel-result",
     previousResultRevisionId: previousRevisionId, replacementResultRevisionId: randomSession.resultRevisionId,
     status: "completed", createdAt: new Date().toISOString()
   };
@@ -42739,163 +41323,6 @@ function cancelRandomPokemonSession(sessionId = state.selectedRandomPokemonSessi
   state.randomPokemonDrawerOpen = Boolean(next);
   saveState();
   render();
-}
-
-function updateEncounterActionLog(session, player, updater = null) {
-  const entry = (state.log || []).find((logEntry) => logEntry.type === "encounter-action"
-    && (logEntry.encounterSessionId === session.id || logEntry.actionVisitId === session.actionVisitId));
-  if (!entry) return null;
-  entry.details ||= [];
-  entry.childEvents ||= [];
-  entry.categories ||= [];
-  entry.tags ||= [];
-  if (updater) updater(entry);
-  const rolls = session.rolls || [];
-  const caughtNames = rolls.map((roll) => {
-    const result = (state.randomPokemonSessions || []).find((randomSession) => randomSession.id === roll.randomPokemonSessionId);
-    return result?.status === "confirmed" ? result.resultDisplayName : "";
-  }).filter(Boolean);
-  const lines = [
-    "Spent 1 Action at Encounter",
-    `Rolled ${rolls.length}/${session.maxRolls || 2} Encounters`,
-    caughtNames.length ? `Caught ${caughtNames.join(", ")}` : "",
-    session.includeFishing ? "Fishing included" : "",
-    session.includeSurf ? "Surf included" : "",
-    (session.removedEntryIds || []).length ? `Removed ${(session.removedEntryIds || []).length} option${session.removedEntryIds.length === 1 ? "" : "s"}` : ""
-  ].filter(Boolean);
-  entry.summary = lines.join("\n");
-  entry.details = [
-    `Active pool: ${encounterEntriesForSession(session).map((entry) => entry.displayName || entry.pokemonName).join(", ") || "None"}`,
-    `Fishing included: ${session.includeFishing ? "Yes" : "No"}`,
-    `Surf included: ${session.includeSurf ? "Yes" : "No"}`,
-    ...(session.removedEntryIds || []).map((id) => `Removed: ${id}`),
-    ...rolls.map((roll, index) => `Roll ${index + 1}: ${roll.resultDisplayName}`)
-  ];
-  entry.quantity = rolls.length;
-  entry.playerIds = [player.id];
-  entry.encounterSessionId = session.id;
-  return entry;
-}
-
-function activeEncounterSessionForPlayer(playerId, series = state.series, gym = state.gym) {
-  return (state.encounterSessions || []).find((session) => session.playerId === playerId
-    && session.series === series
-    && Number(session.gym) === Number(gym)
-    && ["pending", "review"].includes(session.status));
-}
-
-function startEncounterSession({ skipConfirmCheck = false } = {}) {
-  const player = activePlayer();
-  const location = actionLocationById("encounter");
-  const definition = encounterWheelDefinition();
-  if (!definition) {
-    alert("No Encounter Wheel is defined for this Series/Gym yet.");
-    return false;
-  }
-  if (!skipConfirmCheck) {
-    const check = actionLocationCanConfirm(location, player.id, 1);
-    if (!check.ok) {
-      alert(check.reason);
-      return false;
-    }
-  }
-  const previousVisits = structuredClone(actionVisitsForPlayer(player.id));
-  const previousEncounterSessions = structuredClone(state.encounterSessions || []);
-  const previousRandomPokemonSessions = structuredClone(state.randomPokemonSessions || []);
-  const previousPokemonRecords = structuredClone(state.pokemonRecords || []);
-  const previousInventory = structuredClone(player.inventory || []);
-  const previousInteractionEventIds = (state.interactionEvents || []).map((activity) => activity.id).filter(Boolean);
-  const previousTransactionIds = (state.transactions || []).map((transaction) => transaction.id).filter(Boolean);
-  const visit = {
-    id: `action-visit-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-    playerId: player.id,
-    locationId: "encounter",
-    locationName: "Encounter",
-    serviceId: "encounter-wheel",
-    serviceLabel: "Open Encounter Wheel",
-    actionCost: 1,
-    series: state.series,
-    gym: Number(state.gym),
-    phase: currentPhase(),
-    createdAt: new Date().toISOString(),
-    placeholder: false
-  };
-  commitActionVisit(visit);
-  state.encounterSessions ||= [];
-  let session = activeEncounterSessionForPlayer(player.id);
-  const reusedSession = Boolean(session);
-  if (session) {
-    session.actionVisitIds ||= session.actionVisitId ? [session.actionVisitId] : [];
-    session.actionVisitIds.push(visit.id);
-    session.maxRolls = Number(session.maxRolls || 0) + Number(definition.rollsPerAction || 2);
-    if (session.status === "review") session.status = "pending";
-    session.updatedAt = new Date().toISOString();
-  } else {
-    session = {
-      id: `encounter-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-      playerId: player.id,
-      series: state.series,
-      gym: Number(state.gym),
-      phase: "action",
-      actionVisitId: visit.id,
-      actionVisitIds: [visit.id],
-      wheelId: definition.id,
-      maxRolls: Number(definition.rollsPerAction || 2),
-      includeFishing: false,
-      includeSurf: false,
-      removedEntryIds: [],
-      temporaryEntries: [],
-      weightOverrides: {},
-      resultSessionIds: [],
-      rolls: [],
-      status: "pending",
-      visualRotation: 0,
-      createdAt: new Date().toISOString()
-    };
-    state.encounterSessions.unshift(session);
-  }
-  linkActionOperation(visit.id, { featureType: "encounter", featureSessionId: session.id });
-  state.selectedEncounterSessionId = session.id;
-  state.encounterModalOpen = true;
-  addLogEntry({
-    action: "phase",
-    category: "action",
-    player: player.name,
-    item: `${player.name} took action at Encounter`,
-    title: `${player.name} took action at Encounter`,
-    summary: `Spent 1 Action at Encounter\nRolled ${(session.rolls || []).length}/${session.maxRolls || 2} Encounters`,
-    details: [reusedSession ? "Added 2 more rolls to existing Encounter session" : "Spent 1 Action at Encounter"],
-    type: "encounter-action",
-    categories: ["action", "pokemon"],
-    tags: ["encounter", "wheel"],
-    subtypes: ["Encounter"],
-    playerIds: [player.id],
-    actionVisitId: visit.id,
-    visitId: visit.id,
-    encounterSessionId: session.id,
-    combinedEncounterSession: reusedSession,
-    undoable: true,
-    undone: false,
-    undoData: {
-      actionType: "undoEncounterAction",
-      visitId: visit.id,
-      playerId: player.id,
-      locationId: "encounter",
-      encounterSessionId: session.id,
-      series: state.series,
-      gym: Number(state.gym),
-      previousVisits,
-      previousEncounterSessions,
-      previousRandomPokemonSessions,
-      previousPokemonRecords,
-      previousInventory,
-      previousInteractionEventIds,
-      previousTransactionIds
-    }
-  });
-  saveState();
-  render();
-  return true;
 }
 
 async function confirmActionVisit(serviceId = "", { skipPendingGuard = false } = {}) {
@@ -42941,13 +41368,6 @@ async function confirmActionVisit(serviceId = "", { skipPendingGuard = false } =
     destinationCommit = await reserveAuthoritativeActionDestination({ player, location, service });
     if (location?.id === "gamecorner") {
       confirmGameCornerService(service, location, player);
-      await persistStartedActionDestination();
-      return;
-    }
-    if (location?.id === "encounter") {
-      if (!startEncounterSession({ skipConfirmCheck: true })) {
-        throw new Error("The Encounter location could not start.");
-      }
       await persistStartedActionDestination();
       return;
     }
@@ -46831,333 +45251,7 @@ function renderV2RouteActionPhase() {
 }
 
 function renderActionPhase() {
-  if (activeActionPhaseVersion() === ACTION_PHASE_VERSION_V2) {
-    renderV2RouteActionPhase();
-    return;
-  }
-  els.actionPhaseView?.classList.remove("v2-action-phase-view");
-  const workspaceEl = els.actionLocationBoard?.closest(".action-workspace");
-  if (workspaceEl) delete workspaceEl.dataset.v2Screen;
-  const player = activePlayer();
-  const gymState = ensureActionPhaseGymState();
-  const visits = activeActionVisitsForPlayer(player.id);
-  const used = actionUsedByPlayer(player.id);
-  const remaining = actionRemainingForPlayer(player.id);
-  const tracker = ensureActionSeriesTracker(state.series, player.id);
-  const selectedLocation = actionLocationById(gymState.selectedLocationId);
-  const activeOperation = currentActionOperation();
-  const activeOperationLocation = activeOperation?.playerId === player.id
-    ? actionLocationById(activeOperation.locationId)
-    : null;
-  const workspaceLocation = selectedLocation || activeOperationLocation;
-  const workspaceIsResolvingOperation = Boolean(!selectedLocation && activeOperationLocation);
-  els.actionPhaseContext.textContent = `${state.series} Gym ${state.gym} / ${phaseLabels[currentPhase()]} / ${phaseCode()}`;
-  els.actionPhasePlayerName.textContent = player.name;
-  if (els.actionPhaseBalance) {
-    els.actionPhaseBalance.hidden = false;
-    els.actionPhaseBalance.textContent = formatMoney(player.balance || 0);
-  }
-  els.actionPhaseRemaining.textContent = `${remaining}/${actionPhaseRules.actionsPerPlayer} actions remaining`;
-  if (els.actionCommandRemaining) els.actionCommandRemaining.textContent = `${remaining} action${remaining === 1 ? "" : "s"} remaining`;
-  els.actionPhaseUsed.textContent = `${used}/${actionPhaseRules.actionsPerPlayer}`;
-  els.actionPhaseVisited.textContent = visits.length
-    ? visits.map((visit) => visit.locationId === "move-dojo" ? "Department Store (legacy visit)" : visit.locationName).join(", ")
-    : "None yet";
-  renderActionTurnRail();
-  renderActionDemoControls();
-  const outOfPhase = currentPhase() !== "action";
-  const turn = actionTurnInfo();
-  const testingOverride = hostTestingOverrideEnabled();
-  const outOfTurn = !testingOverride && !outOfPhase && turn.currentPlayerId && player.id !== turn.currentPlayerId;
-  const turnPlayer = state.players.find((entry) => entry.id === turn.currentPlayerId);
-  const provisional = currentProvisionalDeclaration();
-  const destinationCommit = provisionalDeclarationRuntime.activeDestinationCommit(gymState);
-  const timingPauseReason = provisional
-    ? actionLocationCanConfirm(actionPhaseRules.locations[0], player.id).reason
-    : destinationCommit ? "The Action destination is committed and the location is starting." : "";
-  els.actionPhaseWarning.classList.toggle("hidden", !timingPauseReason && !testingOverride && !outOfPhase && !outOfTurn);
-  els.actionPhaseWarning.textContent = timingPauseReason || (outOfPhase
-    ? `Current phase is ${phaseLabels[currentPhase()]}. Action visits are normally made during Action Phase.`
-    : testingOverride ? "Demo controls are unlocked - profile locks and turn order are ignored for testing."
-      : outOfTurn ? `It is ${turnPlayer?.name || "another trainer"}'s Action Phase turn.` : "");
-  if (!workspaceLocation) {
-    setActionWorkspaceChrome({ title: "Choose an Action", description: "Open a destination inside the Action Workspace.", backHidden: true });
-    renderActionWorkspaceRootMenu({ player, visits, disabledReason: timingPauseReason });
-    renderWheelPanel();
-    return;
-  }
-  setActionWorkspaceChrome({
-    title: workspaceLocation.name,
-    description: workspaceIsResolvingOperation
-      ? "Finish this active Action before the next trainer can act."
-      : workspaceLocation.summary || "Use this Action destination.",
-    backLabel: workspaceIsResolvingOperation ? "Resolving" : "Actions",
-    backDisabled: workspaceIsResolvingOperation
-  });
-  renderActionWorkspaceSelectedSummary(workspaceLocation, { committed: workspaceIsResolvingOperation });
-  els.actionLocationMeta.className = "action-location-meta action-legacy-detail";
-  els.actionLocationMeta.innerHTML = workspaceLocation?.id === "gamecorner" ? renderGameCornerDetails(workspaceLocation, player, tracker)
-    : workspaceLocation?.id === "department-store" ? renderDepartmentStoreDetails(workspaceLocation, player)
-    : workspaceLocation?.id === "pokemon-breeder" ? renderBreederDetails(workspaceLocation, player)
-      : workspaceLocation?.id === "ranger-base" ? renderRangerBaseDetails(workspaceLocation, player, tracker)
-      : workspaceLocation?.id === "pokemon-center" ? renderPokemonCenterDetails(workspaceLocation, player)
-      : workspaceLocation?.id === "dragons-den" ? renderDragonsDenDetails(workspaceLocation, player)
-        : workspaceLocation?.id === "silph-co-rd" ? renderSilphCoDetails(workspaceLocation, player)
-          : workspaceLocation?.id === "hidden-grotto" ? renderHiddenGrottoDetails(workspaceLocation, player)
-          : workspaceLocation?.id === "bulletin-board" ? renderBulletinBoardDetails(workspaceLocation, player)
-            : workspaceLocation?.id === "graveyard" ? renderGraveyardDetails(workspaceLocation, player, tracker)
-                : workspaceLocation?.id === "pc" ? renderPcDetails(workspaceLocation, player, tracker)
-          : workspaceLocation ? `
-    <div><span>Location Role</span><strong>${escapeHtml(workspaceLocation.category || "Action")}</strong></div>
-    <div><span>Series Tracker</span><strong>Ranger Credits ${tracker.rangerCredits || 0}</strong></div>
-    ${renderActionLocationServices(workspaceLocation, player, tracker)}
-  ` : "";
-  const manualFinishTypes = new Set(["breeder", "game-corner", "pokemon-center", "graveyard", "pc", "department-store"]);
-  if (activeOperation?.playerId === player.id
-    && activeOperation.locationId === workspaceLocation?.id
-    && manualFinishTypes.has(activeOperation.linkedFeatureType)) {
-    els.actionLocationMeta.insertAdjacentHTML("beforeend", `
-      <section class="action-operation-footer">
-        <div>
-          <strong>Action ${activeOperation.actionNumber} is still resolving</strong>
-          <small>Finish the complete ${escapeHtml(activeOperation.locationName || "location")} visit before turn ownership advances.</small>
-        </div>
-        <button class="buy-button" type="button" data-finish-action-operation="${escapeHtml(activeOperation.id)}">Finish Action</button>
-      </section>
-    `);
-  }
-  els.actionLocationMeta.querySelectorAll("[data-service-id]").forEach((button) => {
-    button.addEventListener("click", (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      if (!button.disabled) confirmActionVisit(button.dataset.serviceId);
-    });
-  });
-  els.actionLocationMeta.querySelector("[data-finish-action-operation]")?.addEventListener("click", (event) => {
-    event.preventDefault();
-    event.stopPropagation();
-    finishCurrentActionOperation();
-  });
-  els.actionLocationMeta.querySelector("[data-department-start]")?.addEventListener("click", (event) => {
-    event.stopPropagation();
-    confirmActionVisit("department-store-primary");
-  });
-  els.actionLocationMeta.querySelector("[data-department-buy-normal]")?.addEventListener("click", (event) => {
-    event.stopPropagation();
-    buyDepartmentStoreProduct(els.actionLocationMeta.querySelector("#departmentBuySelect")?.value, false);
-  });
-  els.actionLocationMeta.querySelectorAll("[data-department-buy-clearance]").forEach((button) => button.addEventListener("click", (event) => {
-    event.stopPropagation();
-    buyDepartmentStoreProduct(button.dataset.departmentBuyClearance, true);
-  }));
-  els.actionLocationMeta.querySelector("[data-department-sell]")?.addEventListener("click", (event) => {
-    event.stopPropagation();
-    sellDepartmentStoreInventory(els.actionLocationMeta.querySelector("#departmentSellSelect")?.value);
-  });
-  els.actionLocationMeta.querySelectorAll("[data-breeder-pokemon]").forEach((button) => {
-    button.addEventListener("click", (event) => {
-      event.stopPropagation();
-      depositPokemonInBreeder(button.dataset.breederPokemon);
-    });
-  });
-  els.actionLocationMeta.querySelectorAll("[data-breeder-pickup]").forEach((button) => {
-    button.addEventListener("click", (event) => {
-      event.stopPropagation();
-      pickupPokemonFromBreeder(button.dataset.breederPickup);
-    });
-  });
-  els.actionLocationMeta.querySelector("[data-breeder-deposit-selected]")?.addEventListener("click", (event) => {
-    event.stopPropagation();
-    const selected = els.actionLocationMeta.querySelector("#breederPokemonSelect")?.value;
-    if (selected) depositPokemonInBreeder(selected);
-  });
-  els.actionLocationMeta.querySelector("[data-ranger-base-visit]")?.addEventListener("click", (event) => {
-    event.stopPropagation();
-    visitRangerBase();
-  });
-  els.actionLocationMeta.querySelector("[data-pokemon-center-start]")?.addEventListener("click", (event) => {
-    event.stopPropagation();
-    startPokemonCenterSession();
-  });
-  els.actionLocationMeta.querySelector("[data-pokemon-center-cleanse]")?.addEventListener("click", (event) => {
-    event.stopPropagation();
-    pokemonCenterCleanseCurse();
-  });
-  els.actionLocationMeta.querySelector("[data-pokemon-center-restrict]")?.addEventListener("click", (event) => {
-    event.stopPropagation();
-    pokemonCenterTreatRestrict();
-  });
-  els.actionLocationMeta.querySelector("[data-pokemon-center-restore]")?.addEventListener("click", (event) => {
-    event.stopPropagation();
-    pokemonCenterRestorePokemon();
-  });
-  els.actionLocationMeta.querySelector("[data-pokemon-center-immunity]")?.addEventListener("click", (event) => {
-    event.stopPropagation();
-    pokemonCenterBuyEmergencyImmunity();
-  });
-  els.actionLocationMeta.querySelector("[data-pc-release-legacy]")?.addEventListener("click", (event) => {
-    event.stopPropagation();
-    runPcService("release");
-  });
-  els.actionLocationMeta.querySelector("[data-pc-use-one]")?.addEventListener("click", (event) => {
-    event.stopPropagation();
-    runPcService("use-one");
-  });
-  els.actionLocationMeta.querySelector("[data-pc-use-two]")?.addEventListener("click", (event) => {
-    event.stopPropagation();
-    runPcService("use-two");
-  });
-  els.actionLocationMeta.querySelector("[data-pc-use-three]")?.addEventListener("click", (event) => {
-    event.stopPropagation();
-    runPcService("use-three");
-  });
-  els.actionLocationMeta.querySelector("[data-graveyard-release-selected]")?.addEventListener("click", (event) => {
-    event.stopPropagation();
-    releaseSelectedGraveyardPokemon();
-  });
-  const graveyardPokemonSelect = els.actionLocationMeta.querySelector("#graveyardPokemonSelect");
-  graveyardPokemonSelect?.addEventListener("change", () => {
-    const selected = [...graveyardPokemonSelect.selectedOptions]
-      .map((option) => findPokemonRecord(option.value)).filter(Boolean);
-    const total = selected.reduce((sum, pokemon) => sum + pokemonReleaseValue(pokemon), 0);
-    const preview = els.actionLocationMeta.querySelector("[data-graveyard-preview]");
-    if (preview) preview.textContent = `Total Destroy Value: ${formatMoney(total)} - Curse Wheel rolls: ${globalThis.rivalSagaActionPhaseBalance.curseRolls(total)}`;
-  });
-  els.actionLocationMeta.querySelector("#graveyardTokenOwnerSelect")?.addEventListener("change", (event) => {
-    event.stopPropagation();
-    state.graveyardTokenOwnerFilter = event.target.value;
-    saveState();
-    renderActionPhase();
-  });
-  els.actionLocationMeta.querySelector("[data-graveyard-destroy-token]")?.addEventListener("click", (event) => {
-    event.stopPropagation();
-    destroySelectedGraveyardToken();
-  });
-  const dragonDenPokemonSelect = els.actionLocationMeta.querySelector("#dragonDenPokemonSelect");
-  const updateDragonDenPreview = () => {
-    const selected = dragonDenPokemonSelect?.value;
-    const chosenPokemon = (state.pokemonRecords || []).find((record) => record.id === selected);
-    const preview = els.actionLocationMeta.querySelector("[data-dragon-den-preview]");
-    const confirmButton = els.actionLocationMeta.querySelector("[data-dragon-den-confirm]");
-    if (preview) preview.innerHTML = renderDragonDenPreview(chosenPokemon, player);
-    if (confirmButton) {
-      const tier = dragonDenTierInfo(chosenPokemon);
-      confirmButton.disabled = !chosenPokemon || !tier.valid || Number(player.balance || 0) < tier.cost;
-    }
-  };
-  dragonDenPokemonSelect?.addEventListener("change", updateDragonDenPreview);
-  updateDragonDenPreview();
-  els.actionLocationMeta.querySelector("[data-dragon-den-confirm]")?.addEventListener("click", (event) => {
-    event.stopPropagation();
-    const selected = els.actionLocationMeta.querySelector("#dragonDenPokemonSelect")?.value;
-    const improvement = "move-or-ability";
-    if (selected) placePokemonInDragonsDen(selected, improvement);
-  });
-  els.actionLocationMeta.querySelectorAll("[data-dragon-den-return]").forEach((button) => {
-    button.addEventListener("click", (event) => {
-      event.stopPropagation();
-      returnPokemonFromDragonsDen(button.dataset.dragonDenReturn);
-    });
-  });
-  const silphPokemonSelect = els.actionLocationMeta.querySelector("#silphPokemonSelect");
-  const updateSilphPreview = () => {
-    const selectedIds = [...(silphPokemonSelect?.selectedOptions || [])].map((option) => option.value).slice(0, 4);
-    const chosenPokemon = silphEligiblePokemon(player.id).filter((record) => selectedIds.includes(record.id));
-    const costs = chosenPokemon.map((pokemon) => globalThis.rivalSagaActionPhaseBalance.SILPH_COSTS[pokemonConsolidatedBattleTier(pokemon)] || 0);
-    const cost = costs.reduce((total, value) => total + value, 0);
-    const preview = els.actionLocationMeta.querySelector("[data-silph-preview]");
-    const button = els.actionLocationMeta.querySelector("[data-silph-start]");
-    if (preview) preview.innerHTML = `
-      <div><span>Selected</span><strong>${chosenPokemon.length}/3</strong></div>
-      <div><span>Total Cost</span><strong>${cost ? formatMoney(cost) : "Choose Pokémon"}</strong></div>
-    `;
-    if (button) button.disabled = !chosenPokemon.length || chosenPokemon.length > 3 || costs.some((value) => !value) || Number(player.balance || 0) < cost;
-  };
-  silphPokemonSelect?.addEventListener("change", updateSilphPreview);
-  updateSilphPreview();
-  els.actionLocationMeta.querySelector("[data-silph-start]")?.addEventListener("click", (event) => {
-    event.stopPropagation();
-    const selected = [...(els.actionLocationMeta.querySelector("#silphPokemonSelect")?.selectedOptions || [])].map((option) => option.value);
-    if (selected.length) startSilphCoSession(selected);
-  });
-  els.actionLocationMeta.querySelectorAll("[data-silph-select]").forEach((button) => {
-    button.addEventListener("click", (event) => {
-      event.stopPropagation();
-      chooseSilphCoOption(button.dataset.silphSelect);
-    });
-  });
-  els.actionLocationMeta.querySelector("[data-silph-reroll]")?.addEventListener("click", (event) => {
-    event.stopPropagation();
-    rerollSilphCoOptions();
-  });
-  els.actionLocationMeta.querySelectorAll("[data-silph-reroll-option]").forEach((button) => {
-    button.addEventListener("click", (event) => {
-      event.stopPropagation();
-      rerollSilphCoOption(button.dataset.silphRerollOption);
-    });
-  });
-  els.actionLocationMeta.querySelector("[data-grotto-start]")?.addEventListener("click", (event) => {
-    event.stopPropagation();
-    startHiddenGrottoSession().catch((error) => {
-      console.error("Hidden Grotto failed", error);
-      alert("Hidden Grotto failed before completing. No reward was finalized.");
-      render();
-    });
-  });
-  els.actionLocationMeta.querySelectorAll("[data-grotto-start-type]").forEach((button) => {
-    button.addEventListener("click", (event) => {
-      event.stopPropagation();
-      if (button.disabled) return;
-      startHiddenGrottoSession({ chosenType: button.dataset.grottoStartType }).catch((error) => {
-        console.error("Hidden Grotto type start failed", error);
-        alert("Hidden Grotto failed before completing. No reward was finalized.");
-        render();
-      });
-    });
-  });
-  els.actionLocationMeta.querySelectorAll("[data-grotto-type]").forEach((button) => {
-    button.addEventListener("click", (event) => {
-      event.stopPropagation();
-      chooseHiddenGrottoType(button.dataset.grottoType).catch((error) => {
-        console.error("Hidden Grotto type choice failed", error);
-        alert("Hidden Grotto result failed before completing. Try choosing the type again.");
-        render();
-      });
-    });
-  });
-  els.actionLocationMeta.querySelectorAll("[data-grotto-pokemon]").forEach((button) => {
-    button.addEventListener("click", (event) => {
-      event.stopPropagation();
-      chooseHiddenGrottoPokemon(button.dataset.grottoPokemon);
-    });
-  });
-  els.actionLocationMeta.querySelector("[data-bulletin-take-quests]")?.addEventListener("click", (event) => {
-    event.stopPropagation();
-    takeBulletinBoardQuests();
-  });
-  els.actionLocationMeta.querySelector("[data-bulletin-confirm-quests]")?.addEventListener("click", (event) => {
-    event.stopPropagation();
-    confirmBulletinQuests();
-  });
-  els.actionLocationMeta.querySelectorAll("[data-bulletin-reroll-quest]").forEach((button) => {
-    button.addEventListener("click", (event) => {
-      event.stopPropagation();
-      rerollBulletinQuest(button.dataset.bulletinRerollQuest);
-    });
-  });
-  els.actionLocationMeta.querySelectorAll("[data-bulletin-fail-quest]").forEach((button) => {
-    button.addEventListener("click", (event) => {
-      event.stopPropagation();
-      failBulletinQuest(button.dataset.bulletinFailQuest);
-    });
-  });
-  els.actionLocationMeta.querySelectorAll("[data-bulletin-complete-quest]").forEach((button) => {
-    button.addEventListener("click", (event) => {
-      event.stopPropagation();
-      completeBulletinQuest(button.dataset.bulletinCompleteQuest);
-    });
-  });
-  renderWheelPanel();
+  renderV2RouteActionPhase();
 }
 
 function setV2RouteBrowserPreview(routeNumber) {
@@ -47269,280 +45363,6 @@ function renderRandomPokemonPanel() {
         <button class="ghost-button" type="button" data-reroll-random-pokemon="${escapeHtml(session.id)}"${rerollTokenCount ? "" : " disabled"} title="${rerollTokenCount ? `Spend ${player?.name || "the owner"}'s Reroll Token to replace this pending result.` : `${player?.name || "The owner"} needs a Reroll Token.`}">Owner Reroll${rerollTokenCount ? ` (${rerollTokenCount})` : " Token Required"}</button>
       </div>
     </article>
-  `;
-}
-
-async function completeEncounterRoll(sessionId, entryId) {
-  const session = (state.encounterSessions || []).find((entry) => entry.id === sessionId);
-  if (!session || session.status !== "pending") return;
-  session.isSpinning = false;
-  session.pendingEntryId = "";
-  const player = state.players.find((entry) => entry.id === session.playerId) || activePlayer();
-  const entries = encounterEntriesForSession(session);
-  const visualResult = entries.find((entry) => entry.id === entryId) || weightedEncounterEntry(entries);
-  const { result, special } = resolveEncounterSpecialResult(visualResult);
-  if (!result || (session.rolls || []).length >= Number(session.maxRolls || 2)) return;
-  const roll = {
-    id: `encounter-roll-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-    encounterSessionId: session.id,
-    actionVisitId: session.actionVisitIds?.[Math.floor((session.rolls || []).length / Number(encounterWheelDefinition(session.series, session.gym)?.rollsPerAction || 2))] || session.actionVisitId,
-    playerId: player.id,
-    series: session.series,
-    gym: Number(session.gym),
-    entryId: result.id,
-    visualEntryId: visualResult?.id || result.id,
-    resultPokemonName: result.pokemonName || result.displayName,
-    resultDisplayName: result.displayName || result.pokemonName,
-    resultSprite: "",
-    chosenSpriteKey: "",
-    category: result.category || "land",
-    weight: Number(result.weight || 1),
-    specialEncounter: special,
-    timestamp: new Date().toISOString()
-  };
-  await hydrateEncounterRollSprite(roll);
-  session.rolls ||= [];
-  session.rolls.push(roll);
-  updateEncounterActionLog(session, player, (entry) => {
-    appendLogCategory(entry, "wheel");
-    appendUniqueLogValue(entry, "tags", "encounter-roll");
-    appendUniqueLogValue(entry, "pokemonNames", roll.resultDisplayName);
-    entry.childEvents ||= [];
-    entry.childEvents.push({
-      type: "encounter-roll",
-      category: "wheel",
-      result: roll.resultDisplayName,
-      specialEncounter: special,
-      encounterRollId: roll.id,
-      encounterSessionId: session.id,
-      actionVisitId: session.actionVisitId,
-      timestamp: roll.timestamp
-    });
-    if (special) appendGroupedLogDetail(entry, `${special.triggerName} opened ${special.wheelName}: ${special.resultName}.`);
-  });
-  if (session.rolls.length >= Number(session.maxRolls || 2)) {
-    session.status = "review";
-    session.completedAt = new Date().toISOString();
-  }
-  saveState();
-  render();
-}
-
-function spinEncounterWheel(sessionId = state.selectedEncounterSessionId) {
-  const session = (state.encounterSessions || []).find((entry) => entry.id === sessionId);
-  if (!session || session.status !== "pending" || session.isSpinning) return;
-  if ((session.rolls || []).length >= Number(session.maxRolls || 2)) return;
-  const entries = encounterEntriesForSession(session);
-  if (!entries.length) {
-    alert("No valid Pokemon are available on this Encounter Wheel. Banned Pokemon are excluded.");
-    return;
-  }
-  const result = weightedEncounterEntry(entries);
-  if (!result) return;
-  session.pendingEntryId = result.id;
-  const nextRotation = nextEncounterLandingRotation(session, entries, result.id);
-  session.visualRotation = nextRotation;
-  if (state.skipWheelAnimation) {
-    completeEncounterRoll(session.id, result.id);
-    return;
-  }
-  session.isSpinning = true;
-  saveState();
-  const wheelVisual = els.encounterOverlay?.querySelector(".encounter-wheel-visual");
-  const wheelDisc = wheelVisual?.querySelector(".wheel-disc");
-  const latestResult = els.encounterOverlay?.querySelector(".wheel-latest-result");
-  const rollButton = els.encounterOverlay?.querySelector(`[data-encounter-roll="${session.id}"]`);
-  const liveDisplay = els.encounterOverlay?.querySelector("[data-encounter-live-display]");
-  if (liveDisplay) liveDisplay.dataset.finalEntryId = result.id;
-  if (wheelVisual && wheelDisc) {
-    wheelVisual.classList.add("spinning");
-    wheelDisc.getBoundingClientRect();
-    wheelDisc.style.setProperty("--wheel-rotation", `${Number(nextRotation || 0)}deg`);
-    animateEncounterLivePointer(els.encounterOverlay, 5200);
-  } else {
-    renderEncounterOverlay();
-  }
-  if (latestResult) {
-    latestResult.innerHTML = "<span>Passing</span><strong>Spinning...</strong>";
-  }
-  if (rollButton) {
-    rollButton.disabled = true;
-    rollButton.textContent = "Spinning...";
-  }
-  window.setTimeout(() => completeEncounterRoll(session.id, result.id), 5200);
-}
-
-function closeEncounterSession(sessionId = state.selectedEncounterSessionId, { skipPendingGuard = false } = {}) {
-  if (!skipPendingGuard && !guardPendingEventBeforeAction("Close Encounter Session", () => closeEncounterSession(sessionId, { skipPendingGuard: true }))) return;
-  const session = (state.encounterSessions || []).find((entry) => entry.id === sessionId);
-  if (!session) return;
-  const unaddedRolls = (session.rolls || []).filter((roll) => !encounterRollWasObtained(roll));
-  if (unaddedRolls.length) {
-    alert("Add every Encounter result to the party before closing this Encounter session.");
-    state.encounterModalOpen = true;
-    state.selectedEncounterSessionId = session.id;
-    saveState();
-    renderEncounterOverlay();
-    return;
-  }
-  if (session.status === "pending" && (session.rolls || []).length < Number(session.maxRolls || 2)
-    && !confirm(`Finish this Encounter session with ${(session.rolls || []).length}/${session.maxRolls || 2} rolls used?`)) return;
-  session.status = "completed";
-  session.completedAt ||= new Date().toISOString();
-  (session.actionVisitIds || [session.actionVisitId]).filter(Boolean).forEach((visitId) => {
-    completeActionOperationForVisit(visitId, "encounter-session-closed");
-  });
-  const next = pendingEncounterSessions().find((entry) => entry.id !== session.id);
-  state.selectedEncounterSessionId = next?.id || "";
-  state.encounterModalOpen = Boolean(next);
-  saveState();
-  render();
-}
-
-function renderEncounterOverlay() {
-  const pending = pendingEncounterSessions();
-  if (!pending.length) state.encounterModalOpen = false;
-  if (!els.encounterTab || !els.encounterOverlay || !els.encounterBody) return;
-  els.encounterTab.classList.toggle("hidden", !pending.length);
-  els.encounterTab.textContent = pending.length ? `Encounter (${pending.length})` : "Encounter";
-  const isOpen = Boolean(pending.length && state.encounterModalOpen);
-  els.encounterOverlay.classList.toggle("hidden", !isOpen);
-  els.encounterTab.setAttribute("aria-expanded", String(isOpen));
-  const session = selectedEncounterSession();
-  if (!pending.length || !session) {
-    els.encounterSessionList.innerHTML = "";
-    els.encounterBody.innerHTML = "";
-    return;
-  }
-  const definition = encounterWheelDefinition(session.series, session.gym);
-  const player = state.players.find((entry) => entry.id === session.playerId) || activePlayer();
-  const entries = encounterEntriesForSession(session);
-  const removedEntries = (definition?.entries || []).filter((entry) => (session.removedEntryIds || []).includes(entry.id));
-  const max = Number(session.maxRolls || definition?.rollsPerAction || 2);
-  const rolls = session.rolls || [];
-  const isSpinning = Boolean(session.isSpinning);
-  const weightEditing = Boolean(session.weightEditing);
-  const rerollTokenCount = (player.inventory || []).filter(isRerollToken).length;
-  const rollFreeRerollReasons = Object.fromEntries(rolls.map((roll) => [roll.id, encounterRollFreeRerollReason(player, roll)]));
-  els.encounterTitle.textContent = definition?.name || "Encounter Wheel";
-  els.encounterSessionList.replaceChildren(...pending.map((entry) => {
-    const entryPlayer = state.players.find((candidate) => candidate.id === entry.playerId);
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = `wheel-session-card${entry.id === session.id ? " active" : ""}`;
-    button.dataset.encounterSession = entry.id;
-    button.innerHTML = `
-      <strong>${escapeHtml(encounterWheelDefinition(entry.series, entry.gym)?.name || "Encounter Wheel")}</strong>
-      <span>${escapeHtml(entryPlayer?.name || "Unknown")} - ${entry.series} G${entry.gym}</span>
-      <em>${(entry.rolls || []).length}/${entry.maxRolls || 2} rolls</em>
-    `;
-    return button;
-  }));
-  const totalWeight = entries.reduce((total, entry) => total + Number(entry.weight || 1), 0) || 1;
-  const colors = ["#7cc6fe", "#98d973", "#f7c948", "#ff8a65", "#c6a4ff", "#80cbc4", "#f06292", "#ffd166"];
-  let cursor = 0;
-  const segments = buildEncounterWheelSegments(entries);
-  const finalRoll = rolls[rolls.length - 1];
-  const finalEntryId = finalRoll?.visualEntryId || finalRoll?.entryId || "";
-  const finalMeta = finalRoll
-    ? finalRoll.specialEncounter
-      ? `${finalRoll.specialEncounter.triggerName} -> ${finalRoll.specialEncounter.wheelName}`
-      : `${finalRoll.category || "land"} / W${Number(finalRoll.weight || 1)}`
-    : "";
-  const visualEntries = entries.map((entry, index) => {
-    const start = cursor;
-    const percent = Number(entry.weight || 1) / totalWeight * 100;
-    cursor += percent;
-    return { ...entry, color: colors[index % colors.length], start, end: cursor, midpoint: start + percent / 2 };
-  });
-  const gradientStops = visualEntries.map((entry) => `${entry.color} ${entry.start}% ${entry.end}%`).join(", ");
-  const canRoll = session.status === "pending" && !isSpinning && rolls.length < max && entries.length > 0;
-  els.encounterBody.innerHTML = `
-    <div class="encounter-layout">
-      <section class="encounter-wheel-section">
-        <div class="wheel-visual encounter-wheel-visual${isSpinning ? " spinning" : ""}" style="--wheel-gradient:conic-gradient(${gradientStops})">
-          <div class="wheel-pointer"></div>
-          <div class="wheel-disc" style="--wheel-rotation:${Number(session.visualRotation || 0)}deg">
-            <div class="wheel-face encounter-wheel-face" aria-hidden="true"></div>
-          </div>
-          <div class="wheel-hub"></div>
-        </div>
-        <div class="wheel-latest-result encounter-live-result" data-encounter-live-display data-segments="${escapeHtml(JSON.stringify(segments))}" data-final-entry-id="${escapeHtml(finalEntryId)}">
-          <span>${isSpinning ? "Passing" : rolls.length ? "Result" : "Ready"}</span>
-          <strong>${isSpinning ? "Spinning..." : rolls.length ? escapeHtml(finalRoll.resultDisplayName) : "Ready"}</strong>
-          ${!isSpinning && finalMeta ? `<em>${escapeHtml(finalMeta)}</em>` : ""}
-        </div>
-        <div class="split-actions">
-          <button class="buy-button" type="button" data-encounter-roll="${escapeHtml(session.id)}"${canRoll ? "" : " disabled"}>${isSpinning ? "Spinning..." : rolls.length >= max ? "All Rolls Used" : "Roll Encounter"}</button>
-          <button class="ghost-button" type="button" data-encounter-done="${escapeHtml(session.id)}">Done</button>
-        </div>
-        <label class="wheel-skip-toggle encounter-skip-toggle">
-          <input type="checkbox" data-encounter-skip-animation ${state.skipWheelAnimation ? "checked" : ""}>
-          Skip Animation
-        </label>
-        <h3>Results</h3>
-        <div class="encounter-result-list">
-          ${rolls.length ? rolls.map((roll, index) => `
-            <article class="encounter-result-card">
-              <div class="encounter-result-art">${roll.resultSprite ? `<img src="${escapeHtml(roll.resultSprite)}" alt="${escapeHtml(roll.resultDisplayName)}">` : `<span>${escapeHtml((roll.resultDisplayName || "?").slice(0, 1))}</span>`}</div>
-              <div>
-                <strong>#${index + 1}: ${escapeHtml(roll.resultDisplayName)}</strong>
-                <span>${roll.specialEncounter ? `${escapeHtml(roll.specialEncounter.triggerName)} -> ${escapeHtml(roll.specialEncounter.wheelName)}` : escapeHtml(roll.category || "land")} - ${escapeHtml(pokemonBattleTierSummary(roll.resultDisplayName || roll.resultPokemonName, "Unassigned"))}${roll.rerollHistory?.length ? ` - ${roll.rerollHistory.length} reroll${roll.rerollHistory.length === 1 ? "" : "s"}` : ""}</span>
-              </div>
-              <div class="encounter-result-actions">
-                ${roll.rosterPokemonId ? `<span class="encounter-result-added">Added</span>` : `
-                  <button class="buy-button mini-button" type="button" data-encounter-add="${escapeHtml(roll.id)}">Add</button>
-                  <button class="ghost-button mini-button" type="button" data-encounter-reroll="${escapeHtml(roll.id)}" data-encounter-reroll-mode="result"${rollFreeRerollReasons[roll.id] || rerollTokenCount ? "" : " disabled"} title="${roll.specialEncounter ? `Spend ${player.name}'s Reroll Token to reroll within the Hyperspace sub-wheel.` : rollFreeRerollReasons[roll.id] ? `Free reroll: ${escapeHtml(rollFreeRerollReasons[roll.id])}` : rerollTokenCount ? `Spend ${player.name}'s Reroll Token on this encounter result.` : `${player.name} needs a Reroll Token.`}">${roll.specialEncounter ? "Owner Reroll Hyperspace" : rollFreeRerollReasons[roll.id] ? "Free Reroll" : `Owner Reroll${rerollTokenCount ? ` (${rerollTokenCount})` : ""}`}</button>
-                  ${roll.specialEncounter ? `<button class="ghost-button mini-button danger-lite" type="button" data-encounter-reroll="${escapeHtml(roll.id)}" data-encounter-reroll-mode="encounter"${rollFreeRerollReasons[roll.id] || rerollTokenCount ? "" : " disabled"} title="${rollFreeRerollReasons[roll.id] ? `Free respin: ${escapeHtml(rollFreeRerollReasons[roll.id])}` : rerollTokenCount ? `Spend ${player.name}'s Reroll Token to respin the original Encounter Wheel result.` : `${player.name} needs a Reroll Token.`}">Owner Respin Encounter</button>` : ""}
-                `}
-              </div>
-            </article>
-          `).join("") : `<p class="empty-state compact">Encounter results will appear here.</p>`}
-        </div>
-      </section>
-      <section class="encounter-controls">
-        <div class="wheel-meta">
-          <div><span>Trainer</span><strong>${escapeHtml(player.name)}</strong></div>
-          <div><span>Rolls</span><strong>${rolls.length}/${max}</strong></div>
-          <div><span>Active Options</span><strong>${entries.length}</strong></div>
-          <div><span>Rerolls</span><strong>Allowed</strong></div>
-        </div>
-        <div class="encounter-toggle-row">
-          <label><input type="checkbox" data-encounter-toggle="water" ${session.includeFishing || session.includeSurf ? "checked" : ""}> Include Fishing / Surf</label>
-          <label><input type="checkbox" data-encounter-weight-editing ${weightEditing ? "checked" : ""}${rolls.length ? " disabled" : ""}> Edit Weights</label>
-        </div>
-        <p class="gc-rule-note">Fishing and Surf are grouped for now. Later this should come from items/effects.</p>
-        <h3>Active Wheel Options</h3>
-        <div class="encounter-entry-list">
-          ${entries.map((entry) => `
-            <article class="encounter-entry${entry.id === finalEntryId ? " pointer-active" : ""}" data-encounter-entry-id="${escapeHtml(entry.id)}">
-              <div>
-                <strong>${escapeHtml(entry.displayName || entry.pokemonName)}</strong>
-                <span>${escapeHtml(entry.category || "land")}</span>
-              </div>
-              ${weightEditing ? `
-                <label class="encounter-weight-control">
-                  Weight
-                  <input type="number" min="0" step="1" value="${Number(entry.weight || 1)}" data-encounter-weight="${escapeHtml(entry.id)}"${rolls.length ? " disabled" : ""}>
-                </label>
-              ` : `<span class="encounter-weight-badge">W ${Number(entry.weight || 1)}</span>`}
-              ${entry.removable === false ? "" : `<button class="ghost-button mini-button" type="button" data-encounter-remove="${escapeHtml(entry.id)}"${rolls.length ? " disabled" : ""}>Remove</button>`}
-            </article>
-          `).join("") || `<p class="empty-state compact">No active entries.</p>`}
-        </div>
-        ${removedEntries.length ? `
-          <h3>Removed</h3>
-          <div class="encounter-entry-list">
-            ${removedEntries.map((entry) => `
-              <article class="encounter-entry">
-                <div><strong>${escapeHtml(entry.displayName || entry.pokemonName)}</strong><span>${escapeHtml(entry.category || "land")}</span></div>
-                <button class="ghost-button mini-button" type="button" data-encounter-restore="${escapeHtml(entry.id)}"${rolls.length ? " disabled" : ""}>Restore</button>
-              </article>
-            `).join("")}
-          </div>
-        ` : ""}
-      </section>
-    </div>
   `;
 }
 
@@ -48873,7 +46693,6 @@ function prepareTokenSandboxCommitState(workingState, baseline, info) {
     "playerNotifications",
     "lingeringStatuses",
     "randomPokemonSessions",
-    "encounterSessions",
     "wheelSessions"
   ].forEach((key) => markSandboxCollectionChanges(candidate, baseline, key, origin));
   candidate.chronologyCounter = Number(candidate.chronologyCounter || 0) + 1;
@@ -49007,10 +46826,6 @@ async function launchTokenScenarioSandbox() {
       tokenId: "scenario-immunity",
       note: `${responder.name} used Immunity in the scenario.`
     });
-  } else if (kind === "encounterBefore") {
-    activity = createTokenScenarioEvent({ actor, target, title: `${actor.name}'s encounter is about to begin.`, message: "Choose before-roll Encounter effects now.", type: "encounter-before-roll", targeted: false, payload: { encounterStage: "beforeRoll" } });
-  } else if (kind === "encounterResult") {
-    activity = createTokenScenarioEvent({ actor, target, title: `${actor.name} rolled Abra.`, message: `${actor.name} rolled Abra. The result is pending.`, type: TOKEN_PENDING_EVENT_TYPES.ENCOUNTER_RESULT, targeted: false, payload: { encounterStage: "result", resultName: "Abra" } });
   } else if (kind === "wheelManual") {
     const guided = (contract?.list || []).find((definition) => definition.resolverMode === EFFECT_RESOLUTION_MODES.GUIDED) || tokenDefinition;
     activity = createTokenScenarioEvent({ actor, target, tokenDefinition: guided, title: `${actor.name} used ${guided.name}.`, message: `${guided.name} is waiting for its guided result.`, type: TOKEN_PENDING_EVENT_TYPES.CONTROL_TOKEN, sourceType: "token-use", targeted: guided.targetScope !== "tableWide" });
@@ -49546,13 +47361,6 @@ function createAdminTestEvent(kind = "") {
     }
   };
   const presets = {
-    encounter: {
-      type: TOKEN_PENDING_EVENT_TYPES.ENCOUNTER_RESULT,
-      title: `${actor.name} test encounter result`,
-      message: `${actor.name} rolled a test encounter result. Encounter tokens and trades may happen before finalizing.`,
-      sourceType: "admin-test-encounter",
-      payload: { tokenTimingCategory: TOKEN_TIMING_CATEGORIES.ENCOUNTER, effectApplication: "audit" }
-    },
     control: {
       type: TOKEN_PENDING_EVENT_TYPES.CONTROL_TOKEN,
       title: "Move Deleter Pending",
@@ -50473,7 +48281,6 @@ function render() {
   renderLiveRefereePanel();
   renderOpponentDrawer();
   renderCart();
-  renderEncounterOverlay();
   renderWheelPanel();
   renderRandomPokemonPanel();
   renderSiteShell();
@@ -50889,151 +48696,11 @@ function phaseAdvanceBlockedByActionOperation(target = nextPhaseTarget()) {
   return `${trainer} is still resolving ${location}. Finish or undo that Action before advancing phases.`;
 }
 
-function honeyEligibleEncounterResults() {
-  return (state.randomPokemonSessions || []).filter((session) => {
-    if (session.sourceType !== "encounter" || session.status !== "confirmed") return false;
-    if (session.copiedFromRandomPokemonSessionId || session.sourceLabel === "Honey copied Encounter") return false;
-    const parent = (state.encounterSessions || []).find((entry) => entry.id === session.encounterSessionId);
-    return String(session.series || parent?.series || state.series) === String(state.series)
-      && Number(session.gym || parent?.gym || state.gym) === Number(state.gym);
-  });
-}
 
-function ensureHoneyEndOfActionProcedures() {
-  state.endOfActionProcedures ||= [];
-  const eligible = honeyEligibleEncounterResults();
-  if (!eligible.length) return [];
-  const created = [];
-  state.players.forEach((player) => {
-    (player.inventory || []).forEach((item) => {
-      const definition = globalThis.rivalSagaTokenEffectContract?.inventoryDefinitionFor?.(item);
-      if (definition?.id !== "honey-token") return;
-      const id = `end-action-honey:${state.series}:${state.gym}:${player.id}:${item.id}`;
-      let procedure = state.endOfActionProcedures.find((entry) => entry.id === id);
-      if (procedure && ["resolved", "skipped"].includes(procedure.status)) return;
-      if (!procedure) {
-        procedure = {
-          id, type: "honey", status: "awaitingChoice", sourcePlayerId: player.id,
-          tokenInventoryRecordId: item.id, eligibleRandomPokemonSessionIds: eligible.map((session) => session.id),
-          series: state.series, gym: Number(state.gym), createdAt: new Date().toISOString()
-        };
-        state.endOfActionProcedures.push(procedure);
-      }
-      let activity = (state.interactionEvents || []).find((entry) => entry.payload?.procedureId === id && entry.status === "open");
-      if (!activity) {
-        activity = createInteractionEvent({
-          type: "phase-boundary-procedure", title: `${player.name} may use Honey.`,
-          message: `${player.name} may copy one completed Encounter from this Action Phase.`,
-          actorPlayerId: player.id, targetPlayerId: player.id, sourceType: "honey-end-action",
-          sourceId: id, responseTypes: [], eligiblePlayerIds: [],
-          payload: { procedureId: id, tokenName: "Honey", requiresRequiredChoice: true, requiredChoicePlayerId: player.id, responsesAllowed: false, transactionsAllowed: false }
-        });
-      }
-      created.push({ procedure, activity });
-    });
-  });
-  return created;
-}
 
-function honeyProcedureForActivity(activity) {
-  return activity?.sourceType === "honey-end-action"
-    ? (state.endOfActionProcedures || []).find((entry) => entry.id === activity.payload?.procedureId)
-    : null;
-}
 
-function liveRefereeHoneyProcedureScreenMarkup(prompt, activity) {
-  const procedure = honeyProcedureForActivity(activity);
-  const choices = (procedure?.eligibleRandomPokemonSessionIds || []).map((id) => (state.randomPokemonSessions || []).find((entry) => entry.id === id)).filter((entry) => entry?.status === "confirmed");
-  return liveRefereeGameScreenMarkup({
-    className: "live-referee-honey-screen",
-    situation: "Which completed encounter will Honey copy?",
-    body: liveRefereePickerScrollMarkup(choices.map((session) => liveRefereeChoiceButtonMarkup({
-      label: `${livePlayerName(session.resultOwnerPlayerId || session.ownerPlayerId || session.playerId, "Player")} - ${session.resultDisplayName}`,
-      attrs: `data-honey-result-choice="${escapeHtml(session.id)}" data-activity-id="${escapeHtml(activity.id)}"`,
-      variant: "ghost"
-    })).join("") || `<p class="empty-state compact">No eligible completed encounter remains.</p>`, "Completed encounters"),
-    choices: liveRefereeNavActionsMarkup([
-      liveRefereeChoiceButtonMarkup({ label: "Skip Honey", attrs: `data-honey-procedure-skip="${escapeHtml(activity.id)}"` })
-    ])
-  });
-}
 
-function skipHoneyEndOfActionProcedure(activityId) {
-  const activity = liveActivityById(activityId);
-  const procedure = honeyProcedureForActivity(activity);
-  if (!procedure) return false;
-  procedure.status = "skipped";
-  procedure.resolvedAt = new Date().toISOString();
-  activity.status = "resolved";
-  activity.resolution = "skipped-without-consumption";
-  saveState({ immediate: true });
-  render();
-  return true;
-}
 
-function resolveHoneyEndOfActionProcedure(activityId, sourceRandomPokemonSessionId) {
-  const activity = liveActivityById(activityId);
-  const procedure = honeyProcedureForActivity(activity);
-  const player = state.players.find((entry) => entry.id === procedure?.sourcePlayerId);
-  const tokenIndex = (player?.inventory || []).findIndex((item) => item.id === procedure?.tokenInventoryRecordId);
-  if (!procedure || !player || tokenIndex < 0 || !procedure.eligibleRandomPokemonSessionIds.includes(sourceRandomPokemonSessionId)) {
-    alert("Honey's exact Token or Encounter selection is no longer available.");
-    return false;
-  }
-  const causalBeforeHoney = tokenUseRollbackSnapshot();
-  const savedPlayers = structuredClone(state.players);
-  const savedRandom = structuredClone(state.randomPokemonSessions || []);
-  const savedCopies = structuredClone(state.encounterCopyRecords || []);
-  const token = player.inventory.splice(tokenIndex, 1)[0];
-  const result = controlTokenEffects.resolveHoneyEncounterCopy(state, {
-    sourceEffectId: activity.id,
-    ownerPlayerId: player.id,
-    sourceRandomPokemonSessionId
-  }, controlTokenEffectOptions());
-  if (result.result !== "resolved") {
-    state.players = savedPlayers;
-    state.randomPokemonSessions = savedRandom;
-    state.encounterCopyRecords = savedCopies;
-    alert(result.reason);
-    return false;
-  }
-  procedure.status = "resolved";
-  procedure.selectedRandomPokemonSessionId = sourceRandomPokemonSessionId;
-  procedure.copiedRandomPokemonSessionId = result.randomSession?.id || "";
-  procedure.consumedTokenId = token.id;
-  procedure.resolvedAt = new Date().toISOString();
-  activity.status = "resolved";
-  activity.resolution = "honey-encounter-copied";
-  state.selectedRandomPokemonSessionId = result.randomSession?.id || "";
-  state.randomPokemonDrawerOpen = Boolean(result.randomSession);
-  const consumption = addTokenConsumptionRecord({
-    player,
-    token,
-    tokenName: "Honey",
-    metadata: tokenEffectMetadataByName("Honey"),
-    linkedEventId: activity.id,
-    source: "honey-end-of-action"
-  });
-  const causalUndo = buildCausalTokenEffectUndo(causalBeforeHoney, activity, { id: "honey-token", name: "Honey" });
-  causalUndo.procedureId = procedure.id;
-  causalUndo.copiedRandomPokemonSessionId = result.randomSession?.id || "";
-  addLogEntry({
-    action: "token", category: "pokemon", player: player.name,
-    item: result.reason, title: `${player.name} used Honey`, summary: result.reason,
-    type: "honey-encounter-copy", categories: ["tokens", "pokemon", "encounter"],
-    tags: ["honey", "encounter-copy", "end-of-action"], playerIds: [player.id], tokenNames: ["Honey"],
-    linkedEventId: activity.id,
-    tokenConsumptionId: consumption?.id || "",
-    encounterCopyRecordId: result.record?.id || "",
-    copiedRandomPokemonSessionId: result.randomSession?.id || "",
-    undoable: true,
-    undone: false,
-    undoData: causalUndo
-  });
-  saveState({ immediate: true });
-  render();
-  return true;
-}
 
 function renderPhaseSeriesChoice(target = pendingPhaseAdvance) {
   const show = Boolean(target?.requiresSeriesChoice || target?.phase === "chooseStartSeries");
@@ -51097,7 +48764,6 @@ function phaseAdvanceUndoSnapshot() {
     endOfActionProcedures: structuredClone(state.endOfActionProcedures || []),
     copiedTokenRelationships: structuredClone(state.copiedTokenRelationships || []),
     privateEffectRecords: structuredClone(state.privateEffectRecords || []),
-    encounterCopyRecords: structuredClone(state.encounterCopyRecords || []),
     effectOperations: structuredClone(state.effectOperations || [])
   };
 }
@@ -51154,14 +48820,6 @@ async function performPhaseAdvance(target = nextPhaseTarget()) {
   const phaseState = currentGymPhaseState();
   const now = new Date().toISOString();
   const previousPhase = phaseState.currentPhase;
-  if (!target.flowOnly && previousPhase === "action" && target.phase === "battle") {
-    const honeyProcedures = ensureHoneyEndOfActionProcedures();
-    if (honeyProcedures.length) {
-      render();
-      await saveState({ immediate: true, immediateBackend: true });
-      return;
-    }
-  }
   if (target.flowOnly) {
     if (target.requiresTeamsLocked && !phaseTeamsLocked()) {
       alert("All players must lock legal teams before this gameflow step can begin.");
@@ -61531,70 +59189,6 @@ function restoreGameCornerTokenInventorySnapshot(undoData, player) {
   player.inventory = [...previousGcTokens, ...currentNonGcInventory];
 }
 
-function undoEncounterActionVisit(undoData) {
-  const player = state.players.find((candidate) => candidate.id === undoData.playerId);
-  if (player && undoData.previousInventory) player.inventory = structuredClone(undoData.previousInventory);
-  const session = (state.encounterSessions || []).find((entry) => entry.id === undoData.encounterSessionId);
-  if (!session) {
-    if (undoData.previousEncounterSessions) state.encounterSessions = structuredClone(undoData.previousEncounterSessions);
-    if (undoData.previousRandomPokemonSessions) state.randomPokemonSessions = structuredClone(undoData.previousRandomPokemonSessions);
-    if (undoData.previousPokemonRecords) state.pokemonRecords = structuredClone(undoData.previousPokemonRecords).map(normalizePokemonRecord);
-    if (undoData.previousInteractionEvents) {
-      state.interactionEvents = structuredClone(undoData.previousInteractionEvents);
-    } else if (Array.isArray(undoData.previousInteractionEventIds)) {
-      const previousIds = new Set(undoData.previousInteractionEventIds);
-      state.interactionEvents = (state.interactionEvents || []).filter((activity) => previousIds.has(activity.id));
-    }
-    if (undoData.previousTransactions) {
-      state.transactions = structuredClone(undoData.previousTransactions);
-    } else if (Array.isArray(undoData.previousTransactionIds)) {
-      const previousIds = new Set(undoData.previousTransactionIds);
-      state.transactions = (state.transactions || []).filter((transaction) => previousIds.has(transaction.id));
-    }
-    syncLinkedTransactions();
-    syncPlayerPokemonLists();
-    return;
-  }
-  const definition = encounterWheelDefinition(session.series, session.gym);
-  const rollsPerAction = Number(definition?.rollsPerAction || 2);
-  const visitIds = session.actionVisitIds || (session.actionVisitId ? [session.actionVisitId] : []);
-  const visitIndex = Math.max(0, visitIds.indexOf(undoData.visitId));
-  let rollsToRemove = (session.rolls || []).filter((roll) => roll.actionVisitId === undoData.visitId);
-  if (!rollsToRemove.length || rollsToRemove.length > rollsPerAction) {
-    rollsToRemove = (session.rolls || []).slice(visitIndex * rollsPerAction, visitIndex * rollsPerAction + rollsPerAction);
-  }
-  const rollIds = new Set(rollsToRemove.map((roll) => roll.id));
-  const randomSessionIds = new Set(rollsToRemove.map((roll) => roll.randomPokemonSessionId).filter(Boolean));
-  const interactionIdsToRemove = new Set((state.interactionEvents || [])
-    .filter((activity) => randomSessionIds.has(activity.sourceId) || randomSessionIds.has(activity.payload?.randomPokemonSessionId))
-    .map((activity) => activity.id));
-  const pokemonIdsToRemove = new Set(rollsToRemove.map((roll) => roll.rosterPokemonId).filter(Boolean));
-  (state.randomPokemonSessions || []).forEach((randomSession) => {
-    if (randomSessionIds.has(randomSession.id) && randomSession.rosterPokemonId) pokemonIdsToRemove.add(randomSession.rosterPokemonId);
-  });
-  session.rolls = (session.rolls || []).filter((roll) => !rollIds.has(roll.id));
-  session.resultSessionIds = (session.resultSessionIds || []).filter((id) => !randomSessionIds.has(id));
-  session.actionVisitIds = visitIds.filter((id) => id !== undoData.visitId);
-  session.maxRolls = Math.max(0, Number(session.maxRolls || rollsPerAction) - rollsPerAction);
-  session.status = session.rolls.length >= Number(session.maxRolls || 0) ? "review" : "pending";
-  session.updatedAt = new Date().toISOString();
-  state.randomPokemonSessions = (state.randomPokemonSessions || []).filter((randomSession) => !randomSessionIds.has(randomSession.id));
-  state.interactionEvents = (state.interactionEvents || []).filter((activity) => !interactionIdsToRemove.has(activity.id));
-  state.transactions = (state.transactions || []).filter((transaction) => !interactionIdsToRemove.has(transaction.linkedEventId));
-  syncLinkedTransactions();
-  state.pokemonRecords = (state.pokemonRecords || []).filter((pokemon) => !pokemonIdsToRemove.has(pokemon.id));
-  if (!session.actionVisitIds.length && !(session.rolls || []).length) {
-    state.encounterSessions = (state.encounterSessions || []).filter((entry) => entry.id !== session.id);
-  } else if (player) {
-    updateEncounterActionLog(session, player);
-  }
-  if (state.selectedEncounterSessionId === undoData.encounterSessionId && !pendingEncounterSessions().some((entry) => entry.id === state.selectedEncounterSessionId)) {
-    state.selectedEncounterSessionId = "";
-    state.encounterModalOpen = false;
-  }
-  syncPlayerPokemonLists();
-}
-
 function restoreTokenEffectContractUndoData(undoData) {
   if (undoData.previousPlayers) state.players = structuredClone(undoData.previousPlayers);
   if (undoData.previousPokemonRecords) state.pokemonRecords = structuredClone(undoData.previousPokemonRecords).map(normalizePokemonRecord);
@@ -61604,14 +59198,7 @@ function restoreTokenEffectContractUndoData(undoData) {
   if (undoData.previousTokenConsumptions) state.tokenConsumptions = structuredClone(undoData.previousTokenConsumptions);
   if (undoData.previousPlayerNotifications) state.playerNotifications = structuredClone(undoData.previousPlayerNotifications);
   if (undoData.previousWheelSessions) state.wheelSessions = structuredClone(undoData.previousWheelSessions);
-  if (undoData.previousEncounterSessions) state.encounterSessions = structuredClone(undoData.previousEncounterSessions);
   if (undoData.previousRandomPokemonSessions) state.randomPokemonSessions = structuredClone(undoData.previousRandomPokemonSessions);
-  if (Object.prototype.hasOwnProperty.call(undoData, "previousSelectedEncounterSessionId")) {
-    state.selectedEncounterSessionId = undoData.previousSelectedEncounterSessionId || "";
-  }
-  if (Object.prototype.hasOwnProperty.call(undoData, "previousEncounterModalOpen")) {
-    state.encounterModalOpen = Boolean(undoData.previousEncounterModalOpen);
-  }
   if (undoData.previousInteractionEvents) state.interactionEvents = structuredClone(undoData.previousInteractionEvents).map((activity) => normalizeInteractionActivity(activity, state));
   if (undoData.previousTransactions) state.transactions = structuredClone(undoData.previousTransactions);
   if (undoData.previousGlobalPokemonRules) state.globalPokemonRules = structuredClone(undoData.previousGlobalPokemonRules);
@@ -61630,7 +59217,6 @@ function restoreTokenEffectContractUndoData(undoData) {
   if (undoData.previousEndOfActionProcedures) state.endOfActionProcedures = structuredClone(undoData.previousEndOfActionProcedures);
   if (undoData.previousCopiedTokenRelationships) state.copiedTokenRelationships = structuredClone(undoData.previousCopiedTokenRelationships);
   if (undoData.previousPrivateEffectRecords) state.privateEffectRecords = structuredClone(undoData.previousPrivateEffectRecords);
-  if (undoData.previousEncounterCopyRecords) state.encounterCopyRecords = structuredClone(undoData.previousEncounterCopyRecords);
   syncLinkedTransactions();
   syncPlayerPokemonLists();
 }
@@ -61743,26 +59329,6 @@ function undoLogEntry(logId) {
     if (undoData.previousSilphCoSessions) state.silphCoSessions = structuredClone(undoData.previousSilphCoSessions);
     if (player && undoData.previousMoveAccessGrants) player.moveAccessGrants = structuredClone(undoData.previousMoveAccessGrants);
     syncPlayerPokemonLists();
-  } else if (undoData.actionType === "undoHiddenGrottoAction") {
-    const key = actionPhaseKey(undoData.series, undoData.gym);
-    state.actionPhaseState ||= { selections: {}, seriesTrackers: {} };
-    state.actionPhaseState.selections ||= {};
-    state.actionPhaseState.selections[key] ||= { series: undoData.series, gym: undoData.gym, playerVisits: {} };
-    state.actionPhaseState.selections[key].playerVisits[undoData.playerId] = structuredClone(undoData.previousVisits || []);
-    const player = state.players.find((candidate) => candidate.id === undoData.playerId);
-    if (player) player.balance = Number(undoData.previousBalance ?? player.balance ?? 0);
-    if (undoData.previousMoneyLedger) state.moneyLedger = structuredClone(undoData.previousMoneyLedger);
-    if (undoData.previousPokemonRecords) state.pokemonRecords = structuredClone(undoData.previousPokemonRecords).map(normalizePokemonRecord);
-    if (undoData.previousHiddenGrottoSessions) state.hiddenGrottoSessions = structuredClone(undoData.previousHiddenGrottoSessions);
-    syncPlayerPokemonLists();
-  } else if (undoData.actionType === "undoEncounterAction") {
-    const key = actionPhaseKey(undoData.series, undoData.gym);
-    state.actionPhaseState ||= { selections: {}, seriesTrackers: {} };
-    state.actionPhaseState.selections ||= {};
-    state.actionPhaseState.selections[key] ||= { series: undoData.series, gym: undoData.gym, playerVisits: {} };
-    state.actionPhaseState.selections[key].playerVisits[undoData.playerId] = (state.actionPhaseState.selections[key].playerVisits[undoData.playerId] || [])
-      .filter((visit) => visit.id !== undoData.visitId);
-    undoEncounterActionVisit(undoData);
   } else if (undoData.actionType === "undoActionVisit") {
     const key = actionPhaseKey(undoData.series, undoData.gym);
     state.actionPhaseState ||= { selections: {}, seriesTrackers: {} };
@@ -61791,8 +59357,6 @@ function undoLogEntry(logId) {
       state.log.forEach((logEntry) => {
         if (undoneGameCornerSessionIds.includes(logEntry.gameCornerSessionId)) logEntry.undone = true;
       });
-    } else if (undoData.locationId === "encounter" || undoData.encounterSessionId) {
-      undoEncounterActionVisit(undoData);
     } else {
       if (player && undoData.previousInventory) player.inventory = structuredClone(undoData.previousInventory);
       if (player && undoData.previousBalance !== undefined) player.balance = Number(undoData.previousBalance);
@@ -61936,7 +59500,6 @@ function undoLogEntry(logId) {
     if (previous.endOfActionProcedures) state.endOfActionProcedures = structuredClone(previous.endOfActionProcedures);
     if (previous.copiedTokenRelationships) state.copiedTokenRelationships = structuredClone(previous.copiedTokenRelationships);
     if (previous.privateEffectRecords) state.privateEffectRecords = structuredClone(previous.privateEffectRecords);
-    if (previous.encounterCopyRecords) state.encounterCopyRecords = structuredClone(previous.encounterCopyRecords);
     if (previous.effectOperations) state.effectOperations = structuredClone(previous.effectOperations);
     ensureGymPhaseState(state.series, state.gym);
   } else {
@@ -63598,11 +61161,6 @@ function bindEvents() {
         saveState();
         renderRandomPokemonPanel();
       }
-      if (state.encounterModalOpen) {
-        state.encounterModalOpen = false;
-        saveState();
-        renderEncounterOverlay();
-      }
       els.phaseAgendaPanel.classList.add("hidden");
       els.phaseAgendaToggle.setAttribute("aria-expanded", "false");
       els.actionDemoNotice?.classList.add("hidden");
@@ -64016,110 +61574,6 @@ function bindEvents() {
     state.randomPokemonDrawerOpen = !state.randomPokemonDrawerOpen;
     saveState();
     renderRandomPokemonPanel();
-  });
-  els.encounterTab?.addEventListener("click", () => {
-    state.encounterModalOpen = !state.encounterModalOpen;
-    saveState();
-    renderEncounterOverlay();
-  });
-  els.closeEncounterOverlay?.addEventListener("click", () => {
-    state.encounterModalOpen = false;
-    saveState();
-    renderEncounterOverlay();
-  });
-  els.encounterOverlay?.addEventListener("click", (event) => {
-    if (event.target === els.encounterOverlay) {
-      state.encounterModalOpen = false;
-      saveState();
-      renderEncounterOverlay();
-      return;
-    }
-    event.stopPropagation();
-    const sessionButton = event.target.closest("[data-encounter-session]");
-    if (sessionButton) {
-      state.selectedEncounterSessionId = sessionButton.dataset.encounterSession;
-      saveState();
-      renderEncounterOverlay();
-      return;
-    }
-    const rollButton = event.target.closest("[data-encounter-roll]");
-    if (rollButton && !rollButton.disabled) {
-      spinEncounterWheel(rollButton.dataset.encounterRoll);
-      return;
-    }
-    const doneButton = event.target.closest("[data-encounter-done]");
-    if (doneButton) {
-      closeEncounterSession(doneButton.dataset.encounterDone);
-      return;
-    }
-    const toggle = event.target.closest("[data-encounter-toggle]");
-    if (toggle) {
-      const session = selectedEncounterSession();
-      if (!session || (session.rolls || []).length) return;
-      if (toggle.dataset.encounterToggle === "water") {
-        session.includeFishing = toggle.checked;
-        session.includeSurf = toggle.checked;
-      }
-      saveState();
-      renderEncounterOverlay();
-      return;
-    }
-    const weightEditingToggle = event.target.closest("[data-encounter-weight-editing]");
-    if (weightEditingToggle) {
-      const session = selectedEncounterSession();
-      if (!session || (session.rolls || []).length) return;
-      session.weightEditing = weightEditingToggle.checked;
-      saveState();
-      renderEncounterOverlay();
-      return;
-    }
-    const skipAnimationToggle = event.target.closest("[data-encounter-skip-animation]");
-    if (skipAnimationToggle) {
-      state.skipWheelAnimation = skipAnimationToggle.checked;
-      saveState();
-      return;
-    }
-    const addEncounterButton = event.target.closest("[data-encounter-add]");
-    if (addEncounterButton) {
-      const session = selectedEncounterSession();
-      if (session) addEncounterRollToRoster(session.id, addEncounterButton.dataset.encounterAdd);
-      return;
-    }
-    const rerollEncounterButton = event.target.closest("[data-encounter-reroll]");
-    if (rerollEncounterButton && !rerollEncounterButton.disabled) {
-      const session = selectedEncounterSession();
-      if (session) rerollEncounterRoll(session.id, rerollEncounterButton.dataset.encounterReroll, {
-        mode: rerollEncounterButton.dataset.encounterRerollMode || "result"
-      });
-      return;
-    }
-    const removeButton = event.target.closest("[data-encounter-remove]");
-    if (removeButton) {
-      const session = selectedEncounterSession();
-      if (!session || (session.rolls || []).length) return;
-      session.removedEntryIds ||= [];
-      if (!session.removedEntryIds.includes(removeButton.dataset.encounterRemove)) session.removedEntryIds.push(removeButton.dataset.encounterRemove);
-      saveState();
-      renderEncounterOverlay();
-      return;
-    }
-    const restoreButton = event.target.closest("[data-encounter-restore]");
-    if (restoreButton) {
-      const session = selectedEncounterSession();
-      if (!session || (session.rolls || []).length) return;
-      session.removedEntryIds = (session.removedEntryIds || []).filter((id) => id !== restoreButton.dataset.encounterRestore);
-      saveState();
-      renderEncounterOverlay();
-    }
-  });
-  els.encounterOverlay?.addEventListener("input", (event) => {
-    const weightInput = event.target.closest("[data-encounter-weight]");
-    if (!weightInput) return;
-    const session = selectedEncounterSession();
-    if (!session || (session.rolls || []).length) return;
-    session.weightOverrides ||= {};
-    session.weightOverrides[weightInput.dataset.encounterWeight] = Math.max(0, Number(weightInput.value || 0));
-    saveState();
   });
   els.randomPokemonPanel.addEventListener("click", (event) => {
     event.stopPropagation();

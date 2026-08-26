@@ -44,7 +44,7 @@ function browserExecutable() {
   return executable;
 }
 
-async function waitForJson(url, timeoutMs = 10000) {
+async function waitForJson(url, timeoutMs = 30000) {
   const started = Date.now();
   while (Date.now() - started < timeoutMs) {
     try {
@@ -172,7 +172,7 @@ function routeFixture(marker) {
   state.activePlayerId = "gold";
   state.ruleset = {
     actionPhaseVersion: "action-phase-v2-real-series",
-    supportedActionPhaseVersions: ["action-phase-v1-current-series", "action-phase-v2-real-series"]
+    supportedActionPhaseVersions: ["action-phase-v2-real-series"]
   };
   state.players.forEach((player) => {
     player.balance = 10000;
@@ -206,7 +206,7 @@ async function openRouteGame(marker) {
   const loaded = cdp.once("Page.loadEventFired", 60000);
   await cdp.send("Page.navigate", { url: `${server.baseUrl}/?view=game&game=${encodeURIComponent(gameId)}&page=actionPhase` }, 60000);
   await loaded;
-  await waitUntil(`typeof v2EnsureRouteSeriesState === "function" && state?.marker === ${JSON.stringify(marker)}`, 60000);
+  await waitUntil(`typeof state !== "undefined" && typeof v2EnsureRouteSeriesState === "function" && state.marker === ${JSON.stringify(marker)}`, 60000);
   return gameId;
 }
 
@@ -242,7 +242,7 @@ async function persistAndReload(gameId, marker) {
   const loaded = cdp.once("Page.loadEventFired", 60000);
   await cdp.send("Page.navigate", { url: clean.href }, 60000);
   await loaded;
-  await waitUntil(`typeof v2EnsureRouteSeriesState === "function" && state?.marker === ${JSON.stringify(marker)}`, 60000);
+  await waitUntil(`typeof state !== "undefined" && typeof v2EnsureRouteSeriesState === "function" && state.marker === ${JSON.stringify(marker)}`, 60000);
 }
 
 before(async () => {
@@ -265,7 +265,7 @@ before(async () => {
     "--no-default-browser-check",
     "--window-size=1280,900",
     "about:blank"
-  ], { stdio: ["ignore", "ignore", "ignore"] });
+  ], { stdio: ["ignore", "ignore", "ignore"], detached: process.platform !== "win32" });
   await waitForJson(`http://127.0.0.1:${debuggingPort}/json/version`);
   const targets = await waitForJson(`http://127.0.0.1:${debuggingPort}/json/list`);
   const page = targets.find((target) => target.type === "page");
@@ -279,15 +279,39 @@ before(async () => {
 
 after(async () => {
   if (cdp) await cdp.close().catch(() => {});
-  if (browserProcess && !browserProcess.killed) browserProcess.kill();
-  if (browserProcess) {
+  const killBrowserTree = (signal) => {
+    if (!browserProcess || browserProcess.exitCode !== null) return;
+    if (process.platform === "win32") {
+      browserProcess.kill(signal);
+      return;
+    }
+    try {
+      process.kill(-browserProcess.pid, signal);
+    } catch (error) {
+      if (error?.code !== "ESRCH") throw error;
+    }
+  };
+  killBrowserTree("SIGTERM");
+  if (browserProcess && browserProcess.exitCode === null) {
     await Promise.race([
       new Promise((resolve) => browserProcess.once("exit", resolve)),
-      delay(1000)
+      delay(5000)
     ]);
   }
-  if (browserProfile && fs.existsSync(browserProfile)) fs.rmSync(browserProfile, { recursive: true, force: true });
-  await stopTemporaryServer(server);
+  if (browserProcess && browserProcess.exitCode === null) {
+    killBrowserTree("SIGKILL");
+    await Promise.race([
+      new Promise((resolve) => browserProcess.once("exit", resolve)),
+      delay(2000)
+    ]);
+  }
+  try {
+    if (browserProfile && fs.existsSync(browserProfile)) {
+      fs.rmSync(browserProfile, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+    }
+  } finally {
+    await stopTemporaryServer(server);
+  }
 });
 
 test("V2 normal Route Action persists and remains exactly once through reload", async () => {
@@ -978,7 +1002,7 @@ test("V2 player-specific duplicate preferences filter only the acting player's r
   assert.equal(afterReload.premiumWeights.every((weight) => weight === 0.15), true);
 });
 
-test("V2 Extra Encounter remains atomic when Duplicate OFF removes every random candidate", async () => {
+test("[V2R-EXTRA-001] V2 Extra Encounter remains atomic when Duplicate OFF removes every random candidate", async () => {
   const marker = "V2-EXTRA-DUP-EMPTY";
   await openRouteGame(marker);
   const summary = await evaluate(`(() => {
@@ -1036,7 +1060,7 @@ test("V2 Extra Encounter remains atomic when Duplicate OFF removes every random 
   assert.equal(summary.operationsAfter, summary.operationsBefore);
 });
 
-test("V2 Extra Encounter, Repel, and Master Ball are exact-once through backend reload", async () => {
+test("[V2R-EXTRA-002] V2 Extra Encounter, Repel, and Master Ball are exact-once through backend reload", async () => {
   const marker = "V2-TOKENS";
   const gameId = await openRouteGame(marker);
   const summary = await evaluate(`(() => {

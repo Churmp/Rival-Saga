@@ -1,22 +1,17 @@
-# Rival Saga Versions
+# Rival Saga Versioning
 
-This folder separates rule-model experiments from the currently playable website.
+Rival Saga has one supported playable ruleset: the current Route-era implementation in the repository root and its current supporting modules.
 
-## Supported Action Phase Versions
+Historical Action Phase implementations are archived in Git history and archival branches. They are not production compatibility targets and must not be preserved, restored, or consulted as authoritative gameplay behavior unless a task explicitly asks for historical archaeology.
 
-The website now treats Action Phase rules as a versioned game contract.
+## Current architecture rule
 
-- `action-phase-v1-current-series`: archived/maintenance-only Action Phase for explicitly persisted legacy saves.
-- `action-phase-v2-real-series`: current/default Action Phase ruleset for newly created Rival Saga games and lobbies.
+- Root runtime code is authoritative for the playable game.
+- `versions/next-action-phase/` contains Route-era implementation modules and historical migration/design material that may still be referenced by the current root runtime. Do not delete implementation modules merely because the folder name is outdated.
+- There is no supported V1 runtime and no requirement to load or continue V1 saves.
+- Do not add new V1/V2 runtime forks. New work should extend the single current ruleset.
+- Names such as `state.v2` and existing `v2` Route identifiers may remain until a separate naming cleanup; this V1 purge is not a broad architecture rename.
 
-The repository root currently serves the normal website behavior:
+## Historical reference
 
-```powershell
-npm.cmd run dev
-```
-
-Use `versions/current-action-phase/` for notes about V1 compatibility constraints and maintenance fixes.
-
-## Next Action Phase Version
-
-Use `versions/next-action-phase/` for V2 design notes, contracts, fixtures, and isolated implementation slices that support the mounted V2 website path.
+The final pre-purge snapshot is preserved on `archive/pre-v1-removal-final-2026-08-25`. Older behavior should be recovered from Git rather than retained in production code.

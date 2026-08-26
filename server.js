@@ -20,7 +20,6 @@ const GAMES_DIR = path.join(DATA_DIR, "games");
 const TOKEN_ART_DIR = path.join(DATA_DIR, "token-art");
 const USERS_FILE = path.join(DATA_DIR, "users.json");
 const RULESET_PATCHES_FILE = path.join(DATA_DIR, "ruleset-patches.json");
-const ACTION_PHASE_VERSION_V1 = "action-phase-v1-current-series";
 const ACTION_PHASE_VERSION_V2 = "action-phase-v2-real-series";
 const DEFAULT_ACTION_PHASE_VERSION = ACTION_PHASE_VERSION_V2;
 const STATIC_FILES = new Set([
@@ -31,7 +30,6 @@ const STATIC_FILES = new Set([
   "/game-shell-contract.js",
   "/interaction-situation-lifecycle.js",
   "/provisional-declaration-runtime.js",
-  "/encounter-token-runtime.js",
   "/token-effect-contract.js",
   "/token-control-effects.js",
   "/token-control-controller.js",
@@ -622,15 +620,12 @@ function parseSummaryScalar(rawValue) {
   }
 }
 
-function normalizeActionPhaseVersion(value) {
-  if (value === ACTION_PHASE_VERSION_V1) return ACTION_PHASE_VERSION_V1;
-  return value === ACTION_PHASE_VERSION_V2 ? ACTION_PHASE_VERSION_V2 : DEFAULT_ACTION_PHASE_VERSION;
+function normalizeActionPhaseVersion() {
+  return DEFAULT_ACTION_PHASE_VERSION;
 }
 
-function persistedActionPhaseVersion(game = {}) {
-  const candidate = game.actionPhaseVersion || game.state?.ruleset?.actionPhaseVersion || game.state?.actionPhaseVersion;
-  if (candidate) return normalizeActionPhaseVersion(candidate);
-  return game.state ? ACTION_PHASE_VERSION_V1 : DEFAULT_ACTION_PHASE_VERSION;
+function persistedActionPhaseVersion() {
+  return DEFAULT_ACTION_PHASE_VERSION;
 }
 
 function scanLargeGameSummary(file, fallbackId) {
@@ -1309,7 +1304,6 @@ function serverTokenRollbackSnapshot(state, excludedActivityId = "") {
     previousEffectOperations: cloneJson(state.effectOperations || []),
     previousCopiedTokenRelationships: cloneJson(state.copiedTokenRelationships || []),
     previousPrivateEffectRecords: cloneJson(state.privateEffectRecords || []),
-    previousEncounterCopyRecords: cloneJson(state.encounterCopyRecords || [])
   };
 }
 
