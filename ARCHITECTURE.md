@@ -68,7 +68,7 @@ Gold, Silver, Crystal, Emerald, Pearl, and Midnight Red are the first flagship p
 Rival Saga data should be separated into three layers:
 
 - Site/app code: how the website executes systems, such as wheels, battle recording, activation overlays, and undo.
-- Ruleset/content: editable Rival Saga content, such as token art, token definitions, Pokemon tiers, sprite aliases, trainer classes, perks, shop data, and encounter wheels.
+- Ruleset/content: editable Rival Saga content, such as token art, token definitions, Pokemon tiers, sprite aliases, trainer classes, perks, shop data, Route data, and current reward wheels.
 - Game state: one active game's save data, such as players, rosters, money, phase, sessions, ledgers, logs, and pending activities.
 
 Admin tools should answer one question before changing data: is this editing Rival Saga rules/content, or repairing one game's current state?
@@ -77,9 +77,9 @@ Rules/content belongs in the League Manager ruleset/content library. Game repair
 
 Token art image bytes are asset data, not gameplay state. Uploaded token art should be persisted through the backend token-art asset route and referenced from game/ruleset snapshots by URL plus display settings. Save snapshots should not duplicate token art in both `ruleset.contentLibraries.tokenArt` and top-level `tokenArtLibrary`; the runtime can mirror that data in memory after load when older UI helpers need it.
 
-Action Phase behavior is now a pinned ruleset contract. `action-phase-v2-real-series` is the current/default Rival Saga ruleset for newly created games and lobbies. V2 is the exclusive target for new feature development. `action-phase-v1-current-series` is archived/maintenance-only: preserve playability, explicitly persisted V1 saves, and narrowly requested V1 fixes, but do not refactor or extend V1 for new gameplay. Existing V1 saves remain supported for compatibility and must not be converted to V2 merely by loading.
+Action Phase behavior is a single current ruleset contract. `action-phase-v2-real-series` remains the stored identifier for the Route-era implementation, but there is no supported alternate V1 runtime and no requirement to load or continue V1 saves. Historical Action Phase behavior belongs in Git history and the pre-removal archive branches, not in production compatibility paths. New work extends the one current ruleset rather than adding version forks.
 
-V1 compatibility must not force V2 gameplay to use V1 models. In particular, V2 Encounter work should not rewrite or inherit the root Encounter Wheel, Hidden Grotto, Fishing/Surf toggles, rod access, or Hyperspace sub-wheel. V2 Route ordinary populations, Premium Resident slots, discoveries, private knowledge, suppressions, temporary injections, and same-Route rerolls belong to the V2 Route system boundary. Shared infrastructure remains shared only where the actual rule remains common; do not duplicate the entire Token system, but isolate version-specific Token interactions against the V2 system they affect. Broad V1 file/folder migration is not a prerequisite for V2 development.
+Route Exploration is the current Pokemon-acquisition Action path. The retired pre-Route encounter and grotto systems are not production models and must not be restored as compatibility branches. Shared Pokemon-result, reroll, and Token infrastructure remains shared where the current Route-era rules still use it; existing `state.v2` and `v2*` names may remain until a separate naming cleanup. See `versions/README.md` for the current versioning authority.
 
 Future V2 Route modifiers should call the Route Effect API instead of directly mutating resident arrays, public discovery lists, player-private knowledge, suppressions, or opportunity temporary residents. Route Effect records persist source metadata, affected route/player/opportunity IDs, hidden affected resident IDs, status, count, and creation revision; player-facing selectors project only safe summaries plus public and viewer-private knowledge. The Route layer remains source-agnostic: Trainer Classes, Perks, Tokens, Gym modifiers, and Action rewards may request private/table reveals or temporary Primary-Type injection later, but the Route engine must not import or infer Class-specific rules.
 
@@ -530,17 +530,15 @@ See `EFFECT_RESOLUTION_ARCHITECTURE.md` for the target timing/source/target/reso
 
 The Action Phase uses location-based confirmed events. Players should choose where to spend actions, preview consequences, then confirm the visit/effect.
 
-Current location rule foundations:
+Current surviving location rule foundations (Route Exploration is documented separately by the current Route runtime):
 
-- Encounter: roll the Encounter Wheel for the current gym twice.
 - Department Store: one persisted visit per Gym over the unrestricted Item and TM catalogs, with one 75% sale, capped normal savings, and three stable Clearance rolls. Move Dojo and Item/TM Points are removed.
 - Day Care: deposit up to two Pokémon for $1,500 each. They remain visible but unavailable and return automatically next Gym with +3 Levels and a TM choice.
 - Ranger Base: repeatable escalating actions. First action scouts one moveset from each player during Team Preview; second lowers one Pokemon to the next lowest gym level cap; third shields one Pokemon from bans until the next Ban Phase ends. Each action gives 1 Ranger Credit. Ranger Credit milestones reset each series.
 - Graveyard: confirm a batch release, total consolidated-tier Destroy Value, and grant one Curse Wheel reward per complete $6,000.
 - Game Corner: buy/use consolidated Battle Tier Tickets or play the $2,000 Slot Machine with the finalized 20/30/25/15/7/3 table.
 - PC: Legacy Tickets can only be used here. Supports Legacy releases and 1/2/3-ticket Legacy effects.
-- Pokemon Center: cleanse and protect the Encounter Wheel for the gym, restore recent released Pokemon for tier-scaled costs, or buy an Emergency Immunity Token for 5000 that expires at gym end.
-- Hidden Grotto: pay 1500, roll 3 random types, choose one, then roll 3 Pokemon from the chosen type and choose one. The Pokemon roll pool includes Battle Tiers up to two tier steps above the current Gym's natural Battle Tier, clamped at Master Elite. Pokemon in LC or LC Elite that can still evolve are excluded, but fully evolved or single-stage Pokemon in those low tiers remain eligible.
+- Pokemon Center: restore recent released Pokemon for tier-scaled costs or buy an Emergency Immunity Token for 5000 that expires at gym end; current behavior has no dependency on the retired pre-Route encounter runtime.
 - Dragon's Den: leave exactly one Pokémon for one Gym at consolidated-tier cost, then choose a legal move or AAA-approved Ability.
 - Silph Co. R&D: develop up to three Pokémon at consolidated-tier costs; each persists two Ability and four Move options until one is selected.
 - Bulletin Board: once per Exploration/Action Phase, receive 3 random quests, reroll one for free, and complete quests for cash rewards. Completing all 3 grants a free Bulletin Board visit next gym.
