@@ -49,6 +49,19 @@ if ((source.split(auditAnchor).length - 1) !== 1) {
 }
 source = source.replace(auditAnchor, auditReplacement);
 
+const eofAnchor = `  app = normalizeEof(app);
+  control = normalizeEof(control);`;
+const eofReplacement = `  mustCount(app, '"encounter-reroll"', 1, "final old Reroll response ID");
+  app = app.replaceAll('"encounter-reroll"', '"pokemon-reroll"');
+
+  app = normalizeEof(app);
+  control = normalizeEof(control);`;
+if ((source.split(eofAnchor).length - 1) !== 1) {
+  console.error("Stage 9F fixed runner failed safely: late Reroll residue anchor was not found exactly once.");
+  process.exit(1);
+}
+source = source.replace(eofAnchor, eofReplacement);
+
 const runner = new Module(SCRIPT_PATH, module);
 runner.filename = SCRIPT_PATH;
 runner.paths = Module._nodeModulePaths(path.dirname(SCRIPT_PATH));
