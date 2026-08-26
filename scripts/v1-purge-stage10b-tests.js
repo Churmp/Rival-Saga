@@ -21,9 +21,9 @@ module.exports = function tests(c){
   gymState.activeActionOperationId = "department-store-operation-starting";
   gymState.destinationCommit.status = "resolving"; gymState.destinationCommit.operationId = "department-store-operation-starting";
   startedState.departmentStoreVisits = [{ id: "department-store-session-starting", actionVisitId: "department-store-visit-starting", playerId: "player-1", series: "Hoenn", gym: 8, status: "active", clearanceProducts: [], normalPurchases: [] }];
-  const response = await fetch(\`${origin}/api/games/${acceptedStartGameId}/state\`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ clientId: "action-start-client", expectedVersion: 19, state: startedState }) });
+  const response = await fetch(\`\${origin}/api/games/\${acceptedStartGameId}/state\`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ clientId: "action-start-client", expectedVersion: 19, state: startedState }) });
   assert.equal(response.status, 200); const payload = await response.json(); assert.equal(payload.version, 20);
-  const stored = JSON.parse(fs.readFileSync(path.join(gamesDir, \`${acceptedStartGameId}.json\`), "utf8"));
+  const stored = JSON.parse(fs.readFileSync(path.join(gamesDir, \`\${acceptedStartGameId}.json\`), "utf8"));
   const storedGymState = stored.state.actionPhaseState.selections["Hoenn-G8"];
   assert.equal(storedGymState.destinationCommit.status, "resolving");
   assert.equal(storedGymState.destinationCommit.operationId, "department-store-operation-starting");
