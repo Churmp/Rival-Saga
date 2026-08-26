@@ -13,5 +13,6 @@ try{
  ];
  const out=["# Stage 9C2 — Final Live Encounter Source Boundaries","",`Generated from \`${git(["rev-parse","HEAD"])}\`.`,""];
  for(const [a,b,l] of ranges)out.push(...block(app,a,b,l));out.push(...block(server,1275,1320,"Server state normalization","server.js"));
- fs.writeFileSync(OUT,out.join("\n").replace(/\n+$/g,"")+"\n","utf8");git(["add",REL]);execFileSync("git",["diff","--cached","--check"],{cwd:ROOT,stdio:"inherit"});console.log(`\n${git(["diff","--cached","--stat"])}`);git(["commit","-m","Capture final Encounter source boundaries"],true);git(["push","origin",BRANCH],true);console.log(`\nStage 9C2 complete: wrote and pushed ${REL}.`);
+ const report=out.join("\n").replace(/\r/g,"").split("\n").map(line=>line.replace(/[ \t]+$/g,"")).join("\n").replace(/\n+$/g,"")+"\n";
+ fs.writeFileSync(OUT,report,"utf8");git(["add",REL]);execFileSync("git",["diff","--cached","--check"],{cwd:ROOT,stdio:"inherit"});console.log(`\n${git(["diff","--cached","--stat"])}`);git(["commit","-m","Capture final Encounter source boundaries"],true);git(["push","origin",BRANCH],true);console.log(`\nStage 9C2 complete: wrote and pushed ${REL}.`);
 }catch(e){console.error(`\nStage 9C2 failed safely:\n${e.message}`);process.exitCode=1;}
