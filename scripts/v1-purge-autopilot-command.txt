@@ -1,2 +1,2 @@
 scripts/v1-purge-stage10b-final.js
-# exact-action-operation-anchors
+# exact-honey-session-anchor
