@@ -19,7 +19,7 @@ The Action Phase location runtime now uses a shared consolidated Battle Tier hel
 
 Day Care and Dragon's Den use roster-preserving unavailable flags and idempotent automatic next-Gym returns. Day Care resolves +3 Levels and a choice from the species' complete canonical TM learnset; only level-up and TM move sources exist. Dragon's Den validates species moves and the existing AAA-approved Ability pool. Graveyard batches explicit confirmed releases, aggregates consolidated-tier Destroy Value, and grants canonical Curse inventory records. Silph Co. R&D persists separate 2-Ability/4-Move option sets for up to three Pokémon and remains blocking until all choices resolve.
 
-The retired V1 Action-balance suite was removed with its runtime. Current Action/Route coverage is split across `scripts/test-action-operation-contract.js`, `scripts/test-v2-route-browser-mount.js`, `scripts/test-v2-route-runtime-sequences.js`, and the Route engine tests under `versions/next-action-phase/tests/`. Full end-to-end mutation coverage for every surviving location lifecycle is still required before individual effects can be labeled `verifiedComplete`.
+The stale V1-specific Action-balance test suite was removed; the shared `action-phase-balance.js` module remains current infrastructure for surviving Action services. Current Action/Route coverage is split across `scripts/test-action-operation-contract.js`, `scripts/test-v2-route-browser-mount.js`, `scripts/test-v2-route-runtime-sequences.js`, and the Route engine tests under `versions/next-action-phase/tests/`. Full end-to-end mutation coverage for every surviving location lifecycle is still required before individual effects can be labeled `verifiedComplete`.
 
 ## Battle Phase / Teambuilder Integration
 
