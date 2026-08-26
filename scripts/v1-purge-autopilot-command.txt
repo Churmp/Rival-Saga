@@ -1,2 +1,2 @@
-scripts/v1-purge-stage10b-verify-focused.js
-# focused-verification-after-workflow-restore-2a7d96e
+scripts/v1-purge-stage10d-doc-truth.js
+# authoritative-doc-current-runtime-closeout
