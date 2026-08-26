@@ -2340,116 +2340,7 @@
     }
   }
 
-  function resolveHoneyEncounterCopy(state, input = {}, options = {}) {
-    const source = (state.randomPokemonSessions || []).find((record) => record.id === input.sourceRandomPokemonSessionId && record.sourceType === "encounter" && record.status === "confirmed");
-    const owner = (state.players || []).find((player) => player.id === input.ownerPlayerId);
-    if (!source || !owner) return { result: "systemFailure", refundRequired: true, reason: "Choose one completed eligible Encounter result from this Action Phase." };
-    if (source.copiedFromRandomPokemonSessionId || source.sourceLabel === "Honey copied Encounter") {
-      return { result: "systemFailure", refundRequired: true, reason: "Honey cannot recursively copy a Honey-created Encounter result." };
-    }
-    if (String(source.series || state.series) !== String(options.series || state.series) || Number(source.gym || state.gym) !== Number(options.gym || state.gym)) {
-      return { result: "systemFailure", refundRequired: true, reason: "That Encounter result is not from the current Action Phase." };
-    }
-    state.encounterCopyRecords ||= [];
-    const duplicate = state.encounterCopyRecords.find((record) => record.sourceEffectId === input.sourceEffectId);
-    if (duplicate) return { result: "resolved", record: duplicate, randomSession: (state.randomPokemonSessions || []).find((entry) => entry.id === duplicate.copiedRandomPokemonSessionId), duplicateResolution: true };
-    const saved = snapshot(state);
-    const makeId = options.makeId || ((prefix) => `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
-    try {
-      const sourceMetadata = source.resultMetadata || {};
-      const intrinsicRolledProperties = clone(source.intrinsicRolledProperties || sourceMetadata.intrinsicRolledProperties || {});
-      const copiedResultMetadata = {
-        speciesId: sourceMetadata.speciesId || sourceMetadata.pokemonId || "",
-        speciesName: sourceMetadata.speciesName || source.resultDisplayName || "",
-        form: sourceMetadata.form || "",
-        intrinsicRolledProperties
-      };
-      const copiedSession = {
-        id: makeId("random-pokemon"), sourceType: "encounter", sourceLabel: "Honey copied Encounter",
-        ownerPlayerId: owner.id, playerId: owner.id, resultOwnerPlayerId: owner.id,
-        status: "pending", rerollable: false, resultDisplayName: source.resultDisplayName,
-        resultSprite: source.resultSprite || "", chosenSpriteKey: source.chosenSpriteKey || "",
-        tierId: source.tierId || "", tier: source.tier || "", level: source.level,
-        resultMetadata: copiedResultMetadata, intrinsicRolledProperties,
-        copiedFromEncounterSessionId: source.encounterSessionId || "", copiedFromRandomPokemonSessionId: source.id,
-        series: options.series || state.series, gym: Number(options.gym || state.gym || 1), createdAt: options.now || new Date().toISOString()
-      };
-      state.randomPokemonSessions ||= [];
-      state.randomPokemonSessions.push(copiedSession);
-      const record = {
-        id: makeId("encounter-copy"), status: "completed", sourceEffectId: input.sourceEffectId || "",
-        sourceRandomPokemonSessionId: source.id, sourceEncounterSessionId: source.encounterSessionId || "",
-        copiedRandomPokemonSessionId: copiedSession.id, ownerPlayerId: owner.id,
-        immutableResult: { species: source.resultDisplayName, form: source.resultMetadata?.form || "", finalTier: source.tierId || source.tier || "", finalLevel: source.level, intrinsicRolledProperties: clone(copiedSession.intrinsicRolledProperties) },
-        createdAt: copiedSession.createdAt, undoData: saved
-      };
-      state.encounterCopyRecords.push(record);
-      return { result: "resolved", reason: `${owner.name || "The player"} copied the completed ${source.resultDisplayName} Encounter without rerolling it.`, record, randomSession: copiedSession };
-    } catch (error) {
-      restore(state, saved);
-      return { result: "systemFailure", refundRequired: true, reason: error?.message || "Honey could not copy the Encounter atomically." };
-    }
-  }
 
-  function resolveRerollResultRecord(state, input = {}, options = {}) {
-    const session = (state.randomPokemonSessions || []).find((entry) => entry.id === input.targetResultId);
-    const actor = (state.players || []).find((entry) => entry.id === input.actorPlayerId);
-    if (!session || session.status !== "pending" || session.rerollable === false || session.interactionLocked || session.rosterPokemonId) {
-      return { result: "noEffect", reason: "The selected result is no longer an unresolved rerollable result." };
-    }
-    if (!actor || !input.tokenInventoryRecordId) return { result: "systemFailure", refundRequired: true, reason: "Reroll needs its exact acting player and Token record." };
-    state.effectOperations ||= [];
-    const duplicate = state.effectOperations.find((entry) => entry.operationType === "rerollEncounterResult" && entry.sourceEffectId === input.sourceEffectId);
-    if (duplicate) return { result: "resolved", operation: duplicate, duplicateResolution: true };
-    const tokenIndex = (actor.inventory || []).findIndex((entry) => entry.id === input.tokenInventoryRecordId);
-    if (tokenIndex < 0) return { result: "noEffect", reason: "The selected exact Reroll Token is no longer available." };
-    const replacement = input.replacementResult || {};
-    const nextName = replacement.displayName || replacement.pokemonName || replacement.key || "";
-    if (!nextName) return { result: "systemFailure", refundRequired: true, reason: "The canonical result generator did not provide a replacement." };
-    const makeId = options.makeId || ((prefix) => `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
-    const token = actor.inventory.splice(tokenIndex, 1)[0];
-    const previousResult = {
-      resultPokemonName: session.resultPokemonName,
-      resultDisplayName: session.resultDisplayName,
-      resultSprite: session.resultSprite || "",
-      chosenSpriteKey: session.chosenSpriteKey || "",
-      resultMetadata: clone(session.resultMetadata || {}),
-      resultRevisionId: session.resultRevisionId || `${session.id}:original`,
-      status: "superseded"
-    };
-    const rerollId = makeId("reroll");
-    session.resultHistory ||= [];
-    session.resultHistory.push(previousResult);
-    session.rerollHistory ||= [];
-    session.rerollHistory.push({
-      id: rerollId, actorPlayerId: actor.id, targetPlayerId: session.resultOwnerPlayerId || session.ownerPlayerId || session.playerId,
-      targetResultId: session.id, token: clone(token), tokenId: token.id, tokenName: token.name,
-      previousResult, newResultPokemonName: replacement.key || replacement.pokemonName || replacement.displayName,
-      newResultDisplayName: nextName, usedAt: options.now || new Date().toISOString()
-    });
-    session.rerollCount = Number(session.rerollCount || 0) + 1;
-    session.resultPokemonName = replacement.key || replacement.pokemonName || replacement.displayName;
-    session.resultDisplayName = nextName;
-    session.resultMetadata = clone(replacement);
-    session.resultSprite = "";
-    session.chosenSpriteKey = "";
-    session.resultRevisionId = `${session.id}:replacement:${rerollId}`;
-    session.supersedesResultRevisionId = previousResult.resultRevisionId;
-    state.tokenConsumptions ||= [];
-    const consumption = {
-      id: makeId("token-consumption"), tokenId: token.id, tokenName: token.name || "Reroll",
-      playerId: actor.id, linkedEventId: input.sourceEffectId || "", source: "encounter-result-reroll",
-      status: "consumed", consumedAt: options.now || new Date().toISOString(), token: clone(token)
-    };
-    state.tokenConsumptions.push(consumption);
-    const operation = {
-      id: makeId("effect-operation"), operationType: "rerollEncounterResult", sourceEffectId: input.sourceEffectId || "",
-      sourceTokenId: token.id, targetResultId: session.id, previousResultRevisionId: previousResult.resultRevisionId,
-      replacementResultRevisionId: session.resultRevisionId, status: "completed", createdAt: consumption.consumedAt
-    };
-    state.effectOperations.push(operation);
-    return { result: "resolved", reason: `${previousResult.resultDisplayName} was superseded by ${nextName}.`, session, previousResult, token, consumption, operation };
-  }
 
   function availablePokemonRecords(state) {
     return (state.pokemonRecords || []).filter((pokemon) => !["Released", "Removed"].includes(pokemon.status));
@@ -3582,8 +3473,6 @@
     restoreExpiredDevolveOverlays,
     resolveForesightCurse,
     resolveKnockOffCurse,
-    resolveHoneyEncounterCopy,
-    resolveRerollResultRecord,
     resolveRestrict,
     createInstanceRestriction,
     resolveUnban,

@@ -1062,20 +1062,14 @@ test("[TSB-026] completion-slice statuses, buffs, grants, and protection remain 
   assert.equal(JSON.stringify(discarded.state), baselineBytes);
 });
 
-test("[TSB-027] lifecycle-slice delayed, encounter, suppression, evolution, and payout mutations commit idempotently and discard exactly", () => {
+test("[TSB-027] lifecycle-slice delayed, suppression, evolution, and payout mutations commit idempotently and discard exactly", () => {
   const baseline = controlStateFixture("sandbox-lifecycle-slice");
   const steevee = baseline.players.find((player) => player.id === "steevee");
-  const gold = baseline.players.find((player) => player.id === "gold");
   steevee.inventory.push(
     { id: "sandbox-cold-token", canonicalId: "cold-wave", name: "Cold Wave", type: "TOKEN" },
     { id: "sandbox-purge-token", canonicalId: "purge-curse", name: "Purge Curse", type: "TOKEN" }
   );
-  gold.inventory.push({ id: "sandbox-reroll-token", canonicalId: "reroll-token", name: "Reroll", type: "TOKEN" });
   baseline.lingeringStatuses.push({ id: "sandbox-explicit-ongoing", type: "class-aura", status: "active", isOngoingEffect: true, series: "Kanto", gym: 1 });
-  baseline.randomPokemonSessions = [
-    { id: "sandbox-honey-source", sourceType: "encounter", sourceLabel: "Encounter Wheel", status: "confirmed", series: "Kanto", gym: 1, resultDisplayName: "Rotom-Wash", tierId: "B", level: 51, resultMetadata: { speciesId: "rotom", speciesName: "Rotom", form: "Wash" } },
-    { id: "sandbox-reroll-result", sourceType: "encounter", status: "pending", rerollable: true, playerId: "gold", ownerPlayerId: "gold", resultOwnerPlayerId: "gold", resultPokemonName: "abra", resultDisplayName: "Abra", resultMetadata: { key: "abra", displayName: "Abra" } }
-  ];
   const baselineBytes = JSON.stringify(baseline);
   const manager = createSessionManager({ createSessionId: () => "sandbox-lifecycle-slice" });
   const entered = manager.enter({ realState: baseline, revision: 12, revisionVerified: true, persistenceQuiescent: true, scenarioName: "Token lifecycle slice" });
@@ -1102,15 +1096,6 @@ test("[TSB-027] lifecycle-slice delayed, encounter, suppression, evolution, and 
     parentEffect: { id: "sandbox-teleport-parent", payload: { tokenName: "Restrict", targetPokemonId: "gold-garchomp" } }
   }, { series: "Kanto", gym: 1, phase: "action", seriesOrder: ["Kanto", "Johto", "Hoenn"], makeId: () => "sandbox-teleport-delay" });
   assert.equal(teleport.result, "delayed");
-  const honey = controlTokenEffects.resolveHoneyEncounterCopy(working, {
-    sourceEffectId: "sandbox-honey-effect", ownerPlayerId: "gold", sourceRandomPokemonSessionId: "sandbox-honey-source"
-  }, { series: "Kanto", gym: 1, phase: "action", makeId: (prefix) => `${prefix}-sandbox-honey` });
-  assert.equal(honey.result, "resolved");
-  const reroll = controlTokenEffects.resolveRerollResultRecord(working, {
-    sourceEffectId: "sandbox-reroll-effect", actorPlayerId: "gold", tokenInventoryRecordId: "sandbox-reroll-token",
-    targetResultId: "sandbox-reroll-result", replacementResult: { key: "ralts", displayName: "Ralts" }
-  }, { makeId: (prefix) => `${prefix}-sandbox-reroll`, now: "2026-08-04T12:00:00.000Z" });
-  assert.equal(reroll.result, "resolved");
   const brought = controlTokenEffects.createImmutableBroughtSnapshot(working, {
     id: "sandbox-purge-snapshot", broughtByPlayer: { red: [{ rosterInstanceId: "red-garchomp" }, { rosterInstanceId: "red-lucario" }] }
   }, { series: "Kanto", gym: 1, phase: "payout", now: "2026-08-04T12:01:00.000Z" });
@@ -1125,8 +1110,6 @@ test("[TSB-027] lifecycle-slice delayed, encounter, suppression, evolution, and 
   assert.equal(candidate.lingeringStatuses.some((status) => status.type === "cold-wave-suppression"), true);
   assert.equal(candidate.pokemonRecords.find((pokemon) => pokemon.id === "red-garchomp-2").name, "Barbaracle");
   assert.equal(candidate.delayedEffects.some((entry) => entry.id === "sandbox-teleport-delay"), true);
-  assert.equal(candidate.randomPokemonSessions.some((entry) => entry.copiedFromRandomPokemonSessionId === "sandbox-honey-source"), true);
-  assert.equal(candidate.randomPokemonSessions.find((entry) => entry.id === "sandbox-reroll-result").resultDisplayName, "Ralts");
   assert.equal(candidate.pokemonRecords.find((pokemon) => pokemon.id === "red-garchomp").status, "Released");
   assert.equal(candidate.pokemonRecords.find((pokemon) => pokemon.id === "red-garchomp-2").status, "Active");
   const duplicateCandidate = prepareCommitCandidate({ workingState: working, baselineState: baseline });

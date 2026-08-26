@@ -107,7 +107,6 @@
     "token-undo-repair",
     "token-inventory-runtime",
     "standard-curse-species-lifecycle",
-    "encounter-token-runtime",
     "follow-me-e2e",
     "ditto-inventory-e2e",
     "lingering-aroma-e2e",
@@ -257,13 +256,6 @@
       verifiedAt: "2026-07-29",
       contractDefinitionRevision
     }),
-    "extra-encounter-token": Object.freeze({
-      status: runtimeImplementationStatuses.VERIFIED_COMPLETE,
-      tests: Object.freeze(["token-declaration-timing", "token-reload-persistence", "token-sandbox-isolation", "token-undo-repair", "encounter-token-runtime"]),
-      evidence: "Action-only declaration, exact chosen-player validation, one authoritative Encounter roll grant, open-session extension, standalone session creation, stable grant identity, duplicate prevention, refresh persistence, normal Encounter completion, and snapshot undo are covered by focused runtime and integration tests.",
-      verifiedAt: "2026-07-29",
-      contractDefinitionRevision
-    }),
     "follow-me": Object.freeze({
       status: runtimeImplementationStatuses.VERIFIED_COMPLETE,
       tests: Object.freeze(["token-response-parent-chain", "token-reload-persistence", "token-undo-repair", "token-inventory-runtime", "follow-me-e2e"]),
@@ -327,20 +319,6 @@
       verifiedAt: "2026-08-04",
       contractDefinitionRevision
     }),
-    "reroll-token": Object.freeze({
-      status: runtimeImplementationStatuses.VERIFIED_COMPLETE,
-      tests: Object.freeze(["encounter-token-runtime", "token-reload-persistence", "token-sandbox-isolation", "token-undo-repair", "lifecycle-completion-slice-e2e"]),
-      evidence: "Exact unresolved Encounter and wheel result identity, canonical replacement, superseded original revision, stale rejection, duplicate operation identity, multiple-copy inventory safety, normal acquisition continuation, production refresh, causal History undo, and sandbox isolation are covered by TLS-004, BROWSER-028, and TSB-027.",
-      verifiedAt: "2026-08-04",
-      contractDefinitionRevision
-    }),
-    "honey-token": Object.freeze({
-      status: runtimeImplementationStatuses.VERIFIED_COMPLETE,
-      tests: Object.freeze(["encounter-token-runtime", "token-reload-persistence", "token-sandbox-isolation", "token-undo-repair", "lifecycle-completion-slice-e2e"]),
-      evidence: "Exact finalized Encounter selection, fresh nonrecursive copy identity, canonical species/form/tier/level and intrinsic payload, normal acquisition handoff, duplicate and stale safety, production refresh, causal History undo through acquired roster creation, and sandbox isolation are covered by TLS-005, SEB-004, BROWSER-029, and TSB-027.",
-      verifiedAt: "2026-08-04",
-      contractDefinitionRevision
-    }),
     "purge-curse": Object.freeze({
       status: runtimeImplementationStatuses.VERIFIED_COMPLETE,
       tests: Object.freeze(["token-declaration-timing", "token-reload-persistence", "token-sandbox-isolation", "token-undo-repair", "lifecycle-completion-slice-e2e"]),
@@ -351,8 +329,7 @@
   });
 
   const legalTimingValues = Object.freeze([
-    "gymStartPreparationControl", "action", "actionOpen", "teamBuilding", "shop", "shopOpen", "postBattleControl", "responseWindow",
-    "encounterBeforeRoll", "encounterResult", "wheelWindow", "sabotage", "teamPreview", "battlePayout",
+    "gymStartPreparationControl", "action", "actionOpen", "teamBuilding", "shop", "shopOpen", "postBattleControl", "responseWindow", "wheelWindow", "sabotage", "teamPreview", "battlePayout",
     "endOfActionPhaseProcedure", "endOfBattlePhaseProcedure"
   ]);
   const legalControlContextValues = Object.freeze([
@@ -366,7 +343,7 @@
   const curseTimingWindows = Object.freeze([...legacyControlTimingWindows, "sabotage"]);
   const phaseBoundaryProcedureValues = Object.freeze(["endOfActionPhaseProcedure", "endOfBattlePhaseProcedure"]);
   const timingStatusValues = Object.freeze(["settled", "needsRuling"]);
-  const targetTypes = Object.freeze(["none", "currentPrompt", "pokemon", "player", "team", "encounterResult", "resource", "table", "manual"]);
+  const targetTypes = Object.freeze(["none", "currentPrompt", "pokemon", "player", "team", "resource", "table", "manual"]);
   const selectedTargetTypes = Object.freeze([...targetTypes, "rosterInstance", "species", "move"]);
   const targetScopes = Object.freeze(["none", "currentPrompt", "species", "rosterInstance", "singlePlayer", "allPlayers", "singleTeam", "allTeams", "singleResource", "allMatchingResources", "tableWide", "manual"]);
   const applicationScopes = Object.freeze(["rosterInstance", "selectedRosterInstances", "submittedTeamInstances", "playerRosterInstances", "globalSpecies", "singlePlayer", "allPlayers", "tableWide", "manual"]);
@@ -377,8 +354,7 @@
   const registeredResolverIds = Object.freeze([
     "hostConfirmed", "trainerClassWheel", "restrict", "utilityEffect", "wickedBlow", "statusEffect", "safeguard", "delayParent",
     "substituteAttach", "redirectParentToSelf", "teamPreviewSwap", "playerStatus", "copyParentEffect", "randomRedirect", "immunity",
-    "revengeRelease", "reroll", "extraEncounter", "encounterWheelEdit", "encounterTransfer", "encounterGrant", "encounterCopy",
-    "encounterChoose", "moveBan", "knockOff", "multiStatusEffect", "purgeAfterBattle", "copyToken",
+    "revengeRelease", "moveBan", "knockOff", "multiStatusEffect", "purgeAfterBattle", "copyToken",
     "arenaTrap", "clearSmog", "extraBan", "counterProtection", "ongoingEffectTextReplacement", "ongoingEffectSuppression",
     "hazeCurse", "devolveCurse", "copyTokenInventory",
     "restoreNegatedTokenWithCooldown", "smokescreenRedirect"
@@ -404,8 +380,6 @@
 
   const phaseSets = Object.freeze({
     response: ["responseWindow"],
-    encounterBefore: ["encounterBeforeRoll"],
-    encounterResult: ["encounterResult"]
   });
 
   const unresolvedMultiGymExpiration = "Needs Ruling: exact duration counter; expires during the Start-of-Gym expiration step after its approved duration.";
@@ -762,14 +736,14 @@
     protection({ id: "immunity", name: "Immunity", aliases: ["Emergency Immunity Token"], rulesText: "Negate any effect or global effect. Does not stop Series Restricts or bans", targetType: "currentPrompt", targetScope: "currentPrompt", resolverMode: resolverModes.AUTOMATIC, resolverId: "immunity", canRespondTo: ["targetedEffect", "globalEffect"], protectionScope: ["targetedEffect", "globalEffect"], runtimeUsability: runtimeUsabilityStatuses.USABLE, runtimeUsabilityReason: "Immunity atomically negates its exact current parent prompt and is covered across reload, undo, results, and sandbox isolation.", automaticMutations: ["Negate the parent prompt"] }),
     protection({ id: "revenge", name: "Revenge", rulesText: "After a Battle Phase where an opponent cursed a Pokemon you brought, release 2 Pokemon from their brought team and destroy the held item", isResponse: false, legalPhases: [], timingWindows: ["endOfBattlePhaseProcedure"], phaseBoundaryProcedure: "endOfBattlePhaseProcedure", explicitPhaseTiming: "postPayoutBeforeControl", activationPattern: "phaseBoundaryOptionalTrigger", activationType: "Post-payout optional offer", requiresPendingEvent: false, createsPendingEvent: true, opensResponseWindow: false, targetType: "team", targetScope: "singleTeam", targetControllerRelation: "otherPlayer", otherPlayerOnly: true, excludeActor: true, differentControllerRequired: true, resolverMode: resolverModes.AUTOMATIC, resolverId: "revengeRelease", runtimeUsability: runtimeUsabilityStatuses.USABLE, runtimeUsabilityReason: "Revenge is offered after payout from exact current-Gym Curse anchors and the immutable brought-team snapshot. It consumes only after the affected player confirms two exact Pokemon and an optional eligible held Item.", requiredChoices: ["Exactly two exact Pokemon from the offender's immutable brought team", "At most one eligible held item from those two"], guidedTask: { instruction: "Choose exactly two exact roster instances from the offending player's immutable brought-team snapshot, then optionally choose one eligible exactly referenced held item from those two.", responsible: "Affected player", resultLabel: "Revenge Choices", placeholder: "Two exact roster IDs and optional exact held item ID", confirmationLabel: "Apply Revenge" }, mechanicContract: { postPayoutBeforeControl: true, immutableBroughtSnapshotRequired: true, exactReleaseCount: 2, qualifyingCurseMustTargetExactBroughtInstance: true, heldItemSelectionMaximum: 1, heldItemMustBelongToSelectedReleasedPokemon: true, exactHeldInventoryReferenceRequired: true, masterBallTierProtected: true, sameNameInventoryGuessingForbidden: true, atomicResolutionRequired: true, idempotentResolutionRequired: true, adminUndoRequired: true, optionalOfferCanBeDeclinedWithoutConsumption: true, productionChoiceScreenRequired: true } }),
 
-    encounter({ id: "reroll-token", name: "Reroll", aliases: ["Reroll Token"], rulesText: "Reroll any wheel result", legalPhases: ["encounterResult", "wheelWindow"], timingWindows: ["encounterResult", "wheelWindow"], isResponse: true, targetType: "encounterResult", targetScope: "currentPrompt", resolverMode: resolverModes.AUTOMATIC, resolverId: "reroll", createsPendingEvent: false, opensResponseWindow: false, canRespondTo: ["wheelResult"], automaticMutations: ["Select one exact unresolved result revision", "Mark the original revision superseded", "Generate one canonical replacement linked to the original", "Resume the normal acquisition path"], mechanicContract: { exactUnresolvedResultRequired: true, encounterAndWheelResultsSupported: true, historicalAcquiredDeclinedTransferredOrSupersededResultsIllegal: true, consumeOnceAtConfirmation: true, canonicalReplacementGeneratorRequired: true, originalRevisionStatus: "superseded", supersededResultCannotBeAcquired: true, causalRevisionLinkRequired: true, stableOperationIdentityRequired: true, duplicateCompletionForbidden: true, normalAcquisitionFlowResumes: true, staleConfirmationResult: "resolvedNoEffect", causalHistoryUndoRequired: true } }),
-    encounter({ id: "extra-encounter-token", name: "Extra Encounter Token", aliases: ["Extra Encounter"], rulesText: "Use in Action Phase to roll an extra encounter", legalPhases: ["action"], targetType: "player", targetScope: "singlePlayer", resolverMode: resolverModes.AUTOMATIC, resolverId: "extraEncounter", runtimeUsability: runtimeUsabilityStatuses.USABLE, runtimeUsabilityReason: "Extra Encounter grants exactly one stable authoritative Encounter roll to the chosen player through the normal Encounter session lifecycle.", requiredChoices: ["Target player"], automaticMutations: ["Create or extend one authoritative Encounter session for the chosen player", "Grant exactly one additional Encounter Wheel roll", "Open the normal Encounter review flow"], mechanicContract: { actionPhaseOnly: true, exactChosenPlayerRequired: true, actionCostRequired: false, rollsGranted: 1, reusesOpenEncounterSession: true, createsStandaloneSessionWhenNeeded: true, stableGrantIdentityRequired: true, duplicateGrantForbidden: true } }),
-    encounter({ id: "repel-token", name: "Repel", rulesText: "Remove one Pokemon for every 5 entries on an encounter wheel", legalPhases: phaseSets.encounterBefore, timingWindows: phaseSets.encounterBefore, isResponse: true, targetType: "encounterResult", targetScope: "currentPrompt", resolverMode: resolverModes.GUIDED, resolverId: "encounterWheelEdit", requiredChoices: ["Pokemon entries removed"], guidedTask: { instruction: "Before the roll, remove one wheel entry for every five entries.", responsible: "Acting player", resultLabel: "Removed Entries", placeholder: "Pokemon names removed", confirmationLabel: "Apply Repel" } }),
-    encounter({ id: "quick-ball-token", name: "Quick Ball Token", rulesText: "Release an encounter and steal another player's encounter", legalPhases: phaseSets.encounterResult, timingWindows: phaseSets.encounterResult, isResponse: true, targetType: "encounterResult", targetScope: "currentPrompt", resolverMode: resolverModes.GUIDED, resolverId: "encounterTransfer", requiredChoices: ["Encounter released", "Encounter stolen"], guidedTask: { instruction: "Release the user's encounter and choose another pending encounter to transfer.", responsible: "Acting player", resultLabel: "Transferred Encounter", placeholder: "Gold's Abra -> Steevee", confirmationLabel: "Apply Encounter Transfer" } }),
-    encounter({ id: "dream-ball-token", name: "Dream Ball Token", rulesText: "Before an encounter wheel, name almost any ability. The encounter has access to that ability", legalPhases: phaseSets.encounterBefore, timingWindows: phaseSets.encounterBefore, isResponse: true, targetType: "encounterResult", targetScope: "currentPrompt", resolverMode: resolverModes.GUIDED, resolverId: "encounterGrant", requiredChoices: ["Ability name"], guidedTask: { instruction: "Name the legal ability before rolling the encounter.", responsible: "Acting player", resultLabel: "Granted Ability", placeholder: "Levitate", confirmationLabel: "Grant Ability" } }),
-    encounter({ id: "honey-token", name: "Honey", rulesText: "At End of Action Phase, choose an eligible Pokemon encountered during that Action Phase and copy that encounter", legalPhases: [], timingWindows: ["endOfActionPhaseProcedure"], phaseBoundaryProcedure: "endOfActionPhaseProcedure", explicitPhaseTiming: "endOfActionPhase", timingStatus: "settled", candidateTiming: "endOfActionPhase", isResponse: false, requiresPendingEvent: false, activationPattern: "phaseBoundaryOptionalTrigger", activationType: "End-of-Action optional offer", createsPendingEvent: true, opensResponseWindow: true, targetType: "encounterResult", targetScope: "manual", minTargets: 1, maxTargets: 1, targetCollectionType: "eligibleRecordSelection", targetValidation: "The selected completed encounter must remain an eligible record from the current Action Phase.", resolverMode: resolverModes.GUIDED, resolverId: "encounterCopy", eligibleRecordType: "encounter", eligibleRecordWindow: "currentActionPhase", selectionCount: 1, copiedPayloadStatus: "needsRuling", requiredChoices: ["Eligible completed encounter or Skip"], guidedTask: { instruction: "Choose one eligible completed encounter from this Action Phase or Skip. The copied payload remains subject to the approved ruling.", responsible: "Eligible player", resultLabel: "Selected Encounter", placeholder: "Gold - Abra - Hidden Grotto", confirmationLabel: "Choose Encounter" } }),
-    encounter({ id: "master-ball-token", name: "Master Ball Token", rulesText: "Choose your encounter. Other players cannot change it", legalPhases: phaseSets.encounterBefore, timingWindows: phaseSets.encounterBefore, isResponse: true, targetType: "encounterResult", targetScope: "currentPrompt", resolverMode: resolverModes.GUIDED, resolverId: "encounterChoose", requiredChoices: ["Chosen encounter Pokemon"], guidedTask: { instruction: "Choose a legal encounter and lock it against further changes.", responsible: "Acting player", resultLabel: "Chosen Encounter", placeholder: "Pokemon name", confirmationLabel: "Lock Encounter" } }),
-    encounter({ id: "beast-ball-token", name: "Beast Ball", rulesText: "Before an encounter wheel, name any move. The encounter has access to that move", legalPhases: phaseSets.encounterBefore, timingWindows: phaseSets.encounterBefore, isResponse: true, targetType: "encounterResult", targetScope: "currentPrompt", resolverMode: resolverModes.GUIDED, resolverId: "encounterGrant", requiredChoices: ["Move name"], guidedTask: { instruction: "Name the move before rolling the encounter.", responsible: "Acting player", resultLabel: "Granted Move", placeholder: "Fake Out", confirmationLabel: "Grant Move" } }),
+    encounter({ id: "reroll-token", name: "Reroll", aliases: ["Reroll Token"], rulesText: "Reroll an eligible unresolved Pokemon result.", legalPhases: [], timingWindows: [], isResponse: false, requiresPendingEvent: false, createsPendingEvent: false, opensResponseWindow: false, targetType: "manual", targetScope: "manual", resolverMode: resolverModes.HOST_CONFIRMED, runtimeUsability: runtimeUsabilityStatuses.BLOCKED, runtimeUsabilityReason: "Reroll is resolved by the current contextual result UI (including Route and shared Random Pokemon results); generic Live Referee Encounter activation is intentionally blocked.", requiredChoices: [] }),
+    encounter({ id: "extra-encounter-token", name: "Extra Encounter Token", aliases: ["Extra Encounter"], rulesText: "Gain one additional encounter opportunity on a currently legal Route.", legalPhases: [], timingWindows: [], isResponse: false, requiresPendingEvent: false, createsPendingEvent: false, opensResponseWindow: false, targetType: "manual", targetScope: "manual", resolverMode: resolverModes.HOST_CONFIRMED, runtimeUsability: runtimeUsabilityStatuses.BLOCKED, runtimeUsabilityReason: "Extra Encounter is resolved only inside the current Route action through useV2ExtraEncounter; generic Token/Live Referee activation is intentionally blocked.", requiredChoices: [] }),
+    encounter({ id: "repel-token", name: "Repel", rulesText: "On a Route, suppress five eligible residents of a chosen Battle Tier.", legalPhases: [], timingWindows: [], isResponse: false, requiresPendingEvent: false, createsPendingEvent: false, opensResponseWindow: false, targetType: "manual", targetScope: "manual", resolverMode: resolverModes.HOST_CONFIRMED, runtimeUsability: runtimeUsabilityStatuses.BLOCKED, runtimeUsabilityReason: "Repel is resolved only inside the current Route action through applyV2RouteRepel; generic Token/Live Referee activation is intentionally blocked.", requiredChoices: [] }),
+    encounter({ id: "quick-ball-token", name: "Quick Ball Token", rulesText: "Exchange your encounter for another player's encounter.", legalPhases: [], timingWindows: [], isResponse: false, requiresPendingEvent: false, createsPendingEvent: false, opensResponseWindow: false, targetType: "manual", targetScope: "manual", resolverMode: resolverModes.HOST_CONFIRMED, runtimeUsability: runtimeUsabilityStatuses.BLOCKED, runtimeUsabilityReason: "Quick Ball is retained as a Saga Token concept but is blocked until its current Route-era transfer rules are reviewed; the retired wheel-era transfer path no longer exists.", requiredChoices: [] }),
+    encounter({ id: "dream-ball-token", name: "Dream Ball Token", rulesText: "Grant an encountered Pokemon access to a chosen legal ability.", legalPhases: [], timingWindows: [], isResponse: false, requiresPendingEvent: false, createsPendingEvent: false, opensResponseWindow: false, targetType: "manual", targetScope: "manual", resolverMode: resolverModes.HOST_CONFIRMED, runtimeUsability: runtimeUsabilityStatuses.BLOCKED, runtimeUsabilityReason: "Dream Ball is retained as a Saga Token concept but is blocked until its Route-era grant timing and persistence are reviewed; the retired before-wheel path no longer exists.", requiredChoices: [] }),
+    encounter({ id: "honey-token", name: "Honey", rulesText: "Copy an eligible encounter.", legalPhases: [], timingWindows: [], isResponse: false, requiresPendingEvent: false, createsPendingEvent: false, opensResponseWindow: false, targetType: "manual", targetScope: "manual", resolverMode: resolverModes.HOST_CONFIRMED, runtimeUsability: runtimeUsabilityStatuses.BLOCKED, runtimeUsabilityReason: "Honey is retained as a Saga Token concept but is blocked until its Route-era copy rules are reviewed; the retired end-of-Action Encounter-copy runtime no longer exists.", requiredChoices: [] }),
+    encounter({ id: "master-ball-token", name: "Master Ball Token", rulesText: "Use a pending Route opportunity to choose a known eligible resident.", legalPhases: [], timingWindows: [], isResponse: false, requiresPendingEvent: false, createsPendingEvent: false, opensResponseWindow: false, targetType: "manual", targetScope: "manual", resolverMode: resolverModes.HOST_CONFIRMED, runtimeUsability: runtimeUsabilityStatuses.BLOCKED, runtimeUsabilityReason: "Master Ball is resolved only inside the current Route action through useV2MasterBallOnOpportunity; generic Token/Live Referee activation is intentionally blocked.", requiredChoices: [] }),
+    encounter({ id: "beast-ball-token", name: "Beast Ball", rulesText: "Grant an encountered Pokemon access to a chosen legal move.", legalPhases: [], timingWindows: [], isResponse: false, requiresPendingEvent: false, createsPendingEvent: false, opensResponseWindow: false, targetType: "manual", targetScope: "manual", resolverMode: resolverModes.HOST_CONFIRMED, runtimeUsability: runtimeUsabilityStatuses.BLOCKED, runtimeUsabilityReason: "Beast Ball is retained as a Saga Token concept but is blocked until its Route-era grant timing and persistence are reviewed; the retired before-wheel path no longer exists.", requiredChoices: [] }),
 
     control({ id: "move-deleter", name: "Move Deleter", aliases: ["Move Deleter Curse"], rulesText: "Ban one move from being brought for 1 week. Cannot be used after team submission", targetType: "resource", targetScope: "singleResource", selectedTargetType: "move", applicationScope: "tableWide", affectedEntityType: "move", targetScopeStatus: "settled", targetControllerRelation: "notApplicable", minTargets: 1, maxTargets: 1, targetCollectionType: "canonicalMove", resolverMode: resolverModes.AUTOMATIC, resolverId: "moveBan", runtimeUsability: runtimeUsabilityStatuses.USABLE, runtimeUsabilityReason: "Move Deleter records one canonical global move restriction for the next Gym and the Teambuilder and validator enforce it.", requiredChoices: ["One canonical move"], persistence: "lingeringEffect", duration: "Next Gym", expirationPoint: "End of the next Gym", automaticMutations: ["Create a global move restriction keyed by canonical move identity", "Disable the move in Teambuilder and team validation during the next Gym", "Expire the restriction when that Gym ends"] }),
     curse({ id: "toxic-curse", name: "Toxic Curse", rulesText: "Force a Pokemon to carry a Toxic Orb for 2 gyms", targetType: "pokemon", targetScope: "rosterInstance", selectedTargetType: "rosterInstance", applicationScope: "globalSpecies", affectedEntityType: "pokemon", targetControllerRelation: "anyPlayer", resolverMode: resolverModes.AUTOMATIC, resolverId: "statusEffect", persistence: "lingeringEffect", duration: "2 phase-anchored Gyms", expirationPoint: phaseAnchoredTwoGymExpiration, automaticMutations: ["Use the selected roster instance as a species anchor", "Apply a species-wide forced Toxic Orb status with exact protected-instance exclusions"] }),
@@ -813,13 +787,6 @@
       runtimeUsabilityReason: "Devolve validates one unambiguous safe direct pre-evolution, applies a temporary species overlay to unprotected matching Active instances, and restores exact records at expiration.",
       expirationPoint: "At the same phase boundary one Gym later.",
       mechanicContract: { selectedAnchorScope: "rosterInstance", applicationScope: "globalSpecies", directPreEvolutionOnly: true, ambiguousOrUnsafeParentFailsBeforeConsumption: true, stableRosterIdentityRequired: true, temporarySpeciesOverlayRequired: true, mandatoryTeamRevisionWhenBuildIllegal: true, preserveTeamMembership: true, exactExpirationRestoration: true, perInstanceProtection: true }
-    },
-    "honey-token": {
-      resolverMode: resolverModes.AUTOMATIC, resolverId: "encounterCopy", copiedPayloadStatus: "settled",
-      runtimeUsability: runtimeUsabilityStatuses.USABLE,
-      runtimeUsabilityReason: "Honey copies one immutable completed Encounter result at the End-of-Action checkpoint into a new acquisition-ready Encounter record without rerolling or copying ownership and transient history.",
-      opensResponseWindow: false,
-      mechanicContract: { immutableCompletedEncounterRequired: true, currentActionPhaseOnly: true, exactSelectionWhenMultiple: true, copiedSpeciesFormTierLevelAndIntrinsicProperties: true, newEncounterAndRosterIdentitiesRequired: true, doNotCopyOwnershipStatusHeldItemsRerollHistoryConsumedModifiersBonusesOrReferences: true, duplicateCopyForbidden: true }
     },
     "ditto-token": {
       targetType: "resource", targetScope: "singleResource", resolverMode: resolverModes.AUTOMATIC, resolverId: "copyTokenInventory",
@@ -1187,19 +1154,6 @@
           || mechanic.clientSideHidingSufficient !== false || mechanic.sharedStatePayloadMayContainSetData !== false
           || definition.runtimeUsability !== runtimeUsabilityStatuses.BLOCKED) {
           errors.push(`${definition.id}: incomplete private non-debuff reveal contract`);
-        }
-      }
-      if (definition.id === "honey-token") {
-        if (definition.legalPhases.includes("encounterResult") || definition.timingWindows.includes("encounterResult") || definition.isResponse || definition.requiresPendingEvent) {
-          errors.push(`${definition.id}: Honey cannot publish encounterResult response timing`);
-        }
-        if (definition.phaseBoundaryProcedure !== "endOfActionPhaseProcedure" || definition.explicitPhaseTiming !== "endOfActionPhase"
-          || definition.activationPattern !== "phaseBoundaryOptionalTrigger" || definition.eligibleRecordType !== "encounter"
-          || definition.eligibleRecordWindow !== "currentActionPhase" || definition.selectionCount !== 1
-          || definition.copiedPayloadStatus !== "settled" || !definition.createsPendingEvent || definition.opensResponseWindow
-          || definition.runtimeImplementationStatus !== runtimeImplementationStatuses.VERIFIED_COMPLETE
-          || definition.runtimeUsability !== runtimeUsabilityStatuses.USABLE) {
-          errors.push(`${definition.id}: incomplete End-of-Action boundary-offer metadata`);
         }
       }
       if (definition.id === "purge-curse" && /targeted player's Battle Phase/i.test(definition.hostTask?.instruction || "")) {
