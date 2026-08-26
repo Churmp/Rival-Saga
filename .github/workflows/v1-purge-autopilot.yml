@@ -38,6 +38,7 @@ jobs:
         with:
           path: node_modules
           key: v1-purge-node22-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          save-always: true
 
       - name: Install dependencies
         if: steps.node-modules-cache.outputs.cache-hit != 'true'
