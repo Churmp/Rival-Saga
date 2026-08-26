@@ -1,2 +1,2 @@
-scripts/v1-purge-stage10b-retire-stale-support-tests.js
-run=28
+scripts/v1-purge-stage10b-run-fixed.js
+run=29
