@@ -39,6 +39,16 @@ if ((source.split(constantAnchor).length - 1) !== 1) {
 }
 source = source.replace(constantAnchor, constantReplacement);
 
+const auditAnchor = `  mustCount(app, '"token-engine-v1"', 1, "V1 token audit tag");
+  app = app.replace('"token-engine-v1"', '"token-engine"');`;
+const auditReplacement = `  mustCount(app, '"token-engine-v1"', 3, "V1 token audit tags");
+  app = app.replaceAll('"token-engine-v1"', '"token-engine"');`;
+if ((source.split(auditAnchor).length - 1) !== 1) {
+  console.error("Stage 9F fixed runner failed safely: V1 token audit-tag patch anchor was not found exactly once.");
+  process.exit(1);
+}
+source = source.replace(auditAnchor, auditReplacement);
+
 const runner = new Module(SCRIPT_PATH, module);
 runner.filename = SCRIPT_PATH;
 runner.paths = Module._nodeModulePaths(path.dirname(SCRIPT_PATH));
