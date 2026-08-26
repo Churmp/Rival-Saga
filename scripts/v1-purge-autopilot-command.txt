@@ -1,2 +1,0 @@
-scripts/v1-purge-stage10d-doc-truth.js
-# authoritative-doc-current-runtime-closeout
