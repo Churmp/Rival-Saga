@@ -1304,7 +1304,6 @@ function serverTokenRollbackSnapshot(state, excludedActivityId = "") {
     previousEffectOperations: cloneJson(state.effectOperations || []),
     previousCopiedTokenRelationships: cloneJson(state.copiedTokenRelationships || []),
     previousPrivateEffectRecords: cloneJson(state.privateEffectRecords || []),
-    previousEncounterCopyRecords: cloneJson(state.encounterCopyRecords || [])
   };
 }
 

@@ -631,10 +631,6 @@ const activityResponseRules = Object.freeze({
     label: "Curse Token",
     responseTypes: ["immunity"]
   },
-  encounterResult: {
-    label: "Encounter Result",
-    responseTypes: ["encounter-reroll", "steal-encounter"]
-  },
   "class-activation": {
     label: "Class Activation",
     responseTypes: ["immunity"]
@@ -645,10 +641,6 @@ const activityResponseRules = Object.freeze({
   },
   "pokemon-result": {
     label: "Pokemon Result",
-    responseTypes: ["encounter-reroll", "steal-encounter"]
-  },
-  "encounter-result": {
-    label: "Encounter Result",
     responseTypes: ["encounter-reroll", "steal-encounter"]
   }
 });
@@ -2518,7 +2510,6 @@ function createCleanInitialState() {
     endOfActionProcedures: [],
     copiedTokenRelationships: [],
     privateEffectRecords: [],
-    encounterCopyRecords: [],
     chronologyCounter: 0,
     perkSystem: {
       pendingRolls: [],
@@ -3485,11 +3476,8 @@ function tokenTimingWindowsForContext(context = {}) {
     windows.add(TOKEN_TIMING_WINDOWS.RESPONSE_WINDOW);
     const resultSession = liveResultSessionForActivity?.(pendingEvent);
     const pendingKind = `${pendingEvent.type || ""} ${pendingEvent.sourceType || ""}`;
-    if (resultSession || /encounter-result|pokemon-result/i.test(pendingKind)) {
-      windows.add("encounterResult");
+    if (resultSession || /pokemon-result/i.test(pendingKind)) {
       windows.add(TOKEN_TIMING_WINDOWS.WHEEL_WINDOW);
-    } else if (pendingEvent.payload?.encounterStage === "beforeRoll" || /encounter-before|wheel-before/i.test(pendingKind)) {
-      windows.add("encounterBeforeRoll");
     } else if (/wheel/i.test(pendingKind)) {
       windows.add(TOKEN_TIMING_WINDOWS.WHEEL_WINDOW);
     }
@@ -3522,8 +3510,6 @@ function tokenTimingWindowsForContext(context = {}) {
   }
   if (context.teamBuilding) windows.add(TOKEN_TIMING_WINDOWS.TEAM_BUILDING);
   if (context.battlePrep) windows.add(TOKEN_TIMING_WINDOWS.BATTLE_PREP);
-  if (context.encounterBeforeRoll) windows.add("encounterBeforeRoll");
-  if (context.encounterResult) windows.add("encounterResult");
   return [...windows];
 }
 
@@ -3815,7 +3801,6 @@ function tokenUseRollbackSnapshot() {
     previousEndOfActionProcedures: structuredClone(state.endOfActionProcedures || []),
     previousCopiedTokenRelationships: structuredClone(state.copiedTokenRelationships || []),
     previousPrivateEffectRecords: structuredClone(state.privateEffectRecords || []),
-    previousEncounterCopyRecords: structuredClone(state.encounterCopyRecords || [])
   };
 }
 
@@ -4136,8 +4121,8 @@ async function resolveTokenUse(draft, { context = {} } = {}) {
     return null;
   }
   if (pendingEvent) {
-    if (metadata.timingWindows.includes(TOKEN_TIMING_WINDOWS.WHEEL_WINDOW) || metadata.timingCategory === TOKEN_TIMING_CATEGORIES.ENCOUNTER) {
-      return recordEncounterTokenUse(draft);
+    if ((metadata.timingWindows.includes(TOKEN_TIMING_WINDOWS.WHEEL_WINDOW) || metadata.timingCategory === TOKEN_TIMING_CATEGORIES.ENCOUNTER) && liveResultSessionForActivity(pendingEvent)) {
+      return recordPokemonResultTokenUse(draft);
     }
     if (metadata.activationPattern === TOKEN_ACTIVATION_PATTERNS.RESPONSE || metadata.timingCategory === TOKEN_TIMING_CATEGORIES.PROTECTION) {
       return recordProtectionTokenUse(draft);
@@ -4326,7 +4311,6 @@ function buildCausalTokenEffectUndo(snapshot, activity, metadata) {
     delayedEffects: causalIdCollectionDelta(snapshot.previousDelayedEffects, state.delayedEffects),
     broughtTeamSnapshots: causalIdCollectionDelta(snapshot.previousBroughtTeamSnapshots, state.broughtTeamSnapshots),
     postPayoutProcedures: causalIdCollectionDelta(snapshot.previousPostPayoutProcedures, state.postPayoutProcedures),
-    encounterCopyRecords: causalIdCollectionDelta(snapshot.previousEncounterCopyRecords, state.encounterCopyRecords),
     teambuilderFields: causalTopLevelFieldDelta(snapshot.previousTeambuilder || {}, state.teambuilder || {}, ["moveAccessGrantsByPlayerId"]),
     battleTeamFields: causalTopLevelFieldDelta(snapshot.previousBattleTeams || {}, state.battleTeams || {}),
     pokemonDeltas,
@@ -4457,7 +4441,6 @@ function restoreCausalTokenEffectUndoData(undoData) {
   state.delayedEffects = applyCausalIdCollectionUndo(state.delayedEffects, undoData.delayedEffects);
   state.broughtTeamSnapshots = applyCausalIdCollectionUndo(state.broughtTeamSnapshots, undoData.broughtTeamSnapshots);
   state.postPayoutProcedures = applyCausalIdCollectionUndo(state.postPayoutProcedures, undoData.postPayoutProcedures);
-  state.encounterCopyRecords = applyCausalIdCollectionUndo(state.encounterCopyRecords, undoData.encounterCopyRecords);
   state.teambuilder ||= {};
   applyCausalTopLevelFieldUndo(state.teambuilder, undoData.teambuilderFields);
   state.battleTeams ||= {};
@@ -21900,7 +21883,6 @@ function normalizeState(nextState) {
   nextState.endOfActionProcedures = Array.isArray(nextState.endOfActionProcedures) ? nextState.endOfActionProcedures : [];
   nextState.copiedTokenRelationships = Array.isArray(nextState.copiedTokenRelationships) ? nextState.copiedTokenRelationships : [];
   nextState.privateEffectRecords = Array.isArray(nextState.privateEffectRecords) ? nextState.privateEffectRecords : [];
-  nextState.encounterCopyRecords = Array.isArray(nextState.encounterCopyRecords) ? nextState.encounterCopyRecords : [];
   syncLinkedTransactions(nextState);
   normalizeChronologyState(nextState);
   nextState.perkSystem ||= {};
@@ -23147,9 +23129,8 @@ function createInteractionEvent({
 function createPokemonResultTimingWindow(session, player) {
   if (!session || session.interactionEventId || !player) return null;
   const resultName = session.resultDisplayName || session.resultPokemonName || "Pokemon result";
-  const isEncounter = session.sourceType === "encounter";
   const activity = createInteractionEvent({
-    type: isEncounter ? "encounter-result" : "pokemon-result",
+    type: "pokemon-result",
     title: `${player.name} rolled ${resultName}`,
     message: `${session.sourceLabel || "Pokemon result"} is pending before it resolves.`,
     actorPlayerId: player.id,
@@ -23165,8 +23146,6 @@ function createPokemonResultTimingWindow(session, player) {
       randomPokemonSessionId: session.id,
       gameCornerSessionId: session.gameCornerSessionId || "",
       actionVisitId: session.actionVisitId || "",
-      encounterSessionId: session.encounterSessionId || "",
-      encounterRollId: session.encounterRollId || "",
       resultName,
       sourceLabel: session.sourceLabel || ""
     }
@@ -25506,7 +25485,7 @@ function canShowLiveTransactionControls(targetState = state) {
 function liveResultSessionForActivity(activity, targetState = state) {
   if (!activity) return null;
   const sessionId = activity.payload?.randomPokemonSessionId
-    || (/pokemon-result|encounter-result/.test(activity.type || "") ? activity.sourceId : "");
+    || (activity.type === "pokemon-result" ? activity.sourceId : "");
   if (!sessionId) return null;
   return (targetState.randomPokemonSessions || []).find((session) => session.id === sessionId && session.status === "pending") || null;
 }
@@ -25516,7 +25495,6 @@ function liveActivityTimingCategory(activity) {
   if (activity.payload?.tokenTimingCategory) return tokenTimingCategoryFromRaw(activity.payload.tokenTimingCategory);
   if (activity.type === TOKEN_PENDING_EVENT_TYPES.CONTROL_TOKEN) return TOKEN_TIMING_CATEGORIES.CONTROL;
   if (activity.type === TOKEN_PENDING_EVENT_TYPES.CURSE_TOKEN) return TOKEN_TIMING_CATEGORIES.CURSE;
-  if (activity.type === TOKEN_PENDING_EVENT_TYPES.ENCOUNTER_RESULT || activity.type === "encounter-result") return TOKEN_TIMING_CATEGORIES.ENCOUNTER;
   return "";
 }
 
@@ -25529,16 +25507,16 @@ function liveTokenPromptDetails(activity, resultSession = null, targetState = st
   const teamLockText = activity?.payload?.teamLock
     ? " This is happening during Sabotage. Submitted teams are locked before Team Preview."
     : "";
-  if (resultSession || activity?.type === "encounter-result" || activity?.type === TOKEN_PENDING_EVENT_TYPES.ENCOUNTER_RESULT) {
+  if (resultSession) {
     const resultOwnerId = resultSession?.resultOwnerPlayerId || resultSession?.ownerPlayerId || resultSession?.playerId || activity?.actorPlayerId || "";
     const resultOwner = targetState.players.find((player) => player.id === resultOwnerId);
-    const resultName = resultSession?.resultDisplayName || activity?.payload?.resultName || "an encounter";
+    const resultName = resultSession?.resultDisplayName || activity?.payload?.resultName || "a Pokemon result";
     return {
-      type: "encounter-result-pending",
+      type: "pokemon-result-pending",
       statusLabel: "Waiting to Resolve",
-      title: "Encounter Result Pending",
-      body: `${resultOwner?.name || actor?.name || "A player"} rolled ${resultName}. Encounter modifiers, rerolls, responses, and trades may happen before this result is finalized.`,
-      helperText: "Use Encounter Tokens during this window, trade, record No Response, then finalize the result."
+      title: "Pokemon Result Pending",
+      body: `${resultOwner?.name || actor?.name || "A player"} rolled ${resultName}. Legal rerolls, responses, and trades may happen before this result is finalized.`,
+      helperText: "Use any legal result response during this window, trade, record No Response, then finalize the result."
     };
   }
   if (category === TOKEN_TIMING_CATEGORIES.CONTROL) {
@@ -26162,13 +26140,12 @@ function getCurrentLivePrompt(targetState = state) {
     const resultOwner = targetState.players.find((player) => player.id === resultOwnerId);
     const resultName = resultSession?.resultDisplayName || pendingEvent.payload?.resultName || "";
     const sourceLabel = resultSession?.sourceLabel || pendingEvent.payload?.sourceLabel || pendingEvent.sourceType || "Event";
-    const isEncounterResult = Boolean(resultSession?.sourceType === "encounter" || pendingEvent.type === "encounter-result");
     const tokenPrompt = liveTokenPromptDetails(pendingEvent, resultSession, targetState);
     const promptDisplay = liveCurrentPromptDetails(pendingEvent, tokenPrompt, currentPromptStep, respondingToPromptStep);
     if (resultSession) {
       return {
         id: `live-${pendingEvent.id}`,
-        type: tokenPrompt?.type || (isEncounterResult ? "encounter-result-pending" : "pokemon-result-pending"),
+        type: tokenPrompt?.type || "pokemon-result-pending",
         statusLabel: promptDisplay.statusLabel || "Waiting to Resolve",
         title: promptDisplay.title || (resultName ? `${resultOwner?.name || "A player"} rolled ${resultName}` : pendingEvent.title || "Pokemon result pending"),
         body: promptDisplay.body || `${resultName || "This Pokemon result"} from ${sourceLabel} is waiting to resolve.`,
@@ -26400,7 +26377,6 @@ function liveManualEventTypeOptions(selected = "manual-event") {
     ["class-effect", "Class Effect"],
     [TOKEN_PENDING_EVENT_TYPES.CONTROL_TOKEN, "Control Token"],
     [TOKEN_PENDING_EVENT_TYPES.CURSE_TOKEN, "Curse"],
-    [TOKEN_PENDING_EVENT_TYPES.ENCOUNTER_RESULT, "Encounter"],
     [TOKEN_PENDING_EVENT_TYPES.PROTECTION_RESPONSE, "Protection / Response Note"],
     ["item-effect", "Item"],
     ["other", "Other"]
@@ -26411,7 +26387,6 @@ function liveManualEventTypeOptions(selected = "manual-event") {
 function liveTimingWindowOptions(selected = "normal") {
   const options = [
     ["normal", "Normal"],
-    [TOKEN_PENDING_EVENT_TYPES.ENCOUNTER_RESULT, "Encounter Result"],
     [TOKEN_PENDING_EVENT_TYPES.TEAM_LOCK_WINDOW, "Sabotage"],
     ["team-preview", "Team Preview"],
     ["battle-phase", "Battle Phase"],
@@ -27135,9 +27110,7 @@ function createLiveManualEventFromForm(form) {
   }
   const finalEventType = timingWindow === TOKEN_PENDING_EVENT_TYPES.TEAM_LOCK_WINDOW
     ? TOKEN_PENDING_EVENT_TYPES.TEAM_LOCK_WINDOW
-    : timingWindow === TOKEN_PENDING_EVENT_TYPES.ENCOUNTER_RESULT
-      ? TOKEN_PENDING_EVENT_TYPES.ENCOUNTER_RESULT
-      : eventType;
+    : eventType;
   const activity = createInteractionEvent({
     type: finalEventType,
     title,
@@ -27587,13 +27560,10 @@ function recordTokenResponseToActivity(activity, draft, responseType) {
   return savedResponse;
 }
 
-function currentEncounterPendingActivity() {
+function currentPokemonResultPendingActivity() {
   const activity = getCurrentPendingEvent();
   if (!activity || activity.status !== "open") return null;
-  const session = liveResultSessionForActivity(activity);
-  if (activity.type === "encounter-result" || activity.type === TOKEN_PENDING_EVENT_TYPES.ENCOUNTER_RESULT) return activity;
-  if (session?.sourceType === "encounter") return activity;
-  return null;
+  return liveResultSessionForActivity(activity) ? activity : null;
 }
 
 function tokenNameIsReroll(tokenName) {
@@ -27601,33 +27571,23 @@ function tokenNameIsReroll(tokenName) {
   return key === "reroll" || key === "reroll-token";
 }
 
-async function recordEncounterTokenUse(draft) {
-  const activity = currentEncounterPendingActivity();
+async function recordPokemonResultTokenUse(draft) {
+  const activity = currentPokemonResultPendingActivity();
   if (!activity) {
-    alert("Encounter Tokens are used during an encounter result window before the result is finalized.");
+    alert("This Token is used from a pending Pokemon result window.");
     return null;
   }
-  if (!playerCanRespondToActivity(activity, draft.actorPlayerId)) {
-    alert(`${draft.actor.name} is not eligible to respond to this encounter result.`);
+  if (!tokenNameIsReroll(draft.tokenName)) {
+    alert(String(draft.tokenName || "This Token") + " is not supported from the generic Pokemon result window. Route Encounter Tokens are used from Routes.");
     return null;
   }
-  if (playerAlreadyAnsweredActivity(activity, draft.actorPlayerId, currentInteractionPromptStep(activity).id)) {
-    alert(`${draft.actor.name} has already responded or chosen No Response for the current prompt.`);
+  const session = liveResultSessionForActivity(activity);
+  if (!session) {
+    alert("The pending Pokemon result is no longer available.");
     return null;
   }
-  if (tokenNameIsReroll(draft.tokenName)) {
-    const session = liveResultSessionForActivity(activity);
-    if (!session) {
-      alert("Reroll Token needs a pending encounter result before it can be used here.");
-      return null;
-    }
-    await rerollRandomPokemonSession(session.id, { actorPlayerId: draft.actorPlayerId });
-    state.liveTable = normalizeLiveTableState({ ...(state.liveTable || {}), currentPendingEventId: activity.id });
-    saveState({ immediate: true });
-    render();
-    return activity;
-  }
-  return recordTokenResponseToActivity(activity, draft, "encounter-token");
+  await rerollRandomPokemonSession(session.id, { actorPlayerId: draft.actorPlayerId });
+  return activity;
 }
 
 function recordProtectionTokenUse(draft) {
@@ -46952,10 +46912,6 @@ async function launchTokenScenarioSandbox() {
       tokenId: "scenario-immunity",
       note: `${responder.name} used Immunity in the scenario.`
     });
-  } else if (kind === "encounterBefore") {
-    activity = createTokenScenarioEvent({ actor, target, title: `${actor.name}'s encounter is about to begin.`, message: "Choose before-roll Encounter effects now.", type: "encounter-before-roll", targeted: false, payload: { encounterStage: "beforeRoll" } });
-  } else if (kind === "encounterResult") {
-    activity = createTokenScenarioEvent({ actor, target, title: `${actor.name} rolled Abra.`, message: `${actor.name} rolled Abra. The result is pending.`, type: TOKEN_PENDING_EVENT_TYPES.ENCOUNTER_RESULT, targeted: false, payload: { encounterStage: "result", resultName: "Abra" } });
   } else if (kind === "wheelManual") {
     const guided = (contract?.list || []).find((definition) => definition.resolverMode === EFFECT_RESOLUTION_MODES.GUIDED) || tokenDefinition;
     activity = createTokenScenarioEvent({ actor, target, tokenDefinition: guided, title: `${actor.name} used ${guided.name}.`, message: `${guided.name} is waiting for its guided result.`, type: TOKEN_PENDING_EVENT_TYPES.CONTROL_TOKEN, sourceType: "token-use", targeted: guided.targetScope !== "tableWide" });
@@ -47491,13 +47447,6 @@ function createAdminTestEvent(kind = "") {
     }
   };
   const presets = {
-    encounter: {
-      type: TOKEN_PENDING_EVENT_TYPES.ENCOUNTER_RESULT,
-      title: `${actor.name} test encounter result`,
-      message: `${actor.name} rolled a test encounter result. Encounter tokens and trades may happen before finalizing.`,
-      sourceType: "admin-test-encounter",
-      payload: { tokenTimingCategory: TOKEN_TIMING_CATEGORIES.ENCOUNTER, effectApplication: "audit" }
-    },
     control: {
       type: TOKEN_PENDING_EVENT_TYPES.CONTROL_TOKEN,
       title: "Move Deleter Pending",
@@ -48901,7 +48850,6 @@ function phaseAdvanceUndoSnapshot() {
     endOfActionProcedures: structuredClone(state.endOfActionProcedures || []),
     copiedTokenRelationships: structuredClone(state.copiedTokenRelationships || []),
     privateEffectRecords: structuredClone(state.privateEffectRecords || []),
-    encounterCopyRecords: structuredClone(state.encounterCopyRecords || []),
     effectOperations: structuredClone(state.effectOperations || [])
   };
 }
@@ -59355,7 +59303,6 @@ function restoreTokenEffectContractUndoData(undoData) {
   if (undoData.previousEndOfActionProcedures) state.endOfActionProcedures = structuredClone(undoData.previousEndOfActionProcedures);
   if (undoData.previousCopiedTokenRelationships) state.copiedTokenRelationships = structuredClone(undoData.previousCopiedTokenRelationships);
   if (undoData.previousPrivateEffectRecords) state.privateEffectRecords = structuredClone(undoData.previousPrivateEffectRecords);
-  if (undoData.previousEncounterCopyRecords) state.encounterCopyRecords = structuredClone(undoData.previousEncounterCopyRecords);
   syncLinkedTransactions();
   syncPlayerPokemonLists();
 }
@@ -59496,8 +59443,6 @@ function undoLogEntry(logId) {
       state.log.forEach((logEntry) => {
         if (undoneGameCornerSessionIds.includes(logEntry.gameCornerSessionId)) logEntry.undone = true;
       });
-    } else if (undoData.locationId === "encounter" || undoData.encounterSessionId) {
-      undoEncounterActionVisit(undoData);
     } else {
       if (player && undoData.previousInventory) player.inventory = structuredClone(undoData.previousInventory);
       if (player && undoData.previousBalance !== undefined) player.balance = Number(undoData.previousBalance);
@@ -59641,7 +59586,6 @@ function undoLogEntry(logId) {
     if (previous.endOfActionProcedures) state.endOfActionProcedures = structuredClone(previous.endOfActionProcedures);
     if (previous.copiedTokenRelationships) state.copiedTokenRelationships = structuredClone(previous.copiedTokenRelationships);
     if (previous.privateEffectRecords) state.privateEffectRecords = structuredClone(previous.privateEffectRecords);
-    if (previous.encounterCopyRecords) state.encounterCopyRecords = structuredClone(previous.encounterCopyRecords);
     if (previous.effectOperations) state.effectOperations = structuredClone(previous.effectOperations);
     ensureGymPhaseState(state.series, state.gym);
   } else {
