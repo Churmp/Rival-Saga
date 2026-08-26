@@ -64,14 +64,23 @@ jobs:
             echo "No Chromium executable is installed on this runner." >&2
             exit 1
           fi
+
           WIN_CHROME='C:\Program Files\Google\Chrome\Application\chrome.exe'
-          printf '%s\n' 'C:*chrome.exe' >> .git/info/exclude
-          ln -sf "$CHROME" "$WIN_CHROME"
-          test -e "$WIN_CHROME"
           SHIM_BIN="$RUNNER_TEMP/v1-purge-bin"
           mkdir -p "$SHIM_BIN"
-          ln -sf "$CHROME" "$SHIM_BIN/$WIN_CHROME"
+
+          cat > "$SHIM_BIN/$WIN_CHROME" <<EOF
+          #!/usr/bin/env bash
+          exec "$CHROME" --disable-dev-shm-usage "\$@" 2>>/tmp/rival-saga-chromium.log
+          EOF
+          chmod +x "$SHIM_BIN/$WIN_CHROME"
+
+          printf '%s\n' 'C:*chrome.exe' >> .git/info/exclude
+          ln -sf "$SHIM_BIN/$WIN_CHROME" "$WIN_CHROME"
+          test -x "$SHIM_BIN/$WIN_CHROME"
+          test -e "$WIN_CHROME"
           echo "$SHIM_BIN" >> "$GITHUB_PATH"
+          echo "Chromium QA shim -> $CHROME"
 
       - name: Run requested fail-closed purge stage
         shell: bash
@@ -84,4 +93,11 @@ jobs:
           esac
           test -f "$STAGE"
           echo "Running $STAGE"
-          node "$STAGE"
+          if ! node "$STAGE"; then
+            if [ -s /tmp/rival-saga-chromium.log ]; then
+              echo "--- Chromium diagnostic tail ---" >&2
+              tail -n 80 /tmp/rival-saga-chromium.log >&2
+              echo "--- end Chromium diagnostic tail ---" >&2
+            fi
+            exit 1
+          fi
