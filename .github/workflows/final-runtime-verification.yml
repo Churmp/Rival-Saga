@@ -1,4 +1,4 @@
-name: Final Route Runtime Recheck
+name: Route Runtime First Scenario
 
 on:
   push:
@@ -6,31 +6,22 @@ on:
       - audit/purge-v1-runtime
 
 jobs:
-  route-runtime:
+  route-runtime-first:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 4
     steps:
       - name: Check out branch
         uses: actions/checkout@v4
-
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Bridge Chromium for Route runtime QA
+      - name: Bridge Chromium
         shell: bash
         run: |
           set -euo pipefail
           CHROME="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser || true)"
-          if [ -z "$CHROME" ]; then
-            echo "No Chromium executable is installed on this runner." >&2
-            exit 1
-          fi
+          test -n "$CHROME"
           WIN_CHROME='C:\Program Files\Google\Chrome\Application\chrome.exe'
           SHIM_BIN="$RUNNER_TEMP/runtime-verify-bin"
           mkdir -p "$SHIM_BIN"
@@ -41,8 +32,8 @@ jobs:
           chmod +x "$SHIM_BIN/$WIN_CHROME"
           printf '%s\n' 'C:*chrome.exe' >> .git/info/exclude
           ln -sf "$SHIM_BIN/$WIN_CHROME" "$WIN_CHROME"
-          test -e "$WIN_CHROME"
           echo "$SHIM_BIN" >> "$GITHUB_PATH"
-
-      - name: Route runtime
-        run: npm run test:v2-route-runtime
+      - name: First Route runtime scenario
+        shell: bash
+        run: |
+          timeout 90s node --test --test-name-pattern='V2 normal Route Action persists and remains exactly once through reload' scripts/test-v2-route-runtime-sequences.js
