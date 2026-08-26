@@ -8,7 +8,7 @@ const Module = require("module");
 const SCRIPT_PATH = path.join(__dirname, "v1-purge-stage9f-retire-encounter-taxonomy.js");
 let source = fs.readFileSync(SCRIPT_PATH, "utf8");
 
-const anchor = `  app = replaceOnce(app,
+const responseAnchor = `  app = replaceOnce(app,
     '    responseTypes: ["encounter-reroll", "steal-encounter"]',
     '    responseTypes: ["pokemon-reroll"]',
     "pokemon-result response types");
@@ -16,15 +16,28 @@ const anchor = `  app = replaceOnce(app,
     '    responseTypes: ["encounter-reroll", "steal-encounter"],',
     '    responseTypes: ["pokemon-reroll"],',
     "Pokemon result event response types");`;
-
-const replacement = `  mustCount(app, '    responseTypes: ["encounter-reroll", "steal-encounter"]', 2, "Pokemon-result response lists");
+const responseReplacement = `  mustCount(app, '    responseTypes: ["encounter-reroll", "steal-encounter"]', 2, "Pokemon-result response lists");
   app = app.replaceAll('    responseTypes: ["encounter-reroll", "steal-encounter"]', '    responseTypes: ["pokemon-reroll"]');`;
-
-if ((source.split(anchor).length - 1) !== 1) {
+if ((source.split(responseAnchor).length - 1) !== 1) {
   console.error("Stage 9F fixed runner failed safely: response-list patch anchor was not found exactly once.");
   process.exit(1);
 }
-source = source.replace(anchor, replacement);
+source = source.replace(responseAnchor, responseReplacement);
+
+const constantAnchor = `  app = removeLine(app, '  ENCOUNTER_RESULT: "encounterResult",', "Encounter target category constant");
+  // EFFECT_TARGET_TYPES has the same literal key/value; remove the second remaining occurrence.
+  if (count(app, '  ENCOUNTER_RESULT: "encounterResult",') !== 1) throw new Error("Encounter target type constant: expected one remaining occurrence after category removal.");
+  app = removeLine(app, '  ENCOUNTER_RESULT: "encounterResult",', "Encounter target type constant");
+  app = removeLine(app, '  ENCOUNTER_MODIFIER: "encounterModifier"', "Encounter use type constant");
+  app = removeLine(app, '  ENCOUNTER_RESULT: "encounterResult",', "Encounter pending-event result constant");`;
+const constantReplacement = `  mustCount(app, '  ENCOUNTER_RESULT: "encounterResult",', 3, "Encounter result taxonomy constants");
+  app = app.replaceAll('  ENCOUNTER_RESULT: "encounterResult",\\n', '');
+  app = removeLine(app, '  ENCOUNTER_MODIFIER: "encounterModifier"', "Encounter use type constant");`;
+if ((source.split(constantAnchor).length - 1) !== 1) {
+  console.error("Stage 9F fixed runner failed safely: duplicate Encounter constant anchor was not found exactly once.");
+  process.exit(1);
+}
+source = source.replace(constantAnchor, constantReplacement);
 
 const runner = new Module(SCRIPT_PATH, module);
 runner.filename = SCRIPT_PATH;
