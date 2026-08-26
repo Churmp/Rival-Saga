@@ -1,2 +1,2 @@
-scripts/v1-purge-stage10a-final-whole-repo-audit.js
-run=27
+scripts/v1-purge-stage10b-retire-stale-support-tests.js
+run=28
