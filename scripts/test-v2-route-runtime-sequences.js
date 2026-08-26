@@ -44,7 +44,7 @@ function browserExecutable() {
   return executable;
 }
 
-async function waitForJson(url, timeoutMs = 10000) {
+async function waitForJson(url, timeoutMs = 30000) {
   const started = Date.now();
   while (Date.now() - started < timeoutMs) {
     try {
@@ -280,14 +280,26 @@ before(async () => {
 after(async () => {
   if (cdp) await cdp.close().catch(() => {});
   if (browserProcess && !browserProcess.killed) browserProcess.kill();
-  if (browserProcess) {
+  if (browserProcess && browserProcess.exitCode === null) {
     await Promise.race([
       new Promise((resolve) => browserProcess.once("exit", resolve)),
-      delay(1000)
+      delay(5000)
     ]);
   }
-  if (browserProfile && fs.existsSync(browserProfile)) fs.rmSync(browserProfile, { recursive: true, force: true });
-  await stopTemporaryServer(server);
+  if (browserProcess && browserProcess.exitCode === null) {
+    browserProcess.kill("SIGKILL");
+    await Promise.race([
+      new Promise((resolve) => browserProcess.once("exit", resolve)),
+      delay(2000)
+    ]);
+  }
+  try {
+    if (browserProfile && fs.existsSync(browserProfile)) {
+      fs.rmSync(browserProfile, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+    }
+  } finally {
+    await stopTemporaryServer(server);
+  }
 });
 
 test("V2 normal Route Action persists and remains exactly once through reload", async () => {
