@@ -265,7 +265,7 @@ before(async () => {
     "--no-default-browser-check",
     "--window-size=1280,900",
     "about:blank"
-  ], { stdio: ["ignore", "ignore", "ignore"] });
+  ], { stdio: ["ignore", "ignore", "ignore"], detached: process.platform !== "win32" });
   await waitForJson(`http://127.0.0.1:${debuggingPort}/json/version`);
   const targets = await waitForJson(`http://127.0.0.1:${debuggingPort}/json/list`);
   const page = targets.find((target) => target.type === "page");
@@ -279,7 +279,19 @@ before(async () => {
 
 after(async () => {
   if (cdp) await cdp.close().catch(() => {});
-  if (browserProcess && !browserProcess.killed) browserProcess.kill();
+  const killBrowserTree = (signal) => {
+    if (!browserProcess || browserProcess.exitCode !== null) return;
+    if (process.platform === "win32") {
+      browserProcess.kill(signal);
+      return;
+    }
+    try {
+      process.kill(-browserProcess.pid, signal);
+    } catch (error) {
+      if (error?.code !== "ESRCH") throw error;
+    }
+  };
+  killBrowserTree("SIGTERM");
   if (browserProcess && browserProcess.exitCode === null) {
     await Promise.race([
       new Promise((resolve) => browserProcess.once("exit", resolve)),
@@ -287,7 +299,7 @@ after(async () => {
     ]);
   }
   if (browserProcess && browserProcess.exitCode === null) {
-    browserProcess.kill("SIGKILL");
+    killBrowserTree("SIGKILL");
     await Promise.race([
       new Promise((resolve) => browserProcess.once("exit", resolve)),
       delay(2000)
