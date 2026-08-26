@@ -49,9 +49,14 @@ jobs:
             echo "No Chromium executable is installed on this runner." >&2
             exit 1
           fi
+          WIN_CHROME='C:\Program Files\Google\Chrome\Application\chrome.exe'
           printf '%s\n' 'C:*chrome.exe' >> .git/info/exclude
-          ln -sf "$CHROME" 'C:\Program Files\Google\Chrome\Application\chrome.exe'
-          test -x 'C:\Program Files\Google\Chrome\Application\chrome.exe'
+          ln -sf "$CHROME" "$WIN_CHROME"
+          test -e "$WIN_CHROME"
+          SHIM_BIN="$RUNNER_TEMP/v1-purge-bin"
+          mkdir -p "$SHIM_BIN"
+          ln -sf "$CHROME" "$SHIM_BIN/$WIN_CHROME"
+          echo "$SHIM_BIN" >> "$GITHUB_PATH"
 
       - name: Run requested fail-closed purge stage
         shell: bash
