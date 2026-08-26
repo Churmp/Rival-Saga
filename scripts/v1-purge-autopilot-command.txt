@@ -1,2 +1,2 @@
-scripts/v1-purge-stage9b-retire-encounter-contract-layer.js
-run=6
+scripts/v1-purge-stage9b-run-fixed.js
+run=7
