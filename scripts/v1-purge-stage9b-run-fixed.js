@@ -59,6 +59,22 @@ if (!source.includes(legacyPhrase)) {
 }
 source = source.replace(legacyPhrase, "retired wheel-era transfer path no longer exists.");
 
+const rerollAnchor = 'blocked("reroll-token","Reroll","Reroll your unresolved Route encounter result.",routeReason("Reroll","useV2RouteRerollToken"),\', aliases: ["Reroll Token"]\')';
+const rerollReplacement = 'blocked("reroll-token","Reroll","Reroll an eligible unresolved Pokemon result.","Reroll is resolved by the current contextual result UI (including Route and shared Random Pokemon results); generic Live Referee Encounter activation is intentionally blocked.",\', aliases: ["Reroll Token"]\')';
+if (!source.includes(rerollAnchor)) {
+  console.error("Stage 9B fixed runner failed safely: expected Reroll rewrite anchor was not found.");
+  process.exit(1);
+}
+source = source.replace(rerollAnchor, rerollReplacement);
+
+const writeAnchor = '  fs.writeFileSync(PATHS.contract,contract,"utf8"); fs.writeFileSync(PATHS.control,control,"utf8"); fs.writeFileSync(PATHS.sandbox,sandbox,"utf8"); wrote=true;';
+const writeReplacement = '  contract=contract.replace(/\\r/g,"").replace(/\\n+$/g,"")+"\\n"; control=control.replace(/\\r/g,"").replace(/\\n+$/g,"")+"\\n"; sandbox=sandbox.replace(/\\r/g,"").replace(/\\n+$/g,"")+"\\n";\n  fs.writeFileSync(PATHS.contract,contract,"utf8"); fs.writeFileSync(PATHS.control,control,"utf8"); fs.writeFileSync(PATHS.sandbox,sandbox,"utf8"); wrote=true;';
+if (!source.includes(writeAnchor)) {
+  console.error("Stage 9B fixed runner failed safely: expected write anchor was not found.");
+  process.exit(1);
+}
+source = source.replace(writeAnchor, writeReplacement);
+
 const runner = new Module(SCRIPT_PATH, module);
 runner.filename = SCRIPT_PATH;
 runner.paths = Module._nodeModulePaths(path.dirname(SCRIPT_PATH));
