@@ -19,13 +19,33 @@ const TESTS = [
   { file: "versions/next-action-phase/tests/test-route-encounter-engine.js", timeout: 180000 },
 ];
 
-function outputTail(result) {
-  const text = [result.stdout, result.stderr]
+function capturedLines(result) {
+  return [result.stdout, result.stderr]
     .filter(Boolean)
     .join("\n")
-    .trim();
-  if (!text) return "(no captured output)";
-  return text.split(/\r?\n/).slice(-OUTPUT_TAIL_LINES).join("\n");
+    .trim()
+    .split(/\r?\n/);
+}
+
+function diagnosticOutput(result) {
+  const lines = capturedLines(result);
+  if (!lines.length || (lines.length === 1 && !lines[0])) return "(no captured output)";
+
+  const failedIndexes = [];
+  for (let index = 0; index < lines.length; index += 1) {
+    if (/^not ok\b/.test(lines[index].trim())) failedIndexes.push(index);
+  }
+  if (failedIndexes.length) {
+    const snippets = failedIndexes.slice(0, 3).map((index) => {
+      const start = Math.max(0, index - 1);
+      const end = Math.min(lines.length, index + 22);
+      return lines.slice(start, end).join("\n");
+    });
+    if (failedIndexes.length > 3) snippets.push(`... ${failedIndexes.length - 3} additional failing subtest(s) omitted ...`);
+    return snippets.join("\n\n");
+  }
+
+  return lines.slice(-OUTPUT_TAIL_LINES).join("\n");
 }
 
 const results = [];
@@ -54,7 +74,7 @@ for (const { file, timeout } of TESTS) {
     reason = `exit ${result.status}`;
   }
 
-  const diagnostic = status === "PASS" ? "" : outputTail(result);
+  const diagnostic = status === "PASS" ? "" : diagnosticOutput(result);
   results.push({ file, status, reason, durationMs, diagnostic });
 
   const seconds = (durationMs / 1000).toFixed(1);
@@ -62,9 +82,9 @@ for (const { file, timeout } of TESTS) {
     console.log(`VERIFY PASS ${file} (${seconds}s)`);
   } else {
     console.error(`VERIFY ${status} ${file}: ${reason} (${seconds}s)`);
-    console.error("--- diagnostic tail ---");
+    console.error("--- focused diagnostic ---");
     console.error(diagnostic);
-    console.error("--- end diagnostic tail ---");
+    console.error("--- end focused diagnostic ---");
   }
 }
 
