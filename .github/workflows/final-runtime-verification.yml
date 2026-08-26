@@ -1,14 +1,17 @@
-name: Route Runtime First Scenario
+name: Repair Route Runtime Readiness
 
 on:
   push:
     branches:
       - audit/purge-v1-runtime
 
+permissions:
+  contents: write
+
 jobs:
-  route-runtime-first:
+  repair-and-check:
     runs-on: ubuntu-latest
-    timeout-minutes: 4
+    timeout-minutes: 5
     steps:
       - name: Check out branch
         uses: actions/checkout@v4
@@ -16,6 +19,32 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Repair unsafe readiness checks
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const file = 'scripts/test-v2-route-runtime-sequences.js';
+          let text = fs.readFileSync(file, 'utf8');
+          const from = 'typeof v2EnsureRouteSeriesState === "function" && state?.marker === ${JSON.stringify(marker)}';
+          const to = 'typeof state !== "undefined" && typeof v2EnsureRouteSeriesState === "function" && state.marker === ${JSON.stringify(marker)}';
+          const count = text.split(from).length - 1;
+          if (count !== 2) throw new Error(`Expected exactly 2 unsafe readiness checks, found ${count}.`);
+          text = text.split(from).join(to);
+          if (text.includes(from)) throw new Error('Unsafe readiness expression survived replacement.');
+          fs.writeFileSync(file, text);
+          NODE
+          node --check scripts/test-v2-route-runtime-sequences.js
+          git diff --check
+          git diff -- scripts/test-v2-route-runtime-sequences.js
+      - name: Commit verifier repair
+        shell: bash
+        run: |
+          git config user.name "Rival Saga Verification Bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add scripts/test-v2-route-runtime-sequences.js
+          git commit -m "Make Route runtime readiness wait safe [skip ci]"
+          git push origin HEAD:audit/purge-v1-runtime
       - name: Bridge Chromium
         shell: bash
         run: |
