@@ -1,0 +1,19 @@
+name: Runtime Boundary Check
+
+on:
+  push:
+    branches:
+      - audit/purge-v1-runtime
+
+jobs:
+  runtime-boundary:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out branch
+        uses: actions/checkout@v4
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Run current runtime boundary regression
+        run: npm run test:runtime-boundary
