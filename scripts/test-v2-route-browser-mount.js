@@ -44,25 +44,20 @@ function cssRule(selector) {
   return cssSource.slice(bodyStart + 1, bodyEnd);
 }
 
-test("new game UI defaults to V2 without exposing legacy V1 prominently", () => {
+test("new game UI exposes the current Action Phase version", () => {
   const createCard = indexHtml.match(/<section class="site-shell-card site-create-game-card">[\s\S]*?<\/section>/)?.[0] || "";
   const createBody = functionBody("createSiteGame");
   assert.match(appJs, /const DEFAULT_ACTION_PHASE_VERSION = ACTION_PHASE_VERSION_V2/);
   assert.match(appJs, /const ACTION_PHASE_VERSION_V2 = "action-phase-v2-real-series"/);
-  assert.match(appJs, /supportedActionPhaseVersions: \[ACTION_PHASE_VERSION_V1, ACTION_PHASE_VERSION_V2\]/);
+  assert.match(appJs, /supportedActionPhaseVersions: \[ACTION_PHASE_VERSION_V2\]/);
   assert.match(createBody, /DEFAULT_ACTION_PHASE_VERSION/);
-  assert.doesNotMatch(createCard, /action-phase-v1-current-series|Action Phase Version|V1/i);
+  assert.doesNotMatch(createCard, /Action Phase Version|\bV1\b/i);
 });
 
-test("renderActionPhase delegates V2 without replacing the V1 branch", () => {
+test("renderActionPhase delegates directly to the current Route Action renderer", () => {
   const body = functionBody("renderActionPhase");
-  const v2Branch = body.indexOf("renderV2RouteActionPhase()");
-  const v1Branch = body.indexOf("ensureActionPhaseGymState()");
-  assert.match(body, /activeActionPhaseVersion\(\) === ACTION_PHASE_VERSION_V2/);
   assert.match(body, /renderV2RouteActionPhase\(\)/);
-  assert.match(body, /ensureActionPhaseGymState\(\)/, "V1 render path should still be present");
-  assert.match(body, /renderActionWorkspaceRootMenu\(\{ player, visits, disabledReason: timingPauseReason \}\)/, "V1 root Action Workspace should still render");
-  assert.ok(v2Branch >= 0 && v1Branch >= 0 && v2Branch < v1Branch, "V2 should route before the V1 workspace is initialized");
+  assert.doesNotMatch(body, /activeActionPhaseVersion|ensureActionPhaseGymState|renderActionWorkspaceRootMenu/);
 });
 
 test("loading V2 renders Route Action without invoking V1 Encounter Wheel behavior", () => {

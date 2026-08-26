@@ -172,7 +172,7 @@ function routeFixture(marker) {
   state.activePlayerId = "gold";
   state.ruleset = {
     actionPhaseVersion: "action-phase-v2-real-series",
-    supportedActionPhaseVersions: ["action-phase-v1-current-series", "action-phase-v2-real-series"]
+    supportedActionPhaseVersions: ["action-phase-v2-real-series"]
   };
   state.players.forEach((player) => {
     player.balance = 10000;
@@ -978,7 +978,7 @@ test("V2 player-specific duplicate preferences filter only the acting player's r
   assert.equal(afterReload.premiumWeights.every((weight) => weight === 0.15), true);
 });
 
-test("V2 Extra Encounter remains atomic when Duplicate OFF removes every random candidate", async () => {
+test("[V2R-EXTRA-001] V2 Extra Encounter remains atomic when Duplicate OFF removes every random candidate", async () => {
   const marker = "V2-EXTRA-DUP-EMPTY";
   await openRouteGame(marker);
   const summary = await evaluate(`(() => {
@@ -1036,7 +1036,7 @@ test("V2 Extra Encounter remains atomic when Duplicate OFF removes every random 
   assert.equal(summary.operationsAfter, summary.operationsBefore);
 });
 
-test("V2 Extra Encounter, Repel, and Master Ball are exact-once through backend reload", async () => {
+test("[V2R-EXTRA-002] V2 Extra Encounter, Repel, and Master Ball are exact-once through backend reload", async () => {
   const marker = "V2-TOKENS";
   const gameId = await openRouteGame(marker);
   const summary = await evaluate(`(() => {

@@ -238,7 +238,7 @@ test("[PD-SERVER-003] claim and destination races accept only the first authorit
     method: "POST",
     body: {
       clientId: "destination-client", expectedVersion: 1, requestId: "destination-loser", commitId: "destination-loser",
-      playerId: "austin", actionNumber: 1, locationId: "encounter", serviceId: "encounter-roll"
+      playerId: "austin", actionNumber: 1, locationId: "department-store", serviceId: "department-store-primary"
     }
   });
   assert.equal(losingDestination.response.status, 409);
@@ -252,7 +252,7 @@ test("[PD-SERVER-003] claim and destination races accept only the first authorit
     method: "POST",
     body: {
       clientId: "destination-client", expectedVersion: 1, requestId: "destination-winner", commitId: "destination-winner",
-      playerId: "austin", actionNumber: 1, locationId: "encounter", serviceId: "encounter-roll"
+      playerId: "austin", actionNumber: 1, locationId: "department-store", serviceId: "department-store-primary"
     }
   });
   assert.equal(destination.response.status, 201);

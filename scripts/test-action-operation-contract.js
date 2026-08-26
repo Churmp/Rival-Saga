@@ -15,22 +15,14 @@ test("all Action visit commits use the shared operation entry point", () => {
 
 test("required completion hooks and bounded picker layout are wired", () => {
   for (const hook of [
-    "silph-co-choice-complete", "hidden-grotto-choice-complete", "bulletin-quests-confirmed",
-    "encounter-session-closed", "wheel-session-closed", "dragons-den-placement-complete"
+    "silph-co-choice-complete", "bulletin-quests-confirmed",
+    "wheel-session-closed", "dragons-den-placement-complete"
   ]) assert.match(appSource, new RegExp(hook));
   assert.match(appSource, /data-finish-action-operation/);
   assert.match(cssSource, /\.live-referee-picker-scroll\s*\{[^}]*min-height:\s*0;[^}]*overflow-y:\s*auto;/s);
   assert.match(cssSource, /\.live-referee-stage \.live-referee-tokens-screen\s*\{[^}]*overflow:\s*hidden;/s);
 });
 
-test("obtaining every Encounter result completes the linked Action operation", () => {
-  assert.match(appSource, /function encounterSessionReadyForAutomaticCompletion\(session\)/);
-  assert.match(appSource, /rolls\.every\(encounterRollWasObtained\)/);
-  assert.match(appSource, /function completeObtainedEncounterSession\(session/);
-  assert.match(appSource, /completeActionOperationForVisit\(visitId, completionReason, session\.series, session\.gym\)/);
-  assert.match(appSource, /completeObtainedEncounterSession\(session\);/);
-  assert.match(appSource, /completeObtainedEncounterSession\(encounterSession\);/);
-});
 
 test("backend mutation tracking acknowledges versions before full-state saves continue", () => {
   assert.match(appSource, /const payload = await response\.clone\(\)\.json\(\)\.catch\(\(\) => null\);/);
@@ -45,7 +37,7 @@ test("manual location completion uses the compact authoritative command", () => 
   assert.match(appSource, /operationId: operation\.id/);
 });
 
-test("phase advancement is blocked while a V1 Action operation is unresolved", () => {
+test("phase advancement is blocked while a current Action operation is unresolved", () => {
   assert.match(appSource, /function phaseAdvanceBlockedByActionOperation\(target = nextPhaseTarget\(\)\)/);
   assert.match(appSource, /const operation = currentActionOperation\(\)/);
   assert.match(appSource, /Finish or undo that Action before advancing phases\./);
@@ -80,23 +72,12 @@ test("Game Corner result resolutions stay attached to their parent undo", () => 
   assert.match(appSource, /entry\.type === "interaction-resolution" && linkedInteractionTitles\.has/);
 });
 
-test("Hidden Grotto supports direct type choice starts", () => {
-  assert.match(appSource, /async function startHiddenGrottoSession\(\{ chosenType = "" \} = \{\}\)/);
-  assert.match(appSource, /data-grotto-start-type/);
-  assert.match(appSource, /Direct Type Choice/);
-  assert.match(appSource, /status: directType \? "pokemon-choice" : "type-choice"/);
-  assert.match(cssSource, /\.grotto-type-direct-grid/);
-});
 
 test("accepted destination reservations continue into their exact local starter", () => {
   assert.match(appSource, /function matchingAcceptedActionDestination\(\{ playerId = "", locationId = "", serviceId = "" \} = \{\}\)/);
   assert.match(appSource, /function createLocationActionVisit[\s\S]*matchingAcceptedActionDestination\(\{ playerId: player\.id, locationId: location\.id, serviceId \}\)/);
   assert.match(appSource, /function createGameCornerActionSession[\s\S]*matchingAcceptedActionDestination\(\{ playerId: player\.id, locationId: location\.id, serviceId: service\.id \}\)/);
-  assert.match(appSource, /function startEncounterSession\(\{ skipConfirmCheck = false \} = \{\}\)/);
-  assert.match(appSource, /startEncounterSession\(\{ skipConfirmCheck: true \}\)/);
-  assert.match(appSource, /if \(!startEncounterSession\([\s\S]*throw new Error\("The Encounter location could not start\."\)/);
   assert.match(appSource, /async function persistStartedActionDestination\(\)/);
-  assert.match(appSource, /if \(location\?\.id === "encounter"\)[\s\S]*await persistStartedActionDestination\(\);[\s\S]*return;/);
   assert.match(appSource, /saveState\(\);[\s\S]*await persistStartedActionDestination\(\);[\s\S]*render\(\);/);
 });
 

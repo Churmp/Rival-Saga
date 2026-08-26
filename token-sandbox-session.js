@@ -38,8 +38,6 @@
     "wheelDrawerOpen",
     "selectedWheelSessionId",
     "skipWheelAnimation",
-    "encounterModalOpen",
-    "selectedEncounterSessionId",
     "randomPokemonDrawerOpen",
     "selectedRandomPokemonSessionId",
     "opponentDrawer"

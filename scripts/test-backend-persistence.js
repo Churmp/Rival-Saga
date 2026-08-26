@@ -117,40 +117,7 @@ fs.writeFileSync(path.join(gamesDir, `${manualCompletionGameId}.json`), JSON.str
   members: [],
   activity: []
 }));
-const activeOutgoingActionState = {
-  ...baseState,
-  currentPhase: "action",
-  actionPhaseState: {
-    selections: {
-      "Hoenn-G8": {
-        series: "Hoenn", gym: 8, selectedLocationId: "encounter",
-        playerVisits: { "player-1": [{
-          id: "encounter-visit-1", playerId: "player-1", locationId: "encounter",
-          locationName: "Encounter", serviceId: "encounter-wheel", actionCost: 1,
-          series: "Hoenn", gym: 8, phase: "action", actionOperationId: "encounter-operation-1",
-          actionOperationStatus: "resolving"
-        }] },
-        actionOperations: [{
-          id: "encounter-operation-1", visitId: "encounter-visit-1", playerId: "player-1",
-          actionNumber: 1, locationId: "encounter", serviceId: "encounter-wheel",
-          status: "resolving", linkedFeatureType: "encounter", linkedFeatureSessionId: "encounter-session-1"
-        }],
-        activeActionOperationId: "encounter-operation-1",
-        destinationCommit: {
-          id: "encounter-destination-1", requestId: "encounter-destination-1", status: "resolving",
-          playerId: "player-1", actionNumber: 1, locationId: "encounter",
-          serviceId: "encounter-wheel", operationId: "encounter-operation-1"
-        }
-      }
-    },
-    seriesTrackers: {}
-  },
-  encounterSessions: [{
-    id: "encounter-session-1", playerId: "player-1", series: "Hoenn", gym: 8,
-    actionVisitId: "encounter-visit-1", status: "review", rolls: [{ rosterPokemonId: "poke-1" }],
-    maxRolls: 1
-  }]
-};
+const activeOutgoingActionState = structuredClone(manualCompletionState);
 fs.writeFileSync(path.join(gamesDir, `${outgoingCompletionGameId}.json`), JSON.stringify({
   id: outgoingCompletionGameId,
   name: "Outgoing Action Completion Contract",
@@ -170,24 +137,11 @@ fs.writeFileSync(path.join(gamesDir, `${outgoingUndoGameId}.json`), JSON.stringi
   activity: []
 }));
 const acceptedActionStartState = {
-  ...baseState,
-  currentPhase: "action",
-  actionPhaseState: {
-    selections: {
-      "Hoenn-G8": {
-        series: "Hoenn", gym: 8, selectedLocationId: "",
-        playerVisits: { "player-1": [] },
-        actionOperations: [],
-        activeActionOperationId: "",
-        destinationCommit: {
-          id: "encounter-destination-starting", requestId: "encounter-destination-starting", status: "accepted",
-          playerId: "player-1", actionNumber: 1, locationId: "encounter",
-          serviceId: "encounter-wheel", operationId: "", acceptedAt: "2026-01-01T00:00:00.000Z"
-        }
-      }
-    },
-    seriesTrackers: {}
-  }
+  ...baseState, currentPhase: "action", departmentStoreVisits: [],
+  actionPhaseState: { selections: { "Hoenn-G8": {
+    series: "Hoenn", gym: 8, selectedLocationId: "", playerVisits: { "player-1": [] }, actionOperations: [], activeActionOperationId: "",
+    destinationCommit: { id: "department-store-destination-starting", requestId: "department-store-destination-starting", status: "accepted", playerId: "player-1", actionNumber: 1, locationId: "department-store", serviceId: "department-store-primary", operationId: "", acceptedAt: "2026-01-01T00:00:00.000Z" }
+  } }, seriesTrackers: {} }
 };
 fs.writeFileSync(path.join(gamesDir, `${acceptedStartGameId}.json`), JSON.stringify({
   id: acceptedStartGameId,
@@ -440,7 +394,7 @@ test("allows outgoing-gym Action completion while advancing to the next gym", as
   gymState.destinationCommit.status = "completed";
   gymState.destinationCommit.completedAt = "2026-01-01T00:05:00.000Z";
   gymState.playerVisits["player-1"][0].actionOperationStatus = "completed";
-  advancedState.encounterSessions[0].status = "completed";
+  advancedState.departmentStoreVisits[0].status = "completed";
   advancedState.series = "Hoenn";
   advancedState.gym = 9;
   advancedState.currentPhase = "start";
@@ -466,7 +420,7 @@ test("allows undo to clear the matching outgoing-gym Action destination", async 
   gymState.actionOperations = [];
   gymState.activeActionOperationId = "";
   gymState.destinationCommit = null;
-  undoneState.encounterSessions = [];
+  undoneState.departmentStoreVisits = [];
 
   const response = await fetch(`${origin}/api/games/${outgoingUndoGameId}/state`, {
     method: "PUT",
@@ -485,41 +439,19 @@ test("allows undo to clear the matching outgoing-gym Action destination", async 
 test("allows an accepted Action destination to start its matching operation", async () => {
   const startedState = structuredClone(acceptedActionStartState);
   const gymState = startedState.actionPhaseState.selections["Hoenn-G8"];
-  gymState.playerVisits["player-1"] = [{
-    id: "encounter-visit-starting", playerId: "player-1", locationId: "encounter",
-    locationName: "Encounter", serviceId: "encounter-wheel", actionCost: 1,
-    series: "Hoenn", gym: 8, phase: "action", actionOperationId: "encounter-operation-starting",
-    actionOperationStatus: "resolving"
-  }];
-  gymState.actionOperations = [{
-    id: "encounter-operation-starting", visitId: "encounter-visit-starting", playerId: "player-1",
-    actionNumber: 1, locationId: "encounter", serviceId: "encounter-wheel",
-    status: "resolving", linkedFeatureType: "encounter", linkedFeatureSessionId: "encounter-session-starting"
-  }];
-  gymState.activeActionOperationId = "encounter-operation-starting";
-  gymState.destinationCommit.status = "resolving";
-  gymState.destinationCommit.operationId = "encounter-operation-starting";
-  startedState.encounterSessions = [{
-    id: "encounter-session-starting", playerId: "player-1", series: "Hoenn", gym: 8,
-    actionVisitId: "encounter-visit-starting", actionVisitIds: ["encounter-visit-starting"],
-    status: "pending", rolls: [], maxRolls: 2
-  }];
-
-  const response = await fetch(`${origin}/api/games/${acceptedStartGameId}/state`, {
-    method: "PUT",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ clientId: "action-start-client", expectedVersion: 19, state: startedState })
-  });
-
-  assert.equal(response.status, 200);
-  const payload = await response.json();
-  assert.equal(payload.version, 20);
+  gymState.playerVisits["player-1"] = [{ id: "department-store-visit-starting", playerId: "player-1", locationId: "department-store", locationName: "Department Store", serviceId: "department-store-primary", actionCost: 1, series: "Hoenn", gym: 8, phase: "action", actionOperationId: "department-store-operation-starting", actionOperationStatus: "resolving" }];
+  gymState.actionOperations = [{ id: "department-store-operation-starting", visitId: "department-store-visit-starting", playerId: "player-1", actionNumber: 1, locationId: "department-store", serviceId: "department-store-primary", status: "resolving", linkedFeatureType: "department-store", linkedFeatureSessionId: "department-store-session-starting" }];
+  gymState.activeActionOperationId = "department-store-operation-starting";
+  gymState.destinationCommit.status = "resolving"; gymState.destinationCommit.operationId = "department-store-operation-starting";
+  startedState.departmentStoreVisits = [{ id: "department-store-session-starting", actionVisitId: "department-store-visit-starting", playerId: "player-1", series: "Hoenn", gym: 8, status: "active", clearanceProducts: [], normalPurchases: [] }];
+  const response = await fetch(`${origin}/api/games/${acceptedStartGameId}/state`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ clientId: "action-start-client", expectedVersion: 19, state: startedState }) });
+  assert.equal(response.status, 200); const payload = await response.json(); assert.equal(payload.version, 20);
   const stored = JSON.parse(fs.readFileSync(path.join(gamesDir, `${acceptedStartGameId}.json`), "utf8"));
   const storedGymState = stored.state.actionPhaseState.selections["Hoenn-G8"];
   assert.equal(storedGymState.destinationCommit.status, "resolving");
-  assert.equal(storedGymState.destinationCommit.operationId, "encounter-operation-starting");
+  assert.equal(storedGymState.destinationCommit.operationId, "department-store-operation-starting");
   assert.equal(storedGymState.actionOperations[0].status, "resolving");
-  assert.equal(stored.state.encounterSessions[0].id, "encounter-session-starting");
+  assert.equal(stored.state.departmentStoreVisits[0].id, "department-store-session-starting");
 });
 
 test("compacts legacy undo history on load and persists the compact response normally", async () => {

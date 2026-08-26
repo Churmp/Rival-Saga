@@ -7,7 +7,6 @@
 
   const SUPPORTED_GAME_SCHEMA_VERSION = 1;
   const ISOLATED_GAME_ID_PATTERN = /^(?:browser-smoke|codex-)/i;
-  const ACTION_PHASE_VERSION_V1 = "action-phase-v1-current-series";
   const ACTION_PHASE_VERSION_V2 = "action-phase-v2-real-series";
   const DEFAULT_ACTION_PHASE_VERSION = ACTION_PHASE_VERSION_V2;
 
@@ -44,15 +43,8 @@
     return text(record.phase || state.currentPhase || keyedPhase.currentPhase || state.phase, "start");
   }
 
-  function actionPhaseVersion(record = {}) {
-    const state = isObject(record.state) ? record.state : {};
-    const candidate = record.actionPhaseVersion
-      || record.ruleset?.actionPhaseVersion
-      || state.ruleset?.actionPhaseVersion
-      || state.actionPhaseVersion;
-    if (candidate === ACTION_PHASE_VERSION_V1) return ACTION_PHASE_VERSION_V1;
-    if (candidate === ACTION_PHASE_VERSION_V2) return ACTION_PHASE_VERSION_V2;
-    return isObject(record.state) ? ACTION_PHASE_VERSION_V1 : DEFAULT_ACTION_PHASE_VERSION;
+  function actionPhaseVersion() {
+    return DEFAULT_ACTION_PHASE_VERSION;
   }
 
   function normalizedMembers(record = {}) {

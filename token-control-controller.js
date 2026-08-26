@@ -70,7 +70,6 @@
     state.copiedActivations ||= [];
     state.copiedTokenRelationships ||= [];
     state.privateEffectRecords ||= [];
-    state.encounterCopyRecords ||= [];
     state.postPayoutProcedures ||= [];
     return state;
   }

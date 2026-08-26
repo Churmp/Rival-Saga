@@ -123,8 +123,8 @@ test("[PD-RUNTIME-005] destination commitment wins atomically and closes Control
     commitId: "destination-1",
     playerId: "austin",
     actionNumber: 1,
-    locationId: "encounter",
-    serviceId: "encounter-roll"
+    locationId: "department-store",
+    serviceId: "department-store-primary"
   }, undefined, { actionsPerPlayer: 3, isBlocking: lifecycle.isBlocking });
   assert.equal(reserved.ok, true);
   assert.equal(timing(state).open, false);
@@ -143,7 +143,7 @@ test("[PD-RUNTIME-006] an active location operation keeps Control closed and com
   const gymState = runtime.actionGymState(state);
   gymState.destinationCommit = {
     id: "destination-1", status: runtime.DESTINATION_STATES.RESOLVING,
-    playerId: "austin", actionNumber: 1, locationId: "encounter", serviceId: "encounter-roll", operationId: "operation-1"
+    playerId: "austin", actionNumber: 1, locationId: "department-store", serviceId: "department-store-primary", operationId: "operation-1"
   };
   gymState.actionOperations.push({ id: "operation-1", playerId: "austin", actionNumber: 1, status: "resolving" });
   gymState.activeActionOperationId = "operation-1";
@@ -160,7 +160,7 @@ test("[PD-RUNTIME-007] only an unstarted destination may be released", () => {
   const state = actionState();
   runtime.reserveDestination(state, {
     requestId: "destination-1", commitId: "destination-1", playerId: "austin", actionNumber: 1,
-    locationId: "pc", serviceId: "pc-service"
+    locationId: "department-store", serviceId: "department-store-primary"
   }, undefined, { actionsPerPlayer: 3, isBlocking: lifecycle.isBlocking });
   const released = runtime.releaseDestination(state, "destination-1");
   assert.equal(released.ok, true);
@@ -170,7 +170,7 @@ test("[PD-RUNTIME-007] only an unstarted destination may be released", () => {
   const second = actionState();
   runtime.reserveDestination(second, {
     requestId: "destination-2", commitId: "destination-2", playerId: "austin", actionNumber: 1,
-    locationId: "pc", serviceId: "pc-service"
+    locationId: "department-store", serviceId: "department-store-primary"
   }, undefined, { actionsPerPlayer: 3, isBlocking: lifecycle.isBlocking });
   runtime.actionGymState(second).destinationCommit.status = runtime.DESTINATION_STATES.RESOLVING;
   runtime.actionGymState(second).destinationCommit.operationId = "operation-2";
