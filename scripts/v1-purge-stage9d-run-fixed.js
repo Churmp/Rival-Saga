@@ -25,6 +25,21 @@ if ((source.split(broadPresetAnchor).length - 1) !== 1) {
 }
 source = source.replace(broadPresetAnchor, scopedPresetAnchor);
 
+const browserLine = '  runNode(["--test", "scripts/test-v2-route-runtime-sequences.js"]);\n';
+if ((source.split(browserLine).length - 1) !== 1) {
+  console.error("Stage 9D fixed runner failed safely: browser-test line was not found exactly once.");
+  process.exit(1);
+}
+source = source.replace(browserLine, "");
+
+const wrongEngine = '  runNode(["--test", "scripts/test-v2-route-engine.js"]);';
+const correctEngine = '  runNode(["--test", "versions/next-action-phase/tests/test-route-encounter-engine.js"]);';
+if ((source.split(wrongEngine).length - 1) !== 1) {
+  console.error("Stage 9D fixed runner failed safely: incorrect Route-engine test line was not found exactly once.");
+  process.exit(1);
+}
+source = source.replace(wrongEngine, correctEngine);
+
 const runner = new Module(SCRIPT_PATH, module);
 runner.filename = SCRIPT_PATH;
 runner.paths = Module._nodeModulePaths(path.dirname(SCRIPT_PATH));
