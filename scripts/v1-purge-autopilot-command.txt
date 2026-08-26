@@ -1,2 +1,2 @@
 scripts/v1-purge-stage10b-verify-focused.js
-# focused-read-only-verification-after-cc24786
+# focused-read-only-verification-after-cc24786-diagnostics
