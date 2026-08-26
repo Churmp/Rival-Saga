@@ -36,6 +36,7 @@
     "test:sabotage-flow": "node --test scripts/test-sabotage-effect-flow.js",
     "test:action-operations": "node --test scripts/test-action-operation-contract.js",
     "test:action-workspace": "node --test scripts/test-action-phase-workspace.js",
+    "test:runtime-boundary": "node --test scripts/test-current-runtime-boundary.js",
     "test:v2-route-browser": "node --test scripts/test-v2-route-browser-mount.js",
     "test:v2-route-runtime": "node --test scripts/test-v2-route-runtime-sequences.js",
     "test:v2-routes": "node --test versions/next-action-phase/tests/test-route-encounter-engine.js",
