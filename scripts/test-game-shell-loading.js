@@ -44,7 +44,11 @@ test.before(async () => {
 });
 
 test.after(async () => {
-  await new Promise((resolve) => server.close(resolve));
+  await new Promise((resolve, reject) => {
+    server.close((error) => error ? reject(error) : resolve());
+    server.closeIdleConnections?.();
+    server.closeAllConnections?.();
+  });
   fs.rmSync(tempRoot, { recursive: true, force: true });
 });
 
