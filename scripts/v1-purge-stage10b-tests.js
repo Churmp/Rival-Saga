@@ -20,10 +20,9 @@ module.exports = function tests(c){
   s=rmTest(s,"[BROWSER-010] Extra Encounter persists one normal Encounter session and undo restores the exact pre-use state");
   s=rep(s,'test("[BROWSER-028] production Reroll supersedes one exact encounter result through refresh and causal undo", async () => {','test("[BROWSER-028] production Reroll supersedes one exact Pokemon result through refresh and causal undo", async () => {',"Reroll title");
   s=line(s,'  productionState.encounterSessions = [{ id: "browser-028-encounter", status: "review", playerId: "gold", series: "Kanto", gym: 1, rolls: [], removedEntryIds: [] }];',1);
-  s=rep(s,'sourceType: "encounter", sourceLabel: "Encounter Wheel",','sourceType: "pokemon-result", sourceLabel: "Pokemon Result",',"Reroll source");
+  s=reps(s,'sourceType: "encounter", sourceLabel: "Encounter Wheel"','sourceType: "pokemon-result", sourceLabel: "Pokemon Result"',3,"shared Pokemon result sources");
   s=rep(s,' encounterSessionId: "browser-028-encounter",','',"Reroll session link");
   s=rep(s,'state.tokenConsumptions.filter((entry) => entry.source === "encounter-reroll").length','state.tokenConsumptions.filter((entry) => entry.source === "pokemon-reroll").length',"Reroll consumption");
-  s=reps(s,'sourceType: "encounter", sourceLabel: "Encounter Wheel"','sourceType: "pokemon-result", sourceLabel: "Pokemon Result"',2,"Honey sources");
   absent(s,["encounterSessions","selectedEncounterSessionId","encounterModalOpen",'sourceType: "encounter"','"encounter-reroll"',"Encounter Wheel"],"browser fixtures"); edits.set("scripts/test-token-browser.js",s);
 
   s=read("scripts/test-backend-persistence.js");
