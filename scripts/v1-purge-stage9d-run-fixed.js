@@ -17,6 +17,14 @@ if (count !== 1) {
 }
 source = source.replace(bad, fixed);
 
+const broadPresetAnchor = '    mustCount(app, marker, 1, "admin Encounter preset");\n    const start = app.indexOf(marker);';
+const scopedPresetAnchor = '    const presetsAnchor = "  const presets = {";\n    mustCount(app, presetsAnchor, 1, "admin preset collection");\n    const presetsStart = app.indexOf(presetsAnchor);\n    const start = app.indexOf(marker, presetsStart);\n    if (start < 0) throw new Error("Admin Encounter preset was not found inside the preset collection.");';
+if ((source.split(broadPresetAnchor).length - 1) !== 1) {
+  console.error("Stage 9D fixed runner failed safely: broad admin preset anchor was not found exactly once.");
+  process.exit(1);
+}
+source = source.replace(broadPresetAnchor, scopedPresetAnchor);
+
 const runner = new Module(SCRIPT_PATH, module);
 runner.filename = SCRIPT_PATH;
 runner.paths = Module._nodeModulePaths(path.dirname(SCRIPT_PATH));
