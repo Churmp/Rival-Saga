@@ -59,7 +59,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          CHROME="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser || true)"
+          if [ -x /opt/google/chrome/chrome ]; then
+            CHROME=/opt/google/chrome/chrome
+          else
+            CHROME="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser || true)"
+          fi
           if [ -z "$CHROME" ]; then
             echo "No Chromium executable is installed on this runner." >&2
             exit 1
@@ -80,6 +84,10 @@ jobs:
           test -x "$SHIM_BIN/$WIN_CHROME"
           test -e "$WIN_CHROME"
           echo "$SHIM_BIN" >> "$GITHUB_PATH"
+
+          # Warm the runner's cold Chromium install before tests enforce their 10s CDP startup deadline.
+          "$CHROME" --headless=new --no-sandbox --disable-dev-shm-usage --disable-gpu --dump-dom about:blank >/dev/null 2>>/tmp/rival-saga-chromium.log || true
+          : > /tmp/rival-saga-chromium.log
           echo "Chromium QA shim -> $CHROME"
 
       - name: Run requested fail-closed purge stage
