@@ -1,68 +1,72 @@
-name: Diagnose Route Runtime Boot
+name: Apply Game Corner Runtime Repair
 
 on:
   push:
     branches:
       - audit/purge-v1-runtime
 
+permissions:
+  contents: write
+
 jobs:
-  diagnose-boot:
+  repair-game-corner:
     runs-on: ubuntu-latest
     timeout-minutes: 3
     steps:
       - name: Check out branch
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Add temporary browser diagnostics
+      - name: Apply minimal Game Corner repair
         shell: bash
         run: |
           node <<'NODE'
           const fs = require('fs');
-          const file = 'scripts/test-v2-route-runtime-sequences.js';
-          let text = fs.readFileSync(file, 'utf8');
-          const readiness = 'typeof state !== "undefined" && typeof v2EnsureRouteSeriesState === "function" && state.marker === ${JSON.stringify(marker)}';
-          const guarded = '(() => { try { return typeof v2EnsureRouteSeriesState === "function" && state.marker === ${JSON.stringify(marker)}; } catch { return false; } })()';
-          const readinessCount = text.split(readiness).length - 1;
-          if (readinessCount !== 2) throw new Error(`Expected 2 readiness expressions, found ${readinessCount}.`);
-          text = text.split(readiness).join(guarded);
-          const enableBlock = `  await Promise.all([\n    cdp.send("Page.enable"),\n    cdp.send("Runtime.enable")\n  ]);`;
-          const diagnosticBlock = `${enableBlock}\n  cdp.on("Runtime.exceptionThrown", (params) => {\n    const details = params?.exceptionDetails || {};\n    const description = details.exception?.description || details.text || JSON.stringify(details);\n    console.error("BROWSER_EXCEPTION", description);\n  });`;
-          if ((text.split(enableBlock).length - 1) !== 1) throw new Error('Runtime enable block was not unique.');
-          text = text.replace(enableBlock, diagnosticBlock);
-          text = text.replace('async function waitUntil(expression, timeoutMs = 30000) {', 'async function waitUntil(expression, timeoutMs = 30000) {\n  timeoutMs = Math.min(timeoutMs, 15000);');
-          fs.writeFileSync(file, text);
+
+          const appFile = 'app.js';
+          let app = fs.readFileSync(appFile, 'utf8');
+          const wheelAnchor = 'const wheelDefinitions = {';
+          const oldOutcomes = 'outcomes: globalThis.rivalSagaActionPhaseBalance.SLOT_MACHINE_RESULTS.map((result) => ({';
+          const newOutcomes = 'outcomes: GAME_CORNER_SLOT_RESULTS.map((result) => ({';
+          const slotResults = `const GAME_CORNER_SLOT_RESULTS = Object.freeze([\n  { id: "nothing", label: "Better Luck Next Time", weight: 20, rewardTier: "" },\n  { id: "safari", label: "Safari Ticket", weight: 30, rewardTier: "safari" },\n  { id: "poke", label: "Poké Ticket", weight: 25, rewardTier: "poke" },\n  { id: "great", label: "Great Ticket", weight: 15, rewardTier: "great" },\n  { id: "ultra", label: "Ultra Ticket", weight: 7, rewardTier: "ultra" },\n  { id: "master", label: "Master Ticket", weight: 3, rewardTier: "master" }\n]);\n\n`;
+
+          const wheelAnchorCount = app.split(wheelAnchor).length - 1;
+          const oldOutcomesCount = app.split(oldOutcomes).length - 1;
+          if (wheelAnchorCount !== 1) throw new Error(`Expected exactly one wheelDefinitions anchor, found ${wheelAnchorCount}.`);
+          if (oldOutcomesCount !== 1) throw new Error(`Expected exactly one deleted balance dependency, found ${oldOutcomesCount}.`);
+          if (app.includes('const GAME_CORNER_SLOT_RESULTS =')) throw new Error('GAME_CORNER_SLOT_RESULTS already exists.');
+
+          app = app.replace(wheelAnchor, `${slotResults}${wheelAnchor}`);
+          app = app.replace(oldOutcomes, newOutcomes);
+          if (app.includes('globalThis.rivalSagaActionPhaseBalance')) throw new Error('Retired action-phase balance global still referenced by app.js.');
+          fs.writeFileSync(appFile, app);
+
+          const indexFile = 'index.html';
+          let index = fs.readFileSync(indexFile, 'utf8');
+          const oldBalanceScript = '    <script defer src="action-phase-balance.js?v=1"></script>\n';
+          const oldAppScript = '    <script defer src="app.js?v=458"></script>';
+          const newAppScript = '    <script defer src="app.js?v=459"></script>';
+          if ((index.split(oldBalanceScript).length - 1) !== 1) throw new Error('Expected exactly one action-phase-balance script tag.');
+          if ((index.split(oldAppScript).length - 1) !== 1) throw new Error('Expected app.js?v=458 exactly once.');
+          index = index.replace(oldBalanceScript, '');
+          index = index.replace(oldAppScript, newAppScript);
+          if (index.includes('action-phase-balance.js')) throw new Error('Dead action-phase-balance script include survived.');
+          fs.writeFileSync(indexFile, index);
           NODE
-          node --check scripts/test-v2-route-runtime-sequences.js
-      - name: Bridge Chromium
+          node --check app.js
+          git diff --check
+      - name: Restore diagnostic workflow and commit repair
         shell: bash
         run: |
-          set -euo pipefail
-          CHROME="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser || true)"
-          test -n "$CHROME"
-          WIN_CHROME='C:\Program Files\Google\Chrome\Application\chrome.exe'
-          SHIM_BIN="$RUNNER_TEMP/runtime-verify-bin"
-          mkdir -p "$SHIM_BIN"
-          cat > "$SHIM_BIN/$WIN_CHROME" <<EOF
-          #!/usr/bin/env bash
-          exec "$CHROME" --disable-dev-shm-usage "\$@" 2>>/tmp/rival-saga-chromium.log
-          EOF
-          chmod +x "$SHIM_BIN/$WIN_CHROME"
-          printf '%s\n' 'C:*chrome.exe' >> .git/info/exclude
-          ln -sf "$SHIM_BIN/$WIN_CHROME" "$WIN_CHROME"
-          echo "$SHIM_BIN" >> "$GITHUB_PATH"
-      - name: Diagnose first Route runtime scenario
-        shell: bash
-        run: |
-          set +e
-          timeout 45s node --test --test-name-pattern='V2 normal Route Action persists and remains exactly once through reload' scripts/test-v2-route-runtime-sequences.js
-          code=$?
-          echo "route_test_exit=$code"
-          if [ -s /tmp/rival-saga-chromium.log ]; then
-            echo '--- Chromium tail ---'
-            tail -n 60 /tmp/rival-saga-chromium.log
-            echo '--- end Chromium tail ---'
-          fi
-          exit "$code"
+          git show HEAD^:.github/workflows/final-runtime-verification.yml > .github/workflows/final-runtime-verification.yml
+          git diff --check
+          git diff -- app.js index.html .github/workflows/final-runtime-verification.yml
+          git config user.name "Rival Saga Verification Bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add app.js index.html .github/workflows/final-runtime-verification.yml
+          git commit -m "Keep Game Corner slot results in current runtime [skip ci]"
+          git push origin HEAD:audit/purge-v1-runtime
