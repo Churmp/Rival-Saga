@@ -1,10 +1,12 @@
 #!/usr/bin/env node
 "use strict";
 
+const fs = require("node:fs");
 const path = require("node:path");
 const { spawnSync } = require("node:child_process");
 
 const ROOT = path.resolve(__dirname, "..");
+const OUTPUT_TAIL_LINES = 35;
 const TESTS = [
   { file: "scripts/test-action-operation-contract.js", timeout: 180000 },
   { file: "scripts/test-backend-persistence.js", timeout: 180000 },
@@ -17,34 +19,83 @@ const TESTS = [
   { file: "versions/next-action-phase/tests/test-route-encounter-engine.js", timeout: 180000 },
 ];
 
-const failures = [];
+function outputTail(result) {
+  const text = [result.stdout, result.stderr]
+    .filter(Boolean)
+    .join("\n")
+    .trim();
+  if (!text) return "(no captured output)";
+  return text.split(/\r?\n/).slice(-OUTPUT_TAIL_LINES).join("\n");
+}
+
+const results = [];
 for (const { file, timeout } of TESTS) {
   console.log(`\n=== VERIFY ${file} ===`);
+  const startedAt = Date.now();
   const result = spawnSync(process.execPath, ["--test", file], {
     cwd: ROOT,
-    stdio: "inherit",
     env: process.env,
+    encoding: "utf8",
     timeout,
+    maxBuffer: 20 * 1024 * 1024,
   });
+  const durationMs = Date.now() - startedAt;
 
+  let status = "PASS";
+  let reason = "";
   if (result.error?.code === "ETIMEDOUT" || result.signal) {
-    const reason = result.error?.code === "ETIMEDOUT" ? "timeout" : `signal ${result.signal}`;
-    console.error(`VERIFY TIMEOUT ${file}: ${reason}`);
-    failures.push(`${file}: ${reason}`);
-    continue;
+    status = "TIMEOUT";
+    reason = result.error?.code === "ETIMEDOUT" ? "timeout" : `signal ${result.signal}`;
+  } else if (result.error) {
+    status = "ERROR";
+    reason = result.error.message || String(result.error);
+  } else if (result.status !== 0) {
+    status = "FAIL";
+    reason = `exit ${result.status}`;
   }
-  if (result.status !== 0) {
-    console.error(`VERIFY FAIL ${file}: exit ${result.status}`);
-    failures.push(`${file}: exit ${result.status}`);
-    continue;
+
+  const diagnostic = status === "PASS" ? "" : outputTail(result);
+  results.push({ file, status, reason, durationMs, diagnostic });
+
+  const seconds = (durationMs / 1000).toFixed(1);
+  if (status === "PASS") {
+    console.log(`VERIFY PASS ${file} (${seconds}s)`);
+  } else {
+    console.error(`VERIFY ${status} ${file}: ${reason} (${seconds}s)`);
+    console.error("--- diagnostic tail ---");
+    console.error(diagnostic);
+    console.error("--- end diagnostic tail ---");
   }
-  console.log(`VERIFY PASS ${file}`);
 }
 
+const failures = results.filter((result) => result.status !== "PASS");
 console.log("\n=== Stage 10B focused verification summary ===");
-if (failures.length) {
-  for (const failure of failures) console.error(`FAIL ${failure}`);
-  process.exitCode = 1;
-} else {
-  console.log(`PASS ${TESTS.length}/${TESTS.length} focused tests.`);
+for (const result of results) {
+  const seconds = (result.durationMs / 1000).toFixed(1);
+  const suffix = result.reason ? ` — ${result.reason}` : "";
+  const line = `${result.status.padEnd(7)} ${result.file} (${seconds}s)${suffix}`;
+  if (result.status === "PASS") console.log(line);
+  else console.error(line);
 }
+console.log(`${results.length - failures.length}/${results.length} focused tests passed.`);
+
+if (process.env.GITHUB_STEP_SUMMARY) {
+  const rows = results.map((result) => {
+    const seconds = (result.durationMs / 1000).toFixed(1);
+    const detail = result.reason ? result.reason.replace(/\|/g, "\\|") : "—";
+    return `| ${result.status} | \`${result.file}\` | ${seconds}s | ${detail} |`;
+  });
+  const markdown = [
+    "## Stage 10B focused verification",
+    "",
+    "| Result | Test | Duration | Detail |",
+    "| --- | --- | ---: | --- |",
+    ...rows,
+    "",
+    `**${results.length - failures.length}/${results.length} focused tests passed.**`,
+    "",
+  ].join("\n");
+  fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, markdown, "utf8");
+}
+
+if (failures.length) process.exitCode = 1;
