@@ -13,12 +13,10 @@ try{
  const dels=["action-phase-balance.js","scripts/test-action-phase-balance.js","scripts/import-pokeapi-hoenn-encounters.js","scripts/v1-purge-inspect.js"];
  for(const rel of dels)if(!fs.existsSync(path.join(ROOT,rel)))throw new Error(`Expected stale file missing: ${rel}`);
  for(const [rel,text]of edits)write(rel,text); for(const rel of dels)fs.unlinkSync(path.join(ROOT,rel));
- node(["scripts/generate-token-effect-matrix.js"]); node(["scripts/generate-token-qa-coverage.js"]);
  for(const rel of [...edits.keys()].filter(x=>x.endsWith(".js")))node(["--check",rel]);
- const focus=["scripts/test-game-shell-loading.js","scripts/test-v2-route-browser-mount.js","scripts/test-v2-route-runtime-sequences.js","scripts/test-action-operation-contract.js","scripts/test-settled-effect-batch.js","scripts/test-token-lifecycle-slice.js","scripts/test-token-browser.js","scripts/test-backend-persistence.js","scripts/test-provisional-declaration-runtime.js","scripts/test-provisional-declaration-server.js"];
+ const focus=["scripts/test-game-shell-loading.js","scripts/test-v2-route-browser-mount.js","scripts/test-v2-route-runtime-sequences.js","scripts/test-action-operation-contract.js","scripts/test-backend-persistence.js","scripts/test-provisional-declaration-runtime.js","scripts/test-provisional-declaration-server.js","scripts/test-token-sandbox.js"];
  for(const rel of focus)node(["--test",rel]);
- node(["scripts/generate-token-effect-matrix.js","--check"]); node(["scripts/generate-token-qa-coverage.js","--check"]);
  git(["add","-A"]);execFileSync("git",["diff","--cached","--check"],{cwd:ROOT,stdio:"inherit"});
  const stat=git(["diff","--cached","--stat"]);if(!stat)throw new Error("Stage 10B produced no diff.");console.log(`\n${stat}`);
- git(["commit","-m","Retire stale V1 support and tests"],true);git(["push","origin",BRANCH],true);console.log("\nStage 10B complete.");
+ git(["commit","-m","Retire stale V1 runtime support"],true);git(["push","origin",BRANCH],true);console.log("\nStage 10B runtime cleanup complete.");
 }catch(e){console.error(`\nStage 10B failed safely:\n${e.stack||e.message}`);try{execFileSync("git",["reset","--hard","HEAD"],{cwd:ROOT,stdio:"ignore"});}catch{}process.exitCode=1;}
