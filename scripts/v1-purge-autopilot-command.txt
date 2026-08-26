@@ -1,2 +1,2 @@
-scripts/v1-purge-stage9d-normalize-live-pokemon-results.js
-run=17
+scripts/v1-purge-stage9d-run-fixed.js
+run=18
