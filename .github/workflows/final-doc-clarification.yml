@@ -1,0 +1,40 @@
+name: Clarify Final V1 Purge Documentation
+
+on:
+  push:
+    branches:
+      - audit/purge-v1-runtime
+
+permissions:
+  contents: write
+
+jobs:
+  clarify-doc:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out branch
+        uses: actions/checkout@v4
+      - name: Clarify removed test wording
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const file = 'IMPLEMENTATION_STATUS.md';
+          let text = fs.readFileSync(file, 'utf8');
+          const from = 'The retired V1 Action-balance suite was removed with its runtime.';
+          const to = 'The stale V1-specific Action-balance test suite was removed; the shared `action-phase-balance.js` module remains current infrastructure for surviving Action services.';
+          const count = text.split(from).length - 1;
+          if (count !== 1) throw new Error(`Expected exactly one target sentence, found ${count}.`);
+          text = text.replace(from, to);
+          fs.writeFileSync(file, text);
+          NODE
+          git diff --check
+          git diff -- IMPLEMENTATION_STATUS.md
+      - name: Commit documentation clarification
+        shell: bash
+        run: |
+          git config user.name "Rival Saga Verification Bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add IMPLEMENTATION_STATUS.md
+          git commit -m "Clarify current Action balance infrastructure [skip ci]"
+          git push origin HEAD:audit/purge-v1-runtime
