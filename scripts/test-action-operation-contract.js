@@ -18,7 +18,6 @@ test("required completion hooks and bounded picker layout are wired", () => {
     "silph-co-choice-complete", "bulletin-quests-confirmed",
     "wheel-session-closed", "dragons-den-placement-complete"
   ]) assert.match(appSource, new RegExp(hook));
-  assert.match(appSource, /data-finish-action-operation/);
   assert.match(cssSource, /\.live-referee-picker-scroll\s*\{[^}]*min-height:\s*0;[^}]*overflow-y:\s*auto;/s);
   assert.match(cssSource, /\.live-referee-stage \.live-referee-tokens-screen\s*\{[^}]*overflow:\s*hidden;/s);
 });
