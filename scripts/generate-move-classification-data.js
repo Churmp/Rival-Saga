@@ -5,27 +5,18 @@ const shopData = require("../shop-data.js");
 const rules = require("../move-classification-rules.js");
 
 const rootDir = path.resolve(__dirname, "..");
-const pokemonCacheDir = path.join(__dirname, ".pokeapi-cache", "pokemon");
 const outputPath = path.join(rootDir, "move-classification-data.js");
 
 function moveKey(value) {
   return String(value || "").toLowerCase().replace(/[^a-z0-9]+/g, "");
 }
 
-function pokemonCachePath(pokemonKey) {
-  return path.join(pokemonCacheDir, `${pokemonKey}.json`);
-}
-
-function compatibilityGroupForPokemon(pokemonKey, pokemon, missingCacheKeys) {
-  const cacheKey = String(pokemon?.pokeapiKey || pokemonKey || "").trim();
-  const cachePath = pokemonCachePath(cacheKey);
-  if (cacheKey && fs.existsSync(cachePath)) {
-    const raw = JSON.parse(fs.readFileSync(cachePath, "utf8"));
-    const speciesKey = String(raw.species?.name || "").trim();
-    if (speciesKey) return speciesKey;
+function compatibilityGroupForPokemon(pokemonKey, pokemon) {
+  const familyChainId = pokemon?.familyChainId;
+  if (familyChainId === undefined || familyChainId === null || String(familyChainId).trim() === "") {
+    throw new Error(`Missing familyChainId for ${pokemonKey}; cannot classify Natural move compatibility safely.`);
   }
-  missingCacheKeys.add(cacheKey || pokemonKey);
-  return String(pokemon?.inheritsMovesFrom || cacheKey || pokemonKey).trim();
+  return String(familyChainId);
 }
 
 function buildClassification() {
@@ -33,11 +24,11 @@ function buildClassification() {
     ...rules.singlesExcludedMoves,
     ...rules.removedMoves
   ].map(moveKey));
-  const missingCacheKeys = new Set();
+  const manualNaturalMoveKeys = new Set((rules.manualNaturalMoves || []).map(moveKey));
   const byMove = new Map();
 
   Object.entries(buildData.pokemon || {}).forEach(([pokemonKey, pokemon]) => {
-    const compatibilityGroup = compatibilityGroupForPokemon(pokemonKey, pokemon, missingCacheKeys);
+    const compatibilityGroup = compatibilityGroupForPokemon(pokemonKey, pokemon);
     const pokemonName = String(pokemon.displayName || pokemon.name || pokemon.pokeapiKey || pokemonKey).trim();
     const details = Array.isArray(pokemon.tmMoveDetails) && pokemon.tmMoveDetails.length
       ? pokemon.tmMoveDetails
@@ -61,22 +52,22 @@ function buildClassification() {
     });
   });
 
-  if (missingCacheKeys.size) {
-    console.warn(`Move classification used fallback form groups for ${missingCacheKeys.size} Pokemon cache entries.`);
-  }
-
   const naturalizedRareTmMoves = [...byMove.values()]
     .filter((entry) => entry.compatibilityGroups.size > 0
-      && entry.compatibilityGroups.size <= rules.rareTmNaturalCompatibilityMax)
+      && (entry.compatibilityGroups.size <= rules.rareTmNaturalCompatibilityMax
+        || manualNaturalMoveKeys.has(moveKey(entry.name))))
     .map((entry) => ({
       name: entry.name,
       compatiblePokemonCount: entry.pokemon.size,
       compatibilityGroupCount: entry.compatibilityGroups.size,
-      compatibilityGroups: [...entry.compatibilityGroups].sort(),
+      compatibilityGroups: [...entry.compatibilityGroups]
+        .sort((a, b) => Number(a) - Number(b) || a.localeCompare(b)),
       pokemon: [...entry.pokemon.entries()]
         .map(([key, name]) => ({ key, name }))
         .sort((a, b) => a.name.localeCompare(b.name) || a.key.localeCompare(b.key)),
-      formerLearnMethods: [...entry.formerLearnMethods].sort()
+      formerLearnMethods: [...entry.formerLearnMethods].sort(),
+      manualNaturalException: manualNaturalMoveKeys.has(moveKey(entry.name))
+        && entry.compatibilityGroups.size > rules.rareTmNaturalCompatibilityMax
     }))
     .sort((a, b) => a.name.localeCompare(b.name));
 
@@ -88,8 +79,9 @@ function buildClassification() {
     .sort((a, b) => a.localeCompare(b));
 
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     rareTmNaturalCompatibilityMax: rules.rareTmNaturalCompatibilityMax,
+    manualNaturalMoves: [...(rules.manualNaturalMoves || [])],
     singlesExcludedMoves: [...rules.singlesExcludedMoves],
     removedMoves: [...rules.removedMoves],
     naturalizedRareTmMoves,
