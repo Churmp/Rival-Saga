@@ -1,5 +1,8 @@
 const rivalSagaMoveClassificationRules = Object.freeze({
   rareTmNaturalCompatibilityMax: 5,
+  manualNaturalMoves: Object.freeze([
+    "Ice Shard"
+  ]),
   removedMoves: Object.freeze([
     "Embargo",
     "Hail"
