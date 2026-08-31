@@ -1,32 +1,37 @@
 .v2-action-destination-shell{
-  width:min(96vw,1840px)!important;
+  width:min(97vw,1880px)!important;
   max-width:none!important;
-  margin:14px auto 8px!important;
-  padding:0 12px 8px!important;
+  margin:0 auto!important;
+  padding:0!important;
 }
 .v2-action-destination-grid{
   display:grid!important;
   grid-template-columns:repeat(10,minmax(0,1fr))!important;
-  grid-template-rows:repeat(2,40px)!important;
+  grid-template-rows:repeat(2,34px)!important;
   column-gap:4px!important;
-  row-gap:5px!important;
+  row-gap:3px!important;
   width:100%!important;
 }
 .v2-action-destination-card,
 .v2-action-destination-tab,
 .v2-action-destination-option{
-  height:40px!important;
-  min-height:40px!important;
-  padding:0 clamp(14px,1.2vw,24px)!important;
+  height:34px!important;
+  min-height:34px!important;
+  padding:0 clamp(13px,1.15vw,23px)!important;
   margin:0!important;
   border:0!important;
   border-radius:0!important;
   display:flex!important;
   align-items:center!important;
-  gap:10px!important;
-  clip-path:polygon(7% 0,100% 0,93% 100%,0 100%)!important;
+  gap:9px!important;
+  clip-path:polygon(6% 0,100% 0,94% 100%,0 100%)!important;
   transform:none!important;
-  transition:background-color .12s ease,border-color .12s ease,color .12s ease!important;
+  transition:background-color .12s ease,border-color .12s ease,color .12s ease,filter .12s ease!important;
+}
+.v2-action-destination-card:hover,
+.v2-action-destination-tab:hover,
+.v2-action-destination-option:hover{
+  transform:none!important;
 }
 .v2-action-destination-card:nth-child(1),.v2-action-destination-tab:nth-child(1),.v2-action-destination-option:nth-child(1){grid-row:1!important;grid-column:2/span 2!important}
 .v2-action-destination-card:nth-child(2),.v2-action-destination-tab:nth-child(2),.v2-action-destination-option:nth-child(2){grid-row:1!important;grid-column:4/span 2!important}
