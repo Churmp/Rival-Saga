@@ -1,0 +1,98 @@
+:root{
+  --v2-action-shell-max:1880px;
+  --v2-action-shell-width:97vw;
+  --v2-action-shell-top-gap:12px;
+  --v2-action-shell-stage-gap:8px;
+  --v2-action-art-brightness:1.08;
+  --v2-action-art-saturation:1.04;
+}
+
+/*
+  Canonical V2 Action Phase composition.
+  Below the global game header there are only two primary visual regions:
+  the approved Action Destination bar and the active destination stage.
+*/
+.v2-action-phase-screen{
+  height:calc(100dvh - var(--game-shell-header-height,52px));
+  min-height:0;
+  padding:var(--v2-action-shell-top-gap) 1.5vw 12px;
+  display:flex;
+  flex-direction:column;
+  gap:var(--v2-action-shell-stage-gap);
+  overflow:hidden;
+}
+
+.v2-action-phase-screen > .v2-action-destination-shell,
+.v2-action-phase-screen > .v2-action-destination-stage{
+  width:min(var(--v2-action-shell-width),var(--v2-action-shell-max));
+  max-width:none;
+  margin-inline:auto;
+}
+
+.v2-action-phase-screen > .v2-action-destination-shell{
+  flex:0 0 auto;
+  margin-top:0;
+  margin-bottom:0;
+}
+
+.v2-action-destination-stage{
+  position:relative;
+  flex:1 1 auto;
+  min-height:min(650px,calc(100dvh - 175px));
+  overflow:hidden;
+  isolation:isolate;
+}
+
+/*
+  Each landing supplies --v2-action-destination-art and may override
+  --v2-action-destination-art-position to protect its focal point.
+*/
+.v2-action-destination-stage::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  background-image:var(--v2-action-destination-art);
+  background-size:cover;
+  background-position:var(--v2-action-destination-art-position,62% center);
+  background-repeat:no-repeat;
+  filter:brightness(var(--v2-action-art-brightness)) saturate(var(--v2-action-art-saturation));
+  transform:scale(1.002);
+  transform-origin:center;
+  z-index:0;
+  pointer-events:none;
+}
+
+/* Keep the art bright. Readability darkness belongs only where the live UI sits. */
+.v2-action-destination-stage::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  background:linear-gradient(
+    90deg,
+    rgba(2,7,12,.91) 0%,
+    rgba(2,7,12,.70) 18%,
+    rgba(2,7,12,.40) 34%,
+    rgba(2,7,12,.12) 50%,
+    rgba(2,7,12,0) 68%
+  );
+  z-index:1;
+  pointer-events:none;
+}
+
+.v2-action-destination-stage > *{
+  position:relative;
+  z-index:2;
+}
+
+/* Do not scale hero typography when the stage grows. The extra space belongs to the art. */
+
+@media (max-height:760px){
+  .v2-action-phase-screen{
+    --v2-action-shell-top-gap:8px;
+    --v2-action-shell-stage-gap:6px;
+    padding-bottom:8px;
+  }
+  .v2-action-destination-stage{
+    min-height:min(540px,calc(100dvh - 160px));
+  }
+}
