@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Rival Saga Action Destination Bar</title>
+<style>
+:root {
+  --bg: #07170f;
+  --panel: rgba(10, 34, 23, 0.96);
+  --slot: rgba(12, 48, 31, 0.96);
+  --slot-2: rgba(10, 38, 26, 0.96);
+  --line: rgba(209, 186, 91, 0.42);
+  --gold: #d9c26b;
+  --ink: #f5f1df;
+  --muted: rgba(245,241,223,.62);
+  --active: #4ed17d;
+  --active-ink: #06170d;
+}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;background:var(--bg);font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif;color:var(--ink);display:grid;place-items:start center;padding:24px}
+.rs-action-nav{width:min(96vw,1840px);position:relative;padding:0 16px 10px}
+.rs-action-nav__meta{height:22px;display:flex;align-items:center;justify-content:space-between;font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:0 8px}
+.rs-action-nav__meta strong{color:var(--ink)}
+.rs-action-grid{display:grid;grid-template-columns:repeat(10,minmax(0,1fr));grid-template-rows:repeat(2,40px);gap:5px 4px;width:100%}
+.rs-action-slot{appearance:none;border:0;color:var(--ink);background:linear-gradient(90deg,var(--slot),var(--slot-2));clip-path:polygon(7% 0,100% 0,93% 100%,0 100%);height:40px;padding:0 clamp(14px,1.2vw,24px);display:flex;align-items:center;gap:10px;cursor:pointer;position:relative;isolation:isolate;font:inherit;text-align:left;min-width:0}
+.rs-action-slot::before{content:"";position:absolute;inset:0;clip-path:inherit;border-top:1px solid var(--line);border-bottom:1px solid color-mix(in srgb,var(--line) 70%,transparent);pointer-events:none}
+.rs-action-slot::after{content:"";position:absolute;left:7%;right:7%;bottom:0;height:2px;background:transparent;pointer-events:none}
+.rs-action-slot:hover{background:linear-gradient(90deg,color-mix(in srgb,var(--slot) 72%,var(--active) 28%),color-mix(in srgb,var(--slot-2) 82%,var(--active) 18%))}
+.rs-action-slot[aria-selected="true"]{background:linear-gradient(90deg,var(--gold) 0 12%,var(--active) 12% 100%);color:var(--active-ink)}
+.rs-action-slot[aria-selected="true"]::after{background:var(--gold)}
+.rs-action-slot__num{font-size:11px;font-weight:900;color:var(--gold);width:20px;flex:0 0 20px;text-align:right}
+.rs-action-slot[aria-selected="true"] .rs-action-slot__num{color:var(--active-ink)}
+.rs-action-slot__code{font-size:10px;font-weight:900;letter-spacing:.06em;border:1px solid color-mix(in srgb,var(--gold) 55%,transparent);padding:3px 5px;line-height:1;transform:skewX(-8deg);flex:0 0 auto}
+.rs-action-slot__name{font-size:12px;font-weight:900;letter-spacing:.025em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rs-action-slot[data-slot="1"]{grid-row:1;grid-column:2/span 2}
+.rs-action-slot[data-slot="2"]{grid-row:1;grid-column:4/span 2}
+.rs-action-slot[data-slot="3"]{grid-row:1;grid-column:6/span 2}
+.rs-action-slot[data-slot="4"]{grid-row:1;grid-column:8/span 2}
+.rs-action-slot[data-slot="5"]{grid-row:2;grid-column:1/span 2}
+.rs-action-slot[data-slot="6"]{grid-row:2;grid-column:3/span 2}
+.rs-action-slot[data-slot="7"]{grid-row:2;grid-column:5/span 2}
+.rs-action-slot[data-slot="8"]{grid-row:2;grid-column:7/span 2}
+.rs-action-slot[data-slot="9"]{grid-row:2;grid-column:9/span 2}
+.rs-action-slot[data-slot="9"][data-hidden="true"]{visibility:hidden;pointer-events:none}
+@media(max-width:980px){.rs-action-nav{width:100%;padding-inline:6px}.rs-action-grid{grid-template-rows:repeat(2,36px)}.rs-action-slot{height:36px;padding-inline:10px;gap:6px}.rs-action-slot__code{display:none}.rs-action-slot__name{font-size:10px}.rs-action-nav__meta{font-size:9px}}
+</style>
+</head>
+<body>
+<nav class="rs-action-nav" aria-label="Action destinations">
+  <div class="rs-action-nav__meta"><span>Action Destinations · 8 Standard</span><span><strong>Steevee</strong> · 3/3 Actions · 5 Players</span></div>
+  <div class="rs-action-grid">
+    <button class="rs-action-slot" data-slot="1" aria-selected="true"><span class="rs-action-slot__num">01</span><span class="rs-action-slot__code">RT</span><span class="rs-action-slot__name">Routes</span></button>
+    <button class="rs-action-slot" data-slot="2"><span class="rs-action-slot__num">02</span><span class="rs-action-slot__code">BF</span><span class="rs-action-slot__name">Battle Frontier</span></button>
+    <button class="rs-action-slot" data-slot="3"><span class="rs-action-slot__num">03</span><span class="rs-action-slot__code">DS</span><span class="rs-action-slot__name">Department Store</span></button>
+    <button class="rs-action-slot" data-slot="4"><span class="rs-action-slot__num">04</span><span class="rs-action-slot__code">GC</span><span class="rs-action-slot__name">Game Corner</span></button>
+    <button class="rs-action-slot" data-slot="5"><span class="rs-action-slot__num">05</span><span class="rs-action-slot__code">GY</span><span class="rs-action-slot__name">Graveyard</span></button>
+    <button class="rs-action-slot" data-slot="6"><span class="rs-action-slot__num">06</span><span class="rs-action-slot__code">RB</span><span class="rs-action-slot__name">Ranger Base</span></button>
+    <button class="rs-action-slot" data-slot="7"><span class="rs-action-slot__num">07</span><span class="rs-action-slot__code">PC</span><span class="rs-action-slot__name">Pokémon Center</span></button>
+    <button class="rs-action-slot" data-slot="8"><span class="rs-action-slot__num">08</span><span class="rs-action-slot__code">BB</span><span class="rs-action-slot__name">Bulletin Board</span></button>
+    <button class="rs-action-slot" data-slot="9" data-hidden="true"><span class="rs-action-slot__num">09</span><span class="rs-action-slot__code">+</span><span class="rs-action-slot__name">Bonus</span></button>
+  </div>
+</nav>
+<script>
+for (const slot of document.querySelectorAll('.rs-action-slot:not([data-hidden="true"])')) {
+  slot.addEventListener('click', () => {
+    document.querySelectorAll('.rs-action-slot').forEach(el => el.setAttribute('aria-selected','false'));
+    slot.setAttribute('aria-selected','true');
+  });
+}
+</script>
+</body>
+</html>
