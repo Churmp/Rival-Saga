@@ -1,6 +1,12 @@
 const { Dex, toID } = require("pokemon-showdown");
+const fs = require("fs");
+const path = require("path");
 const buildData = require("../pokemon-build-data.js");
 const moveUsefulness = require("../showdown-move-usefulness.js");
+const { singlesExcludedMoves, removedMoves } = require("../move-classification-rules.js");
+
+const pokemonCacheDir = path.join(__dirname, ".pokeapi-cache", "pokemon");
+const excludedMoveKeys = new Set([...singlesExcludedMoves, ...removedMoves].map(dataKey));
 
 const speciesAliases = Object.freeze({
   "basculegion-female": "basculegionf",
@@ -14,9 +20,28 @@ const speciesAliases = Object.freeze({
 function dataKey(value) {
   return String(value || "")
     .toLowerCase()
+    .trim()
     .replace(/['.]/g, "")
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/(^-|-$)/g, "");
+}
+
+function isLegendsArceusNativePokemon(pokemonKey, entry = {}) {
+  const nativePokemon = new Set(buildData.source?.legendsArceusNativePokemon || []);
+  return [pokemonKey, entry.pokeapiKey, entry.displayName]
+    .map(dataKey)
+    .some((candidate) => nativePokemon.has(candidate));
+}
+
+function learnsetVersionGroupAllowed(versionGroup, pokemonKey, entry = {}) {
+  const key = dataKey(versionGroup);
+  if (!key) return false;
+  const allowedGroups = new Set(buildData.source?.versionGroups || []);
+  const excludedGroups = new Set(buildData.source?.excludedLearnsetVersionGroups || []);
+  if (!allowedGroups.has(key) || excludedGroups.has(key)) return false;
+  const conditionalGroups = new Set(buildData.source?.conditionallyExcludedLearnsetVersionGroups || []);
+  if (conditionalGroups.has(key)) return isLegendsArceusNativePokemon(pokemonKey, entry);
+  return true;
 }
 
 function sourceDetail(source) {
@@ -64,6 +89,38 @@ function moveToken(move) {
   return moveId ? `id:${moveId}` : `name:${dataKey(move?.name || move?.move)}`;
 }
 
+function rawMoveMatchesMove(rawMove, move) {
+  const moveId = Number(move?.num || move?.moveId || 0);
+  const rawMoveId = Number(String(rawMove?.move?.url || "").split("/").filter(Boolean).pop()) || 0;
+  if (moveId && rawMoveId) return rawMoveId === moveId;
+  return dataKey(rawMove?.move?.name) === dataKey(move?.name || move?.id);
+}
+
+function cachedRawPokemon(pokemonKey, entry = {}) {
+  const inheritedEntry = entry.inheritsMovesFrom ? buildData.pokemon[entry.inheritsMovesFrom] : null;
+  const cacheKey = String(inheritedEntry?.pokeapiKey || entry.pokeapiKey || pokemonKey || "").trim();
+  const cachePath = path.join(pokemonCacheDir, `${dataKey(cacheKey)}.json`);
+  if (!cacheKey || !fs.existsSync(cachePath)) return null;
+  return JSON.parse(fs.readFileSync(cachePath, "utf8"));
+}
+
+function showdownMoveAllowedByPokeApi(raw, move, pokemonKey, entry = {}) {
+  if (!raw) return true;
+  const rawMove = (raw.moves || []).find((candidate) => rawMoveMatchesMove(candidate, move));
+  if (!rawMove) return true;
+  const ignoredGroups = new Set([
+    ...(buildData.source?.excludedLearnsetVersionGroups || []),
+    ...(buildData.source?.conditionallyExcludedLearnsetVersionGroups || [])
+  ]);
+  const hasIgnoredSource = (rawMove.version_group_details || []).some((source) => (
+    ignoredGroups.has(dataKey(source.version_group?.name))
+      && !learnsetVersionGroupAllowed(source.version_group?.name, pokemonKey, entry)
+  ));
+  if (!hasIgnoredSource) return true;
+  return (rawMove.version_group_details || [])
+    .some((source) => learnsetVersionGroupAllowed(source.version_group?.name, pokemonKey, entry));
+}
+
 const missingPokemon = [];
 const missingLevelUpMoves = [];
 const missingTmMoves = [];
@@ -71,6 +128,7 @@ const duplicateBuckets = [];
 
 Object.entries(buildData.pokemon).forEach(([pokemonKey, entry]) => {
   const species = speciesForEntry(pokemonKey, entry);
+  const raw = cachedRawPokemon(pokemonKey, entry);
   if (!species) {
     missingPokemon.push(pokemonKey);
     return;
@@ -84,6 +142,8 @@ Object.entries(buildData.pokemon).forEach(([pokemonKey, entry]) => {
       if (!legalSources.length) return;
       const move = Dex.moves.get(moveId);
       if (!move.exists) return;
+      if (excludedMoveKeys.has(dataKey(move.name))) return;
+      if (!showdownMoveAllowedByPokeApi(raw, move, pokemonKey, entry)) return;
       const token = move.num ? `id:${move.num}` : `name:${dataKey(move.name)}`;
       const current = expected.get(token) || { name: move.name, levelUp: false };
       if (legalSources.some((source) => source.sourceCode === "L")) current.levelUp = true;

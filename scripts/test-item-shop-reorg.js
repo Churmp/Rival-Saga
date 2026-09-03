@@ -45,7 +45,8 @@ const trainerResourceTestData = [
     type: "TICKET",
     tier: "Tickets",
     category: "Legacy Tickets",
-    price: 5000,
+    price: 4000,
+    dynamicPrice: true,
     shopGroup: "held",
     roles: ["utility"],
     tags: ["build-enabling"]
@@ -57,6 +58,7 @@ const trainerResourceTestData = [
     tier: "Trainer Resources",
     category: "Trainer Resources",
     price: 0,
+    dynamicPrice: true,
     shopGroup: "held",
     roles: ["utility"],
     tags: ["build-enabling"]
@@ -274,11 +276,53 @@ test("chooser parents are hidden and chooser options become canonical products",
   assert.equal(item("Normalium Z").id, "item-one-z-move-type--normalium-z");
   assert.equal(item("Venusaurite").id, "item-one-mega-stone-not-listed--venusaurite");
   assert.equal(item("Burn Drive").parentShopItemName, "Genesect Drive");
+  assert.equal(itemShopData.some((entry) => entry.name === "Blank Plate"), false, "Blank Plate should be removed from concrete Item Shop products");
+  assert.equal(staticShopChoiceDefinitions["Buy One Type Plate"].options.includes("Blank Plate"), false, "Blank Plate should be removed from the plate chooser");
 });
 
 test("approved Item Shop prices are authoritative on individual products", () => {
   const expectedPrices = {
     "Berry Juice": 200,
+    "White Herb": 2500,
+    "Mirror Herb": 1500,
+    "Adrenaline Orb": 500,
+    "Muscle Band": 750,
+    "Wise Glasses": 750,
+    "Punching Glove": 750,
+    "Metronome": 1250,
+    "Black Sludge": 1500,
+    "Ability Shield": 500,
+    "Focus Band": 500,
+    "Light Ball": 1000,
+    "Thick Club": 500,
+    "Leek": 500,
+    "Deep Sea Tooth": 500,
+    "Deep Sea Scale": 500,
+    "Damp Rock": 2000,
+    "Heat Rock": 2000,
+    "Icy Rock": 2000,
+    "Smooth Rock": 2000,
+    "Sitrus Berry": 2000,
+    "Lum Berry": 1500,
+    "Custap Berry": 1000,
+    "Occa Berry": 300,
+    "Passho Berry": 300,
+    "Wacan Berry": 300,
+    "Rindo Berry": 300,
+    "Yache Berry": 300,
+    "Chople Berry": 300,
+    "Kebia Berry": 300,
+    "Shuca Berry": 300,
+    "Coba Berry": 300,
+    "Payapa Berry": 300,
+    "Tanga Berry": 300,
+    "Charti Berry": 300,
+    "Kasib Berry": 300,
+    "Haban Berry": 300,
+    "Colbur Berry": 300,
+    "Babiri Berry": 300,
+    "Chilan Berry": 300,
+    "Roseli Berry": 300,
     "Toxic Orb": 3000,
     "Flame Orb": 3000,
     "Light Clay": 3000,
@@ -331,6 +375,7 @@ test("product type, role, tag, price, and search filters target individual produ
   assert.deepEqual(names(applyFilters({ roles: ["offense"], tags: ["choice"] })).sort(), ["Choice Band", "Choice Scarf", "Choice Specs"]);
   assert.ok(names(applyFilters({ tags: ["paradox"] })).includes("Booster Energy"));
   assert.ok(names(applyFilters({ search: "weather" })).includes("Damp Rock"));
+  assert.equal(itemShopData.some((entry) => entry.name === "Blank Plate"), false);
   assert.equal(names(applyFilters({ canAfford: true, balance: 3000 })).includes("Eviolite"), false);
   assert.ok(names(applyFilters({ minPrice: 7500, maxPrice: 7500 })).includes("Normalium Z"));
 });
@@ -359,6 +404,9 @@ test("default storefront and folder navigation are declared as presentation arch
   ].forEach((name) => assert.ok(declaredFolders.root.items.includes(name), `${name} should be in the curated storefront`));
   ["Berry Juice", "Booster Energy", "Normalium Z", "Kommonium Z", "Kangaskhanite", "Metagrossite"]
     .forEach((name) => assert.equal(declaredFolders.root.items.includes(name), false, `${name} should stay out of the static storefront`));
+  assert.equal(declaredFolders["status-berries"].items.includes("Lum Berry"), false, "Lum Berry should leave Status Berries");
+  assert.equal(declaredFolders["competitive-berries"].items.includes("Lum Berry"), true, "Lum Berry should live under Competitive Berries");
+  assert.equal(declaredFolders["type-plates"].items.includes("Blank Plate"), false, "Blank Plate should be removed from Type Plates");
   [
     "berries",
     "type-plates",
@@ -396,6 +444,13 @@ test("filtering uses flat products while idle browsing uses folder presentation 
   assert.match(appSource, /filters\.canAfford\s*\?\s*itemShopFolderAffordableItems\(folder\.id, player\)\.length/);
   assert.match(appSource, /function itemShopRecommendedMechanicProducts\(player = activePlayer\(\)\)/);
   assert.match(appSource, /createItemShopRecommendationSection\(recommendations, player\)/);
+  assert.match(appSource, /ITEM_SHOP_RECOMMENDATION_DRAWER_UI_KEY = "rival-saga-item-shop-recommendation-drawer-v1"/);
+  assert.match(appSource, /function itemShopRecommendationDrawerScope\(player = activePlayer\(\)\)/);
+  assert.match(appSource, /function itemShopRecommendationDrawerCollapsed\(player = activePlayer\(\)\)/);
+  assert.match(appSource, /function setItemShopRecommendationDrawerCollapsed\(player = activePlayer\(\), collapsed = false\)/);
+  assert.match(appSource, /data-item-shop-recommendations-dismiss/);
+  assert.match(appSource, /data-item-shop-recommendations-restore/);
+  assert.doesNotMatch(sourceBlock("const CLIENT_LOCAL_STATE_KEYS", "const SANDBOX_SAFE_CLIENT_UI_KEYS"), /itemShopRecommendationDrawer/i);
 });
 
 test("species-linked mechanic products expose recommendation eligibility metadata", () => {
@@ -526,8 +581,8 @@ test("Z catalog audit reports all species-specific crystals priced at the standa
 
 test("sprite audit has zero unresolved known products and keeps initials as failure fallback", () => {
   const summary = summaryFor(auditItemShopSprites());
-  assert.equal(summary.concreteProductsAudited, 288);
-  assert.equal(summary.counts["intentional-custom"], 3);
+  assert.equal(summary.concreteProductsAudited, 287);
+  assert.equal(summary.counts["intentional-custom"], 2);
   assert.equal(summary.counts["balance-review-unpriced"] || 0, 0);
   assert.equal(summary.canonicalItemMissing, 0);
   assert.equal(summary.mechanicProductsUnresolved, 0);

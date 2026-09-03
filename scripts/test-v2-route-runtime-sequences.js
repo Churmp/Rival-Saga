@@ -577,11 +577,14 @@ test("mounted V2 Route Browser uses floating capability UI without authoritative
     observer.disconnect();
     render = originalRender;
     setV2RouteBrowserPreview = originalSetPreview;
-    routeTwoRow?.dispatchEvent(new MouseEvent("mouseover", { bubbles: true, relatedTarget: routeOneRow }));
+    const routeTwoRect = routeTwoRow?.getBoundingClientRect();
+    const routeTwoClient = routeTwoRect ? { x: routeTwoRect.left + routeTwoRect.width / 2, y: routeTwoRect.top + routeTwoRect.height / 2 } : { x: 0, y: 0 };
+    routeTwoRow?.dispatchEvent(new MouseEvent("mouseover", { bubbles: true, relatedTarget: routeOneRow, view: window, clientX: routeTwoClient.x, clientY: routeTwoClient.y }));
+    routeTwoRow?.dispatchEvent(new MouseEvent("mousemove", { bubbles: true, relatedTarget: routeOneRow, view: window, clientX: routeTwoClient.x, clientY: routeTwoClient.y }));
     const routeTwoPreviewed = browser?.dataset.v2RouteBrowserPreview === "2"
       && document.querySelector('[data-v2-route-preview="2"]')?.getAttribute("aria-hidden") === "false"
       && routeTwoRow?.classList.contains("previewed");
-    routeTwoRow?.dispatchEvent(new MouseEvent("mouseout", { bubbles: true, relatedTarget: document.querySelector('[data-v2-route-preview="2"]') }));
+    routeTwoRow?.dispatchEvent(new MouseEvent("mouseout", { bubbles: true, relatedTarget: document.body, view: window }));
     const alternateHoverRestoredSelected = browser?.dataset.v2RouteBrowserPreview === "1"
       && document.querySelector('[data-v2-route-preview="1"]')?.getAttribute("aria-hidden") === "false"
       && routeOneRow?.classList.contains("previewed");
@@ -689,7 +692,10 @@ test("mounted V2 Route Browser uses floating capability UI without authoritative
     childMutations: summary.routeSelectedHoverMenuMutationCount,
     htmlStable: summary.routeSelectedHoverHtmlStable
   }));
-  assert.equal(summary.alternateRouteHoverPreviewsAndRestores, true);
+  assert.equal(summary.alternateRouteHoverPreviewsAndRestores, true, JSON.stringify({
+    routeTwoWindow: summary.routeTwoWindow,
+    routeSelectedHoverNoPreviewMutation: summary.routeSelectedHoverNoPreviewMutation
+  }));
   assert.equal(summary.temporaryAfter, 4);
   assert.equal(summary.slotCountAfter, summary.permanentBefore + 4);
   assert.equal(summary.spendsAfterInjection, summary.spendsBeforeInjection);
@@ -712,6 +718,231 @@ test("mounted V2 Route Browser uses floating capability UI without authoritative
   assert.equal(afterReload.routeEffectsExpandedId, "repel");
   assert.equal(afterReload.persistedUiLeak, false);
   assert.deepEqual(afterReload.operationTypes, ["temporary-injection"]);
+});
+
+test("V2 Action destination shell previews and selects without authoritative churn", async () => {
+  const marker = "V2-DESTINATION-SHELL";
+  await openRouteGame(marker);
+  const summary = await evaluate(`(() => {
+    state.activePlayerId = "gold";
+    state.activePage = "actionPhase";
+    state.routeUiState = normalizeRouteUiState({});
+    v2EnsureRouteSeriesState(state.series);
+    const actionPhase = v2EnsureActionPhase(state.series);
+    const ledger = v2ActionLedgerFor(actionPhase, "gold");
+    const spendsBefore = actionPhase.spends.length;
+    let renderCount = 0;
+    let saveStateCount = 0;
+    let previewMutations = 0;
+    const originalRender = render;
+    const originalSaveState = saveState;
+    const originalSetPreview = setV2ActionDestinationPreview;
+    render = function(...args) {
+      renderCount += 1;
+      return originalRender.apply(this, args);
+    };
+    saveState = function(...args) {
+      saveStateCount += 1;
+      return originalSaveState.apply(this, args);
+    };
+    setV2ActionDestinationPreview = function(...args) {
+      const changed = originalSetPreview.apply(this, args);
+      if (changed) previewMutations += 1;
+      return changed;
+    };
+    try {
+      render();
+      const authoritativeBefore = JSON.stringify(createPersistableStateSnapshot(state));
+      renderCount = 0;
+      const shell = document.querySelector("[data-v2-action-destination-shell]");
+      const navigator = document.querySelector("[data-v2-action-destination-navigator]");
+      const routesButton = document.querySelector('[data-v2-action-destination-select="routes"]');
+      const battleButton = document.querySelector('[data-v2-action-destination-select="battle-tent"]');
+      const destinationWorkspace = document.querySelector("[data-v2-action-destination-workspace]");
+      const rectFor = (element) => {
+        const rect = element.getBoundingClientRect();
+        return {
+          left: Math.round(rect.left * 100) / 100,
+          top: Math.round(rect.top * 100) / 100,
+          width: Math.round(rect.width * 100) / 100,
+          height: Math.round(rect.height * 100) / 100
+        };
+      };
+      const navigatorBefore = rectFor(navigator);
+      const routeRectBefore = rectFor(routesButton);
+      const battleRectBefore = rectFor(battleButton);
+      const defaultRoutes = shell?.dataset.v2ActionDestinationSelected === "routes"
+        && shell?.dataset.v2ActionDestinationPreview === "routes"
+        && destinationWorkspace?.dataset.v2ActionDestinationWorkspace === "routes"
+        && Boolean(destinationWorkspace?.querySelector(".v2-route-landing"))
+        && !destinationWorkspace?.querySelector("[data-v2-route-browser]")
+        && !destinationWorkspace?.querySelector(".v2-battle-tent-preview");
+      battleButton.dispatchEvent(new MouseEvent("mouseover", { bubbles: true, relatedTarget: routesButton }));
+      const hoverBattle = shell?.dataset.v2ActionDestinationPreview === "battle-tent"
+        && destinationWorkspace?.dataset.v2ActionDestinationWorkspace === "battle-tent"
+        && Boolean(destinationWorkspace?.querySelector(".v2-battle-tent-preview"))
+        && !destinationWorkspace?.querySelector("[data-v2-route-browser]");
+      const navigatorDuringHover = rectFor(navigator);
+      const routeRectDuringHover = rectFor(routesButton);
+      const battleRectDuringHover = rectFor(battleButton);
+      battleButton.dispatchEvent(new MouseEvent("mouseout", { bubbles: true, relatedTarget: document.body }));
+      const mouseleaveRestoresRoutes = shell?.dataset.v2ActionDestinationPreview === "routes"
+        && destinationWorkspace?.dataset.v2ActionDestinationWorkspace === "routes"
+        && Boolean(destinationWorkspace?.querySelector(".v2-route-landing"))
+        && !destinationWorkspace?.querySelector("[data-v2-route-browser]")
+        && !destinationWorkspace?.querySelector(".v2-battle-tent-preview");
+      battleButton.click();
+      const clickBattleSelected = shell?.dataset.v2ActionDestinationSelected === "battle-tent"
+        && shell?.dataset.v2ActionDestinationPreview === "battle-tent"
+        && state.routeUiState.selectedActionDestinationBySeriesId[state.series] === "battle-tent"
+        && destinationWorkspace?.dataset.v2ActionDestinationWorkspace === "battle-tent"
+        && Boolean(destinationWorkspace?.querySelector(".v2-battle-tent-preview"))
+        && !destinationWorkspace?.querySelector("[data-v2-route-browser]");
+      const mutationsBeforeSelectedHover = previewMutations;
+      battleButton.dispatchEvent(new MouseEvent("mouseover", { bubbles: true, relatedTarget: document.body }));
+      const selectedHoverNoPreviewMutation = previewMutations === mutationsBeforeSelectedHover;
+      routesButton.dispatchEvent(new MouseEvent("mouseover", { bubbles: true, relatedTarget: battleButton }));
+      const hoverRoutesWhileBattleSelected = shell?.dataset.v2ActionDestinationPreview === "routes"
+        && destinationWorkspace?.dataset.v2ActionDestinationWorkspace === "routes"
+        && Boolean(destinationWorkspace?.querySelector(".v2-route-landing"))
+        && !destinationWorkspace?.querySelector("[data-v2-route-browser]")
+        && !destinationWorkspace?.querySelector(".v2-battle-tent-preview");
+      routesButton.dispatchEvent(new MouseEvent("mouseout", { bubbles: true, relatedTarget: document.body }));
+      const mouseleaveRestoresBattle = shell?.dataset.v2ActionDestinationPreview === "battle-tent"
+        && destinationWorkspace?.dataset.v2ActionDestinationWorkspace === "battle-tent"
+        && Boolean(destinationWorkspace?.querySelector(".v2-battle-tent-preview"))
+        && !destinationWorkspace?.querySelector("[data-v2-route-browser]");
+      const destinationExpectations = [
+        { id: "routes", selector: ".v2-route-landing", title: "Route Encounter", cta: "Explore Routes" },
+        { id: "battle-tent", selector: ".v2-battle-tent-preview", title: "Battle Frontier", cta: "Explore Battle Frontier" },
+        { id: "department-store", selector: ".v2-action-location-landing.plate-department-store", title: "Department Store", cta: "Enter Department Store" },
+        { id: "gamecorner", selector: ".v2-action-location-landing.plate-game-corner", title: "Game Corner", cta: "Enter Game Corner" },
+        { id: "graveyard", selector: ".v2-action-location-landing.plate-graveyard", title: "Graveyard", cta: "Enter Graveyard" },
+        { id: "ranger-base", selector: ".v2-action-location-landing.plate-ranger-base", title: "Ranger Base", cta: "Enter Ranger Base" },
+        { id: "pokemon-center", selector: ".v2-action-location-landing.plate-pokemon-center", title: "Pokémon Center", cta: "Enter Pokémon Center" },
+        { id: "bulletin-board", selector: ".v2-action-location-landing.plate-bulletin-board", title: "Bulletin Board", cta: "View Bulletin Board" }
+      ];
+      const allDestinationsRender = destinationExpectations.every(({ id, selector, title, cta }) => {
+        setV2ActionDestinationPreview(id);
+        const workspace = document.querySelector("[data-v2-action-destination-workspace]");
+        const landing = workspace?.querySelector(selector);
+        const titleText = landing?.querySelector("h2, h3")?.textContent?.trim();
+        const ctaText = landing?.querySelector("button")?.textContent?.trim();
+        return shell?.dataset.v2ActionDestinationSelected === "battle-tent"
+          && shell?.dataset.v2ActionDestinationPreview === id
+          && workspace?.dataset.v2ActionDestinationWorkspace === id
+          && Boolean(landing)
+          && titleText === title
+          && ctaText === cta
+          && !workspace?.querySelector("[data-v2-route-browser]");
+      });
+      resetV2ActionDestinationPreview();
+      const selectedSurvivesAllPreviews = shell?.dataset.v2ActionDestinationSelected === "battle-tent"
+        && shell?.dataset.v2ActionDestinationPreview === "battle-tent"
+        && state.routeUiState.selectedActionDestinationBySeriesId[state.series] === "battle-tent"
+        && Boolean(document.querySelector("[data-v2-action-destination-workspace]")?.querySelector(".v2-battle-tent-preview"));
+      const authoritativeAfter = JSON.stringify(createPersistableStateSnapshot(state));
+      return {
+        defaultRoutes,
+        hoverBattle,
+        mouseleaveRestoresRoutes,
+        clickBattleSelected,
+        hoverRoutesWhileBattleSelected,
+        mouseleaveRestoresBattle,
+        allDestinationsRender,
+        selectedSurvivesAllPreviews,
+        selectedHoverNoPreviewMutation,
+        noRenderAfterInitial: renderCount === 0,
+        noSaveState: saveStateCount === 0,
+        noSpend: actionPhase.spends.length === spendsBefore && ledger.spentActionIds.length === 0,
+        authoritativeStable: authoritativeBefore === authoritativeAfter,
+        navigatorStable: JSON.stringify(navigatorBefore) === JSON.stringify(navigatorDuringHover),
+        routeButtonStable: JSON.stringify(routeRectBefore) === JSON.stringify(routeRectDuringHover),
+        battleButtonStable: JSON.stringify(battleRectBefore) === JSON.stringify(battleRectDuringHover)
+      };
+    } finally {
+      render = originalRender;
+      saveState = originalSaveState;
+      setV2ActionDestinationPreview = originalSetPreview;
+    }
+  })()`, 60000);
+  assert.equal(summary.defaultRoutes, true);
+  assert.equal(summary.hoverBattle, true);
+  assert.equal(summary.mouseleaveRestoresRoutes, true);
+  assert.equal(summary.clickBattleSelected, true);
+  assert.equal(summary.hoverRoutesWhileBattleSelected, true);
+  assert.equal(summary.mouseleaveRestoresBattle, true);
+  assert.equal(summary.allDestinationsRender, true);
+  assert.equal(summary.selectedSurvivesAllPreviews, true);
+  assert.equal(summary.selectedHoverNoPreviewMutation, true);
+  assert.equal(summary.noRenderAfterInitial, true);
+  assert.equal(summary.noSaveState, true);
+  assert.equal(summary.noSpend, true);
+  assert.equal(summary.authoritativeStable, true);
+  assert.equal(summary.navigatorStable, true);
+  assert.equal(summary.routeButtonStable, true);
+  assert.equal(summary.battleButtonStable, true);
+});
+
+test("V2 Routes landing opens and exits the browser without spending Actions", async () => {
+  const marker = "V2-ROUTES-LANDING-NAV";
+  await openRouteGame(marker);
+  const summary = await evaluate(`(() => {
+    state.activePlayerId = "gold";
+    state.activePage = "actionPhase";
+    state.routeUiState = normalizeRouteUiState({});
+    v2EnsureRouteSeriesState(state.series);
+    const actionPhase = v2EnsureActionPhase(state.series);
+    const ledger = v2ActionLedgerFor(actionPhase, "gold");
+    const spendsBefore = actionPhase.spends.length;
+    let saveStateCount = 0;
+    let commitCount = 0;
+    const originalSaveState = saveState;
+    const originalCommit = v2CommitRouteAction;
+    saveState = function(...args) {
+      saveStateCount += 1;
+      return originalSaveState.apply(this, args);
+    };
+    v2CommitRouteAction = function(...args) {
+      commitCount += 1;
+      return originalCommit.apply(this, args);
+    };
+    try {
+      render();
+      const authoritativeBefore = JSON.stringify(createPersistableStateSnapshot(state));
+      const landingBefore = Boolean(document.querySelector(".v2-route-landing"))
+        && Boolean(document.querySelector("[data-v2-route-enter]"))
+        && !document.querySelector("[data-v2-route-browser]");
+      document.querySelector("[data-v2-route-enter]")?.click();
+      const browserAfterEnter = Boolean(document.querySelector("[data-v2-route-browser]"))
+        && Boolean(document.querySelector("[data-v2-routes-landing]"))
+        && !document.querySelector(".v2-route-landing");
+      document.querySelector("[data-v2-routes-landing]")?.click();
+      const landingAfterReturn = Boolean(document.querySelector(".v2-route-landing"))
+        && Boolean(document.querySelector("[data-v2-route-enter]"))
+        && !document.querySelector("[data-v2-route-browser]");
+      const authoritativeAfter = JSON.stringify(createPersistableStateSnapshot(state));
+      return {
+        landingBefore,
+        browserAfterEnter,
+        landingAfterReturn,
+        noSaveState: saveStateCount === 0,
+        noCommit: commitCount === 0,
+        noSpend: actionPhase.spends.length === spendsBefore && ledger.spentActionIds.length === 0,
+        authoritativeStable: authoritativeBefore === authoritativeAfter
+      };
+    } finally {
+      saveState = originalSaveState;
+      v2CommitRouteAction = originalCommit;
+    }
+  })()`, 60000);
+  assert.equal(summary.landingBefore, true);
+  assert.equal(summary.browserAfterEnter, true);
+  assert.equal(summary.landingAfterReturn, true);
+  assert.equal(summary.noSaveState, true);
+  assert.equal(summary.noCommit, true);
+  assert.equal(summary.noSpend, true);
+  assert.equal(summary.authoritativeStable, true);
 });
 
 test("transient Route public activity is local-only, deduped, failure-tolerant, and can notify obtained Pokemon", async () => {
@@ -1489,6 +1720,7 @@ test("V2 selected Route hover keeps bottom-scroll geometry stable with real poin
       window.scrollTo(0, document.documentElement.scrollHeight);
       const row = document.querySelector('[data-v2-route-select="1"]');
       if (!row) throw new Error("Route 1 navigation row was not rendered.");
+      row.scrollIntoView({ block: "center", inline: "nearest" });
       const rect = row.getBoundingClientRect();
       const x = Math.round((rect.left + rect.width / 2) * 100) / 100;
       const candidateYs = [rect.top + rect.height / 2, rect.bottom - 2, rect.top + 2];
@@ -1658,18 +1890,31 @@ test("V2 alternate Route hover keeps navigation geometry stable under stationary
         if (${JSON.stringify(scrollMode)} === "middle") window.scrollTo(0, Math.max(0, (html.scrollHeight - window.innerHeight) / 2));
         if (${JSON.stringify(scrollMode)} === "bottom") window.scrollTo(0, html.scrollHeight);
         const row = document.querySelector('[data-v2-route-select="${routeId}"]');
+        row?.scrollIntoView({ block: "center", inline: "nearest" });
         const rect = row?.getBoundingClientRect();
         if (!rect) return null;
-        const y = ${JSON.stringify(position)} === "top" ? rect.top + 2 : (${JSON.stringify(position)} === "bottom" ? rect.bottom - 2 : rect.top + rect.height / 2);
+        const x = Math.round((rect.left + rect.width / 2) * 100) / 100;
+        const preferredY = ${JSON.stringify(position)} === "top" ? rect.top + 2 : (${JSON.stringify(position)} === "bottom" ? rect.bottom - 2 : rect.top + rect.height / 2);
+        const candidateYs = ${JSON.stringify(position)} === "top"
+          ? [preferredY, rect.top + rect.height / 2, rect.bottom - 2]
+          : (${JSON.stringify(position)} === "bottom"
+            ? [preferredY, rect.top + rect.height / 2, rect.top + 2]
+            : [preferredY, rect.top + 2, rect.bottom - 2]);
+        const hitY = candidateYs.find((candidateY) => {
+          const target = document.elementFromPoint(x, candidateY);
+          return target?.closest?.("[data-v2-route-select]")?.dataset?.v2RouteSelect === "${routeId}";
+        });
         return {
-          x: Math.round((rect.left + rect.width / 2) * 100) / 100,
-          y: Math.round(y * 100) / 100,
+          x,
+          y: Math.round((hitY ?? preferredY) * 100) / 100,
           rowVisible: rect.top >= 0 && rect.bottom <= window.innerHeight,
+          rowHitTestable: typeof hitY === "number",
           before: window.__v2AltHoverSample("${routeId}")
         };
       })()`, 60000);
       assert.ok(setup, `Route ${routeId} setup should exist for ${scrollMode}/${position}.`);
       assert.equal(setup.rowVisible, true, `Route ${routeId} row should be visible for ${scrollMode}/${position}.`);
+      assert.equal(setup.rowHitTestable, true, `Route ${routeId} row should be hit-testable for ${scrollMode}/${position}.`);
       assert.ok(setup.y >= 0 && setup.y <= 900, `Route ${routeId} pointer should be in viewport for ${scrollMode}/${position}.`);
 
       await cdp.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: setup.x, y: setup.y }, 60000);
@@ -1679,7 +1924,7 @@ test("V2 alternate Route hover keeps navigation geometry stable under stationary
         sample: window.__v2AltHoverSample("${routeId}")
       }))()`, 60000);
       const label = `Route ${routeId} ${scrollMode}/${position}`;
-      assert.deepEqual(hovered.transitions, [`1->${routeId}`], `${label}: stationary hover should produce one alternate-preview transition.`);
+      assert.deepEqual(hovered.transitions, [`1->${routeId}`], `${label}: stationary hover should produce one alternate-preview transition. ${JSON.stringify({ setup, hovered })}`);
       assert.equal(hovered.sample.activePreview, routeId, `${label}: alternate preview should remain active while hovered.`);
       assert.equal(hovered.sample.elementFromPoint, routeId, `${label}: pointer should remain over the hovered Route row.`);
       assert.deepEqual(hovered.sample.hoveredRow, setup.before.hoveredRow, `${label}: hovered row bounds changed during preview.`);

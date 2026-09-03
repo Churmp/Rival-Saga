@@ -170,19 +170,6 @@ function restorationPlanForProduct(item) {
       renderMode: "pixel"
     };
   }
-  if (item.name === "Blank Plate") {
-    return {
-      name: item.name,
-      id: item.id,
-      productType: item.shopGroup || "held",
-      localSprite: "assets/shop/items/blank-plate.png",
-      sourceProvider: "Rival Saga Custom",
-      providerKey: "blank-plate",
-      originalSourceUrl: "",
-      restoreMethod: "custom-blank-plate",
-      renderMode: "smooth"
-    };
-  }
   if (item.name === "Badge Point") {
     return {
       name: item.name,

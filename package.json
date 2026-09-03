@@ -27,6 +27,7 @@
     "test:token-browser": "node --test scripts/test-token-browser.js",
     "test:item-shop-browser": "node --test scripts/test-item-shop-sprite-browser.js",
     "test:item-shop-sprite-browser": "node --test scripts/test-item-shop-sprite-browser.js",
+    "test:tm-shop-browser": "node --test scripts/test-tm-shop-browser.js",
     "test:game-shell": "node --test scripts/test-game-shell-loading.js",
     "test:persistence": "node --test scripts/test-backend-persistence.js",
     "test:save-compaction": "node --test scripts/test-save-compaction.js",

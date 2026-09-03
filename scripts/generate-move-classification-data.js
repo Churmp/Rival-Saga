@@ -11,6 +11,32 @@ function moveKey(value) {
   return String(value || "").toLowerCase().replace(/[^a-z0-9]+/g, "");
 }
 
+function dataKey(value) {
+  return String(value || "")
+    .toLowerCase()
+    .trim()
+    .replace(/['.]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
+}
+
+function isLegendsArceusNativePokemon(pokemonKey, pokemon = {}) {
+  const nativePokemon = new Set(buildData.source?.legendsArceusNativePokemon || []);
+  return [pokemonKey, pokemon.pokeapiKey, pokemon.displayName]
+    .map(dataKey)
+    .some((candidate) => nativePokemon.has(candidate));
+}
+
+function learnsetVersionGroupAllowed(versionGroup, pokemonKey, pokemon = {}) {
+  const key = dataKey(versionGroup);
+  if (!key) return true;
+  const excluded = new Set(buildData.source?.excludedLearnsetVersionGroups || []);
+  if (excluded.has(key)) return false;
+  const conditional = new Set(buildData.source?.conditionallyExcludedLearnsetVersionGroups || []);
+  if (conditional.has(key)) return isLegendsArceusNativePokemon(pokemonKey, pokemon);
+  return true;
+}
+
 function compatibilityGroupForPokemon(pokemonKey, pokemon) {
   const familyChainId = pokemon?.familyChainId;
   if (familyChainId === undefined || familyChainId === null || String(familyChainId).trim() === "") {
@@ -34,6 +60,7 @@ function buildClassification() {
       ? pokemon.tmMoveDetails
       : (pokemon.tmMoves || []).map((name) => ({ name }));
     details.forEach((detail) => {
+      if (!learnsetVersionGroupAllowed(detail.versionGroup, pokemonKey, pokemon)) return;
       const name = String(detail.name || detail.move || "").trim();
       const key = moveKey(name);
       if (!key || excludedMoveKeys.has(key)) return;

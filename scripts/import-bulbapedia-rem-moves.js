@@ -11,6 +11,14 @@ const requestDelayMs = 150;
 const importAll = rawTargets.includes("--all");
 const refreshCache = rawTargets.includes("--refresh");
 const targetKeys = rawTargets.filter((target) => !target.startsWith("--"));
+const legendsArceusNativePokemon = new Set([
+  "arcanine-hisui", "avalugg-hisui", "basculegion", "basculegion-female", "basculegion-male",
+  "basculin-white-striped", "braviary-hisui", "decidueye-hisui", "dialga-origin", "electrode-hisui",
+  "enamorus", "enamorus-incarnate", "enamorus-therian", "goodra-hisui", "growlithe-hisui",
+  "kleavor", "lilligant-hisui", "overqwil", "palkia-origin", "qwilfish-hisui", "samurott-hisui",
+  "sliggoo-hisui", "sneasel-hisui", "sneasler", "typhlosion-hisui", "ursaluna",
+  "ursaluna-bloodmoon", "voltorb-hisui", "wyrdeer", "zoroark-hisui", "zorua-hisui"
+]);
 
 if (!importAll && !targetKeys.length) {
   console.error(
@@ -245,9 +253,20 @@ function gameCodeForTemplate(templateName, currentGameCode) {
   return generationMatch?.[1] ? `Generation ${generationMatch[1]}` : "";
 }
 
-function supportedReminderGame(gameCode) {
+function isLegendsArceusNativePokemon(key, entry = {}) {
+  return [key, entry.pokeapiKey, entry.displayName]
+    .map(dataKey)
+    .some((candidate) => legendsArceusNativePokemon.has(candidate));
+}
+
+function supportedReminderGame(gameCode, pokemonKey = "", entry = {}) {
   const key = dataKey(gameCode);
+  if (key === "la" || key === "legends-arceus") {
+    return !pokemonKey || isLegendsArceusNativePokemon(pokemonKey, entry);
+  }
   return key !== "za"
+    && key !== "legends-z-a"
+    && key !== "legends-za"
     && key !== "pe"
     && key !== "lgpe"
     && !key.includes("lets-go");
@@ -377,15 +396,18 @@ function assignBlocksToSourceKeys(blocks, sourceKeys, data, pageTitle) {
   return { assignments, ambiguous };
 }
 
-function uniqueMoveNames(blocks) {
+function uniqueMoveNames(blocks, pokemonKey, entry) {
   const moves = [];
   const seen = new Set();
-  blocks.flatMap((block) => block.remMoves).forEach((moveName) => {
-    const key = dataKey(moveName);
-    if (!key || seen.has(key)) return;
-    seen.add(key);
-    moves.push(moveName);
-  });
+  blocks
+    .filter((block) => supportedReminderGame(block.gameCode, pokemonKey, entry))
+    .flatMap((block) => block.remMoves)
+    .forEach((moveName) => {
+      const key = dataKey(moveName);
+      if (!key || seen.has(key)) return;
+      seen.add(key);
+      moves.push(moveName);
+    });
   return moves;
 }
 
@@ -500,7 +522,7 @@ async function main() {
     if (ambiguous.length) ambiguousAssignments.push({ title, ambiguous });
 
     for (const sourceKey of sourceKeys) {
-      const remMoves = uniqueMoveNames(assignments.get(sourceKey) || []);
+      const remMoves = uniqueMoveNames(assignments.get(sourceKey) || [], sourceKey, data.pokemon[sourceKey]);
       const affectedKeys = [sourceKey, ...inheritedKeysForSource(data, sourceKey)];
       const addedMoves = [];
       affectedKeys.forEach((key) => {
@@ -541,7 +563,7 @@ async function main() {
     fs.writeFileSync(reminderListPath, `${JSON.stringify(compactNulls({
       source: "Bulbapedia supported-game leveling-up tables",
       generatedAt: new Date().toISOString(),
-      excludedGames: ["Let's Go Pikachu/Eevee", "Legends: Z-A"],
+      excludedGames: ["Let's Go Pikachu/Eevee", "Legends: Z-A", "Legends: Arceus for non-native Pokémon"],
       pokemon: reminderEntries,
       missingPages,
       ambiguousAssignments

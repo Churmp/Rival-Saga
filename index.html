@@ -5,12 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Rival Saga</title>
     <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="styles.css?v=353">
+  <link rel="stylesheet" href="styles.css?v=368">
+  <link rel="stylesheet" href="ui/action-destination-bar.css?v=4">
+  <link rel="stylesheet" href="ui/action-phase-shell.css?v=4">
     <script defer src="game-shell-contract.js?v=1"></script>
     <script defer src="save-compaction.js?v=1"></script>
-    <script defer src="move-classification-data.js?v=5"></script>
-    <script defer src="shop-choice-data.js?v=3"></script>
-    <script defer src="shop-data.js?v=12"></script>
+    <script defer src="move-classification-data.js?v=7"></script>
+    <script defer src="shop-choice-data.js?v=4"></script>
+    <script defer src="shop-data.js?v=13"></script>
     <script defer src="interaction-situation-lifecycle.js?v=2"></script>
     <script defer src="provisional-declaration-runtime.js?v=2"></script>
     <script defer src="token-effect-contract.js?v=8"></script>
@@ -21,11 +23,12 @@
     <script defer src="token-sandbox-session.js?v=1"></script>
     <script defer src="item-reference-data.js?v=3"></script>
     <script defer src="shop-sprite-data.js?v=4"></script>
-    <script defer src="shop-browse-data.js?v=5"></script>
+    <script defer src="shop-browse-data.js?v=6"></script>
+    <script defer src="tm-browse-data.js?v=6"></script>
     <script defer src="pokemon-balance-tiers.js?v=188"></script>
     <script defer src="silph-data.js?v=3"></script>
     <script defer src="action-phase-balance.js?v=1"></script>
-    <script defer src="app.js?v=458"></script>
+    <script defer src="app.js?v=483"></script>
   </head>
   <body>
     <section id="gameHydrationScreen" class="game-hydration-screen hidden" role="status" aria-live="polite" aria-busy="true">
@@ -606,7 +609,7 @@
               <span class="shop-department-icon" aria-hidden="true">TM</span>
               <span class="shop-department-copy">
                 <strong>TMs</strong>
-                <small>Move discs by type</small>
+                <small>Build your move library</small>
               </span>
             </button>
             <button class="tab shop-department-card" type="button" data-shop="tokens">
@@ -654,6 +657,21 @@
             <button class="token-shop-chip" type="button" data-token-shop-filter="encounter">Encounter</button>
           </section>
 
+          <section id="tmBrowseControls" class="tm-browse-controls hidden" aria-label="TM browse categories">
+            <div id="tmBrowseFolderRail" class="tm-browse-rail" role="tablist" aria-label="TM move folders"></div>
+            <div id="tmBrowseShelfRail" class="tm-browse-shelf-rail" role="tablist" aria-label="TM shelves"></div>
+            <div id="tmDamageQuickFilters" class="tm-damage-quick-filters hidden" aria-label="Damage TM quick filters">
+              <div class="tm-quick-filter-group">
+                <span class="shop-filter-group-label">Type</span>
+                <div id="tmDamageTypeRail" class="tm-damage-type-rail" role="group" aria-label="Damage TM type filters"></div>
+              </div>
+              <div class="tm-quick-filter-group">
+                <span class="shop-filter-group-label">Category</span>
+                <div id="tmDamageClassRail" class="tm-damage-class-rail" role="group" aria-label="Damage TM category filters"></div>
+              </div>
+            </div>
+          </section>
+
           <section class="shop-toolbar" aria-label="Shop filters">
             <div class="shop-filter-group shop-filter-search">
               <label>
@@ -662,6 +680,7 @@
               </label>
             </div>
             <button id="itemShopFiltersToggle" class="ghost-button shop-filter-toggle hidden" type="button" aria-expanded="false" aria-controls="itemShopAdvancedFilters">Filters</button>
+            <button id="tmShopFiltersToggle" class="ghost-button shop-filter-toggle hidden" type="button" aria-expanded="false" aria-controls="tmMoveFilters">Filters</button>
             <div id="itemShopAffordFilterGroup" class="shop-filter-group shop-filter-afford hidden">
               <label class="shop-toggle-filter">
                 <input id="itemShopCanAffordFilter" type="checkbox">
@@ -678,21 +697,25 @@
                 <div id="itemShopTagFilters" class="shop-chip-row" role="group" aria-label="Item strategy filters"></div>
               </div>
             </div>
-            <div id="tmMoveFilters" class="shop-filter-group shop-filter-move hidden">
-              <span class="shop-filter-group-label">Move</span>
-              <div class="shop-filter-pair">
-                <label>
-                  Type
-                  <select id="tmTypeFilter"></select>
-                </label>
-                <label>
-                  Category
-                  <select id="tmDamageClassFilter">
-                    <option value="All">All</option>
-                    <option value="Physical">Physical</option>
-                    <option value="Special">Special</option>
-                    <option value="Status">Status</option>
-                  </select>
+            <div id="tmMoveFilters" class="tm-shop-filter-disclosure hidden">
+              <div class="shop-filter-group shop-filter-select">
+                <span class="shop-filter-group-label">Type</span>
+                <select id="tmTypeFilter"></select>
+              </div>
+              <div class="shop-filter-group shop-filter-select">
+                <span class="shop-filter-group-label">Move Class</span>
+                <select id="tmDamageClassFilter">
+                  <option value="All">All</option>
+                  <option value="Physical">Physical</option>
+                  <option value="Special">Special</option>
+                  <option value="Status">Status</option>
+                </select>
+              </div>
+              <div class="shop-filter-group shop-filter-afford">
+                <span class="shop-filter-group-label">Budget</span>
+                <label class="shop-toggle-filter">
+                  <input id="tmCanAffordFilter" type="checkbox">
+                  <span>Can Afford</span>
                 </label>
               </div>
             </div>

@@ -226,6 +226,9 @@ before(async () => {
     if (/^https?:\/\//.test(url) && !url.startsWith(server.baseUrl)) externalRequests.push(url);
   });
   cdp.on("Runtime.exceptionThrown", (params) => browserErrors.push(params.exceptionDetails?.exception?.description || params.exceptionDetails?.text || "Uncaught exception"));
+  cdp.on("Page.javascriptDialogOpening", () => {
+    cdp.send("Page.handleJavaScriptDialog", { accept: true }).catch(() => {});
+  });
   cdp.on("Runtime.consoleAPICalled", (params) => {
     const message = params.args.map((arg) => arg.value || arg.description || "").join(" ");
     if (params.type === "error" && !/beforeunload.*confirmation panel/.test(message)) browserErrors.push(message);
@@ -357,6 +360,8 @@ test("[ITEM-SPRITE-BROWSER-001] restored Item Shop products render local sprites
         buyNowText: card?.querySelector('.shop-buy-now-button')?.textContent?.trim() || '',
         buyNowDisabled: Boolean(card?.querySelector('.shop-buy-now-button')?.disabled),
         priceText: card?.querySelector('.price')?.textContent?.replace(/\\s+/g, ' ').trim() || '',
+        runtimePrice: card && itemShopData.find((entry) => entry.name === name) ? discountedShopPrice(itemShopData.find((entry) => entry.name === name), state.activeShop, activePlayer()) : null,
+        runtimeBalance: Number(activePlayer()?.balance || 0),
         diagnostics: card ? null : {
           bodyClasses: document.body.className,
           activeViewButton: document.querySelector('.app-tab.active')?.textContent?.trim() || '',
@@ -381,7 +386,7 @@ test("[ITEM-SPRITE-BROWSER-001] restored Item Shop products render local sprites
     assert.equal(report.buttonText, "Add", `${report.name} should be addable after standard pricing`);
     assert.equal(report.buttonDisabled, false, `${report.name} add button should be enabled`);
     assert.equal(report.buyNowText, "Buy Now", `${report.name} should expose Buy Now`);
-    assert.equal(report.buyNowDisabled, false, `${report.name} Buy Now should be enabled with enough funds`);
+    assert.equal(report.buyNowDisabled, false, `${report.name} Buy Now should be enabled with enough funds: ${JSON.stringify(report)}`);
     assert.match(report.priceText, /7,500/, `${report.name} should show the standard Z-Crystal price`);
   });
   const kommoniumReport = reports.find((report) => report.name === "Kommonium Z");
@@ -578,13 +583,298 @@ test("[ITEM-SHOP-RECOMMENDATIONS-001] Item Shop root personalizes species mechan
   assert.deepEqual(actionableExternalRequests(), []);
 });
 
+async function runItemShopRecommendationDrawerBrowserCheck() {
+  const preferenceKey = "rival-saga-item-shop-recommendation-drawer-v1";
+  const gameId = "recommendation-drawer";
+  const otherGameId = "recommendation-drawer-other";
+  const pokemonRecord = (trainerId, name, rosterType = "Active") => ({
+    id: `${trainerId}-${name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
+    trainerId,
+    ownerId: trainerId,
+    name,
+    currentSpecies: name,
+    baseSpecies: name,
+    rosterSpeciesName: name,
+    acquiredSpeciesName: name,
+    status: "Active",
+    rosterType
+  });
+  const fixtureState = controlStateFixture("item-shop-recommendation-drawer");
+  const otherPlayerId = fixtureState.players.find((player) => player.id !== "gold")?.id || "steevee";
+  fixtureState.activePage = "playerHub";
+  fixtureState.activeView = "shop";
+  fixtureState.activeShop = "items";
+  fixtureState.activePlayerId = "gold";
+  fixtureState.players.forEach((player) => {
+    player.balance = 10000;
+  });
+  fixtureState.pokemonRecords = [
+    pokemonRecord("gold", "Kangaskhan"),
+    pokemonRecord(otherPlayerId, "Kangaskhan")
+  ];
+  await saveGame(server.baseUrl, gameId, fixtureState, 0);
+
+  const otherFixtureState = controlStateFixture("item-shop-recommendation-drawer-other");
+  otherFixtureState.activePage = "playerHub";
+  otherFixtureState.activeView = "shop";
+  otherFixtureState.activeShop = "items";
+  otherFixtureState.activePlayerId = "gold";
+  otherFixtureState.players.forEach((player) => {
+    player.balance = 10000;
+  });
+  otherFixtureState.pokemonRecords = [pokemonRecord("gold", "Kangaskhan")];
+  await saveGame(server.baseUrl, otherGameId, otherFixtureState, 0);
+
+  const snapshot = () => evaluate(`(() => {
+    const sections = [...document.querySelectorAll('#shopGrid > .shop-tier-section')];
+    const recommendation = document.querySelector('.item-shop-recommendation-section');
+    const main = document.querySelector('.item-shop-main-section');
+    const first = sections[0] || null;
+    let preferences = {};
+    try { preferences = JSON.parse(localStorage.getItem('${preferenceKey}') || '{}'); } catch {}
+    return {
+      gameId: backendSync.gameId || backendGameId(),
+      activePlayerId: state.activePlayerId,
+      recommendationVisible: Boolean(recommendation),
+      recommendationNames: [...document.querySelectorAll('.item-shop-recommendation-section .shop-name-cell strong')].map((node) => node.textContent.trim()),
+      dismissTitle: recommendation?.querySelector('[data-item-shop-recommendations-dismiss]')?.getAttribute('title') || '',
+      dismissText: recommendation?.querySelector('[data-item-shop-recommendations-dismiss]')?.textContent?.trim() || '',
+      restoreVisible: Boolean(document.querySelector('[data-item-shop-recommendations-restore]')),
+      restoreText: document.querySelector('[data-item-shop-recommendations-restore]')?.textContent?.trim() || '',
+      sectionTitles: sections.map((section) => section.querySelector('.shop-tier-header h3')?.textContent?.trim() || ''),
+      firstSectionTitle: first?.querySelector('.shop-tier-header h3')?.textContent?.trim() || '',
+      firstSectionClass: first?.className || '',
+      firstSectionIsMain: first === main,
+      placeholderGone: !document.querySelector('.item-shop-recommendation-section') && !document.querySelector('.item-shop-recommendation-grid'),
+      saveRequestedRevision: backendSync.saveRequestedRevision,
+      savePersistedRevision: backendSync.savePersistedRevision,
+      saveTimerQueued: Boolean(backendSync.saveTimer),
+      preferences
+    };
+  })()`);
+  await evaluate(`(async () => {
+    const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    const record = (trainerId, name) => ({
+      id: \`\${trainerId}-\${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}\`,
+      trainerId,
+      ownerId: trainerId,
+      name,
+      currentSpecies: name,
+      baseSpecies: name,
+      rosterSpeciesName: name,
+      acquiredSpeciesName: name,
+      status: 'Active',
+      rosterType: 'Active'
+    });
+    localStorage.removeItem('${preferenceKey}');
+    localStorage.setItem('rival-saga-backend-game-id', '${gameId}');
+    history.replaceState(null, '', '/?view=game&game=${gameId}&page=playerHub&panel=shop&item-shop-drawer=initial');
+    backendSync.gameId = '${gameId}';
+    state.activePage = 'playerHub';
+    state.activeView = 'shop';
+    state.activeShop = 'items';
+    state.activePlayerId = 'gold';
+    state.itemShopFolderPath = [];
+    state.itemShopFilters = { group: 'all', roles: [], tags: [], canAfford: false, expanded: false };
+    state.players.forEach((player) => { player.balance = 10000; });
+    state.pokemonRecords = [record('gold', 'Kangaskhan'), record('${otherPlayerId}', 'Kangaskhan')];
+    syncPlayerPokemonLists(state);
+    document.querySelector('#searchInput').value = '';
+    render();
+    await sleep(150);
+  })()`, 30000);
+  const initial = await snapshot();
+  assert.equal(initial.recommendationVisible, true);
+  assert.ok(initial.recommendationNames.includes("Kangaskhanite"));
+  assert.equal(initial.dismissTitle, "Hide recommendations");
+  assert.equal(initial.dismissText, "×");
+  assert.equal(initial.restoreVisible, false);
+  assert.deepEqual(initial.sectionTitles, ["For Your Team", "Main Shop", "Collections"]);
+
+  await evaluate(`(async () => {
+    const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    document.querySelector('[data-item-shop-recommendations-dismiss]')?.click();
+    await sleep(150);
+  })()`);
+  const collapsed = await snapshot();
+  assert.equal(collapsed.recommendationVisible, false);
+  assert.equal(collapsed.placeholderGone, true);
+  assert.equal(collapsed.firstSectionIsMain, true);
+  assert.equal(collapsed.firstSectionTitle, "Main Shop");
+  assert.equal(collapsed.restoreVisible, true);
+  assert.equal(collapsed.restoreText, "Show recommendations");
+  assert.equal(collapsed.preferences[gameId]?.gold, true);
+  assert.equal(collapsed.saveRequestedRevision, initial.saveRequestedRevision);
+  assert.equal(collapsed.savePersistedRevision, initial.savePersistedRevision);
+  assert.equal(collapsed.saveTimerQueued, false);
+
+  await cdp.send("Page.reload", { ignoreCache: true });
+  await waitUntil("document.querySelector('.item-shop-browse-copy h3')?.textContent?.trim() === 'Items'");
+  const afterRefresh = await snapshot();
+  assert.equal(afterRefresh.recommendationVisible, false);
+  assert.equal(afterRefresh.firstSectionIsMain, true);
+  assert.equal(afterRefresh.restoreVisible, true);
+
+  await evaluate(`(async () => {
+    const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    const record = (trainerId, name) => ({
+      id: \`\${trainerId}-\${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}\`,
+      trainerId,
+      ownerId: trainerId,
+      name,
+      currentSpecies: name,
+      baseSpecies: name,
+      rosterSpeciesName: name,
+      acquiredSpeciesName: name,
+      status: 'Active',
+      rosterType: 'Active'
+    });
+    state.activePlayerId = 'gold';
+    state.pokemonRecords = [record('gold', 'Metagross'), record('${otherPlayerId}', 'Kangaskhan')];
+    syncPlayerPokemonLists(state);
+    state.activeShop = 'items';
+    state.itemShopFolderPath = [];
+    state.itemShopFilters = { group: 'all', roles: [], tags: [], canAfford: false, expanded: false };
+    document.querySelector('#searchInput').value = '';
+    render();
+    await sleep(150);
+  })()`);
+  const afterEligibilityChange = await snapshot();
+  assert.equal(afterEligibilityChange.recommendationVisible, false);
+  assert.equal(afterEligibilityChange.restoreVisible, true);
+  assert.equal(afterEligibilityChange.firstSectionIsMain, true);
+
+  await evaluate(`(async () => {
+    const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    state.activePlayerId = '${otherPlayerId}';
+    render();
+    await sleep(150);
+  })()`);
+  const otherPlayer = await snapshot();
+  assert.equal(otherPlayer.activePlayerId, otherPlayerId);
+  assert.equal(otherPlayer.recommendationVisible, true);
+  assert.ok(otherPlayer.recommendationNames.includes("Kangaskhanite"));
+  assert.equal(otherPlayer.restoreVisible, false);
+
+  await evaluate(`(async () => {
+    const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    const record = (trainerId, name) => ({
+      id: \`\${trainerId}-\${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}\`,
+      trainerId,
+      ownerId: trainerId,
+      name,
+      currentSpecies: name,
+      baseSpecies: name,
+      rosterSpeciesName: name,
+      acquiredSpeciesName: name,
+      status: 'Active',
+      rosterType: 'Active'
+    });
+    localStorage.setItem('rival-saga-backend-game-id', '${otherGameId}');
+    history.replaceState(null, '', '/?view=game&game=${otherGameId}&page=playerHub&panel=shop&item-shop-drawer=other-game');
+    backendSync.gameId = '${otherGameId}';
+    state.activePlayerId = 'gold';
+    state.pokemonRecords = [record('gold', 'Kangaskhan')];
+    syncPlayerPokemonLists(state);
+    state.activeShop = 'items';
+    state.itemShopFolderPath = [];
+    state.itemShopFilters = { group: 'all', roles: [], tags: [], canAfford: false, expanded: false };
+    document.querySelector('#searchInput').value = '';
+    render();
+    await sleep(150);
+  })()`, 30000);
+  const otherGame = await snapshot();
+  assert.equal(otherGame.gameId, otherGameId);
+  assert.equal(otherGame.activePlayerId, "gold");
+  assert.equal(otherGame.recommendationVisible, true);
+  assert.ok(otherGame.recommendationNames.includes("Kangaskhanite"));
+  assert.notEqual(otherGame.preferences[otherGameId]?.gold, true);
+
+  await evaluate(`(async () => {
+    const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    const record = (trainerId, name) => ({
+      id: \`\${trainerId}-\${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}\`,
+      trainerId,
+      ownerId: trainerId,
+      name,
+      currentSpecies: name,
+      baseSpecies: name,
+      rosterSpeciesName: name,
+      acquiredSpeciesName: name,
+      status: 'Active',
+      rosterType: 'Active'
+    });
+    localStorage.setItem('rival-saga-backend-game-id', '${gameId}');
+    history.replaceState(null, '', '/?view=game&game=${gameId}&page=playerHub&panel=shop&item-shop-drawer=restore');
+    backendSync.gameId = '${gameId}';
+    state.activePlayerId = 'gold';
+    state.pokemonRecords = [record('gold', 'Kangaskhan'), record('${otherPlayerId}', 'Kangaskhan')];
+    syncPlayerPokemonLists(state);
+    state.activeShop = 'items';
+    state.itemShopFolderPath = [];
+    state.itemShopFilters = { group: 'all', roles: [], tags: [], canAfford: false, expanded: false };
+    document.querySelector('#searchInput').value = '';
+    render();
+    await sleep(150);
+  })()`, 30000);
+  const beforeRestore = await snapshot();
+  assert.equal(beforeRestore.recommendationVisible, false);
+  assert.equal(beforeRestore.restoreVisible, true);
+  await evaluate(`(async () => {
+    const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    document.querySelector('[data-item-shop-recommendations-restore]')?.click();
+    await sleep(150);
+  })()`);
+  const restored = await snapshot();
+  assert.equal(restored.recommendationVisible, true);
+  assert.ok(restored.recommendationNames.includes("Kangaskhanite"));
+  assert.equal(restored.restoreVisible, false);
+  assert.equal(restored.preferences[gameId]?.gold, false);
+
+  await evaluate(`(async () => {
+    const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    state.activePlayerId = 'gold';
+    state.pokemonRecords = [];
+    syncPlayerPokemonLists(state);
+    state.activeShop = 'items';
+    state.itemShopFolderPath = [];
+    state.itemShopFilters = { group: 'all', roles: [], tags: [], canAfford: false, expanded: false };
+    document.querySelector('#searchInput').value = '';
+    render();
+    await sleep(150);
+  })()`);
+  const zeroRecommendations = await snapshot();
+  assert.equal(zeroRecommendations.recommendationVisible, false);
+  assert.equal(zeroRecommendations.restoreVisible, false);
+  assert.deepEqual(zeroRecommendations.sectionTitles, ["Main Shop", "Collections"]);
+  await evaluate(`(() => {
+    if (storedStateSaveTimer) clearTimeout(storedStateSaveTimer);
+    storedStateSaveTimer = null;
+    storedStateSaveQueued = false;
+    if (clientUiStateSaveTimer) clearTimeout(clientUiStateSaveTimer);
+    clientUiStateSaveTimer = null;
+    clientUiStateSaveQueued = false;
+    if (backendSync.saveTimer) clearTimeout(backendSync.saveTimer);
+    backendSync.saveTimer = null;
+    if (backendSync.stateSaveAbortController) backendSync.stateSaveAbortController.abort();
+    backendSync.stateSaveAbortController = null;
+    backendSync.stateSaveInFlight = null;
+    backendSync.saveRequestedRevision = backendSync.savePersistedRevision;
+    backendSync.saveStatus = 'saved';
+    backendSync.saveError = '';
+  })()`, 30000);
+  assert.deepEqual(actionableBrowserErrors(), []);
+  assert.deepEqual(actionableExternalRequests(), []);
+}
+
 test("[ITEM-SHOP-BROWSE-001] Item Shop browse chrome stays compact and filters flatten intentionally", async () => {
-  await evaluate(`(() => localStorage.removeItem('rival-saga-client-ui-v1'))()`);
   await cdp.send("Page.navigate", { url: `${server.baseUrl}/?view=game&game=default&page=playerHub&panel=shop&item-shop-browse-browser=${Date.now()}` });
   await waitUntil("document.readyState === 'complete' || document.readyState === 'interactive'");
   await waitUntil("Boolean(document.querySelector('#shopGrid'))");
   await waitUntil("document.body.classList.contains('site-game-active')");
   await evaluate(`(() => {
+    localStorage.removeItem('rival-saga-client-ui-v1');
+    localStorage.setItem('rival-saga-item-shop-recommendation-drawer-v1', JSON.stringify({ default: { gold: true } }));
     state.activePlayerId = 'gold';
     state.activeShop = 'items';
     state.itemShopFolderPath = [];
@@ -711,7 +1001,7 @@ test("[ITEM-SHOP-BROWSE-001] Item Shop browse chrome stays compact and filters f
   assert.equal(badgePointVisual.labelOpacity, "0");
   assert.equal(badgePointVisual.buttonText, "Buy");
   assert.equal(badgePointVisual.buttonDisabled, false);
-  assert.match(badgePointVisual.priceText, /5,000/);
+  assert.match(badgePointVisual.priceText, /4,000/);
   const legacyTicketVisual = productVisuals.find((report) => report.name === "Legacy Ticket");
   assert.equal(legacyTicketVisual.found, true);
   assert.equal(legacyTicketVisual.imgExists, true);
@@ -722,6 +1012,87 @@ test("[ITEM-SHOP-BROWSE-001] Item Shop browse chrome stays compact and filters f
   assert.equal(legacyTicketVisual.labelOpacity, "0");
   assert.equal(legacyTicketVisual.buttonText, "Add");
   assert.equal(legacyTicketVisual.buttonDisabled, false);
+  assert.match(legacyTicketVisual.priceText, /4,000/);
+
+  const trainerResourceScaling = await evaluate(`(async () => {
+    const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    const player = state.players.find((entry) => entry.id === 'gold');
+    const key = phaseStateKey(state.series, state.gym);
+    const previousPlayer = structuredClone(player);
+    const previousCart = structuredClone(state.shopCart || { playerId: '', items: [], open: false });
+    const previousPhase = state.currentPhase;
+    const previousPhaseAlias = state.phase;
+    const previousPhaseState = structuredClone(state.phaseState || {});
+    const previousShop = state.activeShop;
+    const previousFolderPath = structuredClone(state.itemShopFolderPath || []);
+    const previousFilters = structuredClone(state.itemShopFilters || {});
+    player.balance = 20000;
+    player.badgePoints = 0;
+    player.badgePurchasesThisSeries = 0;
+    player.legacyTicketPurchasesThisSeries = 0;
+    player.inventory = [];
+    state.shopCart = { playerId: '', items: [], open: false };
+    state.currentPhase = 'shop';
+    state.phase = 'shop';
+    state.phaseState ||= {};
+    state.phaseState[key] ||= {};
+    state.phaseState[key].currentPhase = 'shop';
+    state.activeShop = 'items';
+    state.itemShopFolderPath = [];
+    state.itemShopFilters = { group: 'all', roles: [], tags: [], canAfford: false, expanded: false };
+    document.querySelector('#searchInput').value = '';
+    render();
+    await sleep(150);
+    const cardFor = (name) => [...document.querySelectorAll('#shopGrid .item-shop-main-section .shop-row:not([data-item-shop-folder])')]
+      .find((row) => row.querySelector('.shop-name-cell strong')?.textContent?.trim() === name);
+    const priceFor = (name) => cardFor(name)?.querySelector('.price')?.textContent?.replace(/\\s+/g, ' ').trim() || '';
+    const initialBadgePrice = priceFor('Badge Point');
+    const initialLegacyPrice = priceFor('Legacy Ticket');
+    cardFor('Legacy Ticket')?.querySelector('.shop-buy-button')?.click();
+    await sleep(120);
+    cardFor('Legacy Ticket')?.querySelector('.shop-buy-button')?.click();
+    await sleep(120);
+    const cartPrices = (state.shopCart?.items || [])
+      .filter((entry) => entry.name === 'Legacy Ticket')
+      .map((entry) => ({ price: entry.price, quantity: entry.quantity }));
+    const cartTotal = (state.shopCart?.items || []).reduce((total, entry) => total + entry.price * entry.quantity, 0);
+    finalizeCartPurchase();
+    await sleep(150);
+    const legacyCountAfterPurchase = player.legacyTicketPurchasesThisSeries;
+    const nextLegacyPrice = priceFor('Legacy Ticket');
+    cardFor('Badge Point')?.querySelector('.shop-buy-button')?.click();
+    await sleep(150);
+    const badgePurchasesAfterFirst = player.badgePurchasesThisSeries;
+    const nextBadgePrice = priceFor('Badge Point');
+    Object.assign(player, previousPlayer);
+    state.shopCart = previousCart;
+    state.currentPhase = previousPhase;
+    state.phase = previousPhaseAlias;
+    state.phaseState = previousPhaseState;
+    state.activeShop = previousShop;
+    state.itemShopFolderPath = previousFolderPath;
+    state.itemShopFilters = previousFilters;
+    render();
+    await sleep(100);
+    return {
+      initialBadgePrice,
+      initialLegacyPrice,
+      cartPrices,
+      cartTotal,
+      legacyCountAfterPurchase,
+      nextLegacyPrice,
+      badgePurchasesAfterFirst,
+      nextBadgePrice
+    };
+  })()`, 10000);
+  assert.match(trainerResourceScaling.initialBadgePrice, /4,000/);
+  assert.match(trainerResourceScaling.initialLegacyPrice, /4,000/);
+  assert.deepEqual(trainerResourceScaling.cartPrices, [{ price: 4000, quantity: 1 }, { price: 5000, quantity: 1 }]);
+  assert.equal(trainerResourceScaling.cartTotal, 9000);
+  assert.equal(trainerResourceScaling.legacyCountAfterPurchase, 2);
+  assert.match(trainerResourceScaling.nextLegacyPrice, /6,000/);
+  assert.equal(trainerResourceScaling.badgePurchasesAfterFirst, 1);
+  assert.match(trainerResourceScaling.nextBadgePrice, /5,000/);
 
   const affordHierarchy = await evaluate(`(async () => {
     const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -901,6 +1272,22 @@ test("[ITEM-SHOP-BROWSE-001] Item Shop browse chrome stays compact and filters f
   })()`, 20000);
   await captureShopHudScreenshot("shop-hud-mobile-top-250.png");
   await cdp.send("Emulation.clearDeviceMetricsOverride");
+  await evaluate(`(() => {
+    if (storedStateSaveTimer) clearTimeout(storedStateSaveTimer);
+    storedStateSaveTimer = null;
+    storedStateSaveQueued = false;
+    if (clientUiStateSaveTimer) clearTimeout(clientUiStateSaveTimer);
+    clientUiStateSaveTimer = null;
+    clientUiStateSaveQueued = false;
+    if (backendSync.saveTimer) clearTimeout(backendSync.saveTimer);
+    backendSync.saveTimer = null;
+    if (backendSync.stateSaveAbortController) backendSync.stateSaveAbortController.abort();
+    backendSync.stateSaveAbortController = null;
+    backendSync.stateSaveInFlight = null;
+    backendSync.saveRequestedRevision = backendSync.savePersistedRevision;
+    backendSync.saveStatus = 'saved';
+    backendSync.saveError = '';
+  })()`, 30000);
 
   assert.deepEqual(mobileReport.shopTabs, ["Items", "TMs", "Tokens"]);
   assert.ok(mobileReport.viewport.width >= 390 && mobileReport.viewport.width <= 391, JSON.stringify(mobileReport.viewport));
@@ -924,3 +1311,5 @@ test("[ITEM-SHOP-BROWSE-001] Item Shop browse chrome stays compact and filters f
   assert.deepEqual(actionableBrowserErrors(), []);
   assert.deepEqual(actionableExternalRequests(), []);
 });
+
+test("[ITEM-SHOP-RECOMMENDATION-DRAWER-001] Item Shop recommendations collapse per game and viewed player", runItemShopRecommendationDrawerBrowserCheck);

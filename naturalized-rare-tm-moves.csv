@@ -1,0 +1,133 @@
+moveName,compatiblePokemonCount,compatibilityGroupCount,formerLearnMethods,pokemonKeys
+Acid,7,3,egg,cacnea; cacturne; chandelure; lampent; litwick; chandelure-mega; shuckle
+Aqua Cutter,5,2,egg,cramorant; dewott; samurott-hisui; oshawott; samurott
+Autotomize,14,4,egg,geodude-alola; golem-alola; graveler-alola; boldore; garbodor; geodude; gigalith; golem; graveler; roggenrola; trubbish; vanillish; vanillite; vanilluxe
+Baby-Doll Eyes,5,3,egg; tutor,alcremie; furret; lilligant-hisui; milcery; sentret
+Barb Barrage,1,1,egg,qwilfish
+Blue Flare,1,1,event,victini
+Bolt Strike,1,1,event,victini
+Boomburst,8,4,egg,chatot; finizen; palafin-zero; pikipek; swellow; taillow; toucannon; trumbeak
+Bubble,1,1,egg,tentacool
+Burn Up,5,2,egg,emboar; growlithe; emboar-mega; pignite; tepig
+Circle Throw,14,5,egg,buneary; clobbopus; exploud; grapploct; kangaskhan; lopunny; loudred; lucario; kangaskhan-mega; lopunny-mega; lucario-mega; lucario-mega-z; riolu; whismur
+Coil,1,1,egg,orthworm
+Comet Punch,3,1,egg,conkeldurr; gurdurr; timburr
+Comeuppance,2,1,egg,zoroark-hisui; zorua-hisui
+Confusion,13,5,egg; virtual-console,abra; blastoise; hoppip; jumpluff; blastoise-mega; nidoking; nidoran-m; nidorino; skiploom; squirtle; tangela; tangrowth; wartortle
+Constrict,2,1,egg,frillish-male; jellicent-male
+Cotton Guard,6,3,egg; event,banette; bouffalant; hoppip; jumpluff; banette-mega; skiploom
+Cotton Spore,3,1,egg,budew; roselia; roserade
+Crabhammer,1,1,egg,klawf
+Crafty Shield,2,1,egg,chimecho; chimecho-mega
+Discharge,5,3,egg,amaura; aurorus; boltund; grubbin; yamper
+Dizzy Punch,5,4,egg,kecleon; ledian; ledyba; miltank; volbeat
+Double Hit,9,4,egg,buneary; deino; empoleon; sneasel-hisui; piplup; prinplup; sneasel; sneasler; weavile
+Double Slap,10,3,egg; virtual-console,aipom; raichu-alola; ambipom; buizel; floatzel; raichu-mega-x; raichu-mega-y; pichu; pikachu; raichu
+Drill Peck,4,2,egg,honchkrow; murkrow; natu; xatu
+Egg Bomb,2,2,machine,exeggcute; mew
+Eruption,2,1,event,heatran; heatran-mega
+Extreme Speed,11,5,egg; event; zygarde-cube,raichu-alola; dragonair; dratini; genesect; linoone; raichu-mega-x; raichu-mega-y; pikachu; raichu; zigzagoon; zygarde-10
+Fairy Wind,2,1,egg,frosmoth; snom
+Fell Stinger,9,4,egg,cacnea; cacturne; drizzile; inteleon; masquerain; paras; parasect; sobble; surskit
+First Impression,10,5,egg,axew; durant; farfetchd; flygon; fraxure; haxorus; spidops; tarountula; trapinch; vibrava
+Flame Burst,10,4,egg,cyndaquil; electrike; typhlosion-hisui; manectric; manectric-mega; quilava; skuntank; stunky; torkoal; typhlosion
+Flame Wheel,6,2,egg; virtual-console,darmanitan-standard; darumaka; darmanitan-galar-standard; darumaka-galar; raticate; rattata
+Flower Shield,1,1,egg,cherubi
+Force Palm,5,2,egg,bewear; conkeldurr; gurdurr; stufful; timburr
+Freeze-Dry,11,5,egg,arctibax; baxcalibur; delibird; frigibax; darmanitan-galar-standard; darumaka-galar; lapras; mamoswine; baxcalibur-mega; piloswine; swinub
+Fury Attack,6,2,egg,pinsir-mega; staraptor-mega; pinsir; staraptor; staravia; starly
+Fury Swipes,11,5,egg; event; virtual-console,rattata-alola; bibarel; bidoof; buizel; cyndaquil; floatzel; typhlosion-hisui; quilava; rattata; smeargle; typhlosion
+Fusion Bolt,1,1,event,victini
+Fusion Flare,1,1,event,victini
+Glaciate,1,1,event,victini
+Glare,6,3,egg,druddigon; heliolisk; helioptile; serperior; servine; snivy
+Growl,3,1,egg; virtual-console,hoppip; jumpluff; skiploom
+Guard Split,12,5,egg,abra; accelgor; alakazam; bastiodon; kadabra; alakazam-mega; rhydon; rhyhorn; rhyperior; shelmet; shieldon; spinda
+Heal Block,2,1,egg,cofagrigus; yamask
+Heart Stamp,7,3,egg; event,raichu-alola; jirachi; raichu-mega-x; raichu-mega-y; miltank; pikachu; raichu
+High Jump Kick,10,3,egg,cinderace; hitmonchan; hitmontop; lucario; lucario-mega; lucario-mega-z; raboot; riolu; scorbunny; tyrogue
+Horn Attack,2,1,egg,escavalier; karrablast
+Ice Ball,12,5,egg; tutor,delibird; electrode-hisui; qwilfish-hisui; voltorb-hisui; marshtomp; swampert-mega; mudkip; politoed; poliwag; poliwhirl; poliwrath; swampert
+Ice Hammer,3,1,egg,tinkatink; tinkaton; tinkatuff
+Ice Shard,11,5,egg,sandshrew-alola; sandslash-alola; delibird; donphan; drizzile; inteleon; phanpy; sobble; vanillish; vanillite; vanilluxe
+Inferno,4,2,dream-world; egg,magcargo; misdreavus; mismagius; slugma
+Ion Deluge,2,2,egg,emolga; pachirisu
+Karate Chop,6,2,egg; virtual-console,electabuzz; electivire; elekid; magby; magmar; magmortar
+Last Respects,3,1,egg,basculegion-male; basculegion-female; basculin-white-striped
+Leaf Blade,4,4,egg; machine,celebi; lilligant; mew; tropius
+Leaf Tornado,1,1,egg,comfey
+Leer,5,3,egg; virtual-console,granbull; rhyperior; skuntank; snubbull; stunky
+Lick,7,3,egg; virtual-console,dewgong; grimer; herdier; lillipup; muk; seel; stoutland
+Life Dew,17,5,egg,blastoise; brionne; budew; cloyster; goodra; goomy; goodra-hisui; sliggoo-hisui; blastoise-mega; popplio; primarina; roselia; roserade; shellder; sliggoo; squirtle; wartortle
+Lock-On,4,2,egg,boldore; gigalith; klefki; roggenrola
+Lovely Kiss,1,1,egg,smoochum
+Mach Punch,12,4,egg,conkeldurr; gurdurr; hitmonlee; hitmontop; magby; magmar; magmortar; pawmi; pawmo; pawmot; timburr; tyrogue
+Meditate,13,5,egg; virtual-console,annihilape; croagunk; electabuzz; electivire; elekid; jynx; machamp; machoke; machop; mankey; primeape; smoochum; toxicroak
+Metal Burst,9,5,egg,durant; mawile; mawile-mega; sableye-mega; orthworm; rhydon; rhyhorn; rhyperior; sableye
+Meteor Mash,2,2,egg; event,deoxys-normal; riolu
+Miracle Eye,5,2,egg,gothita; gothitelle; gothorita; jynx; smoochum
+Moonblast,5,3,egg; event,ninetales-alola; vulpix-alola; cutiefly; jirachi; ribombee
+Moongeist Beam,1,1,restricted,necrozma-dawn
+Moonlight,5,2,egg,exeggutor-alola; exeggcute; exeggutor; sableye-mega; sableye
+Nuzzle,3,1,egg,hatenna; hatterene; hattrem
+Octazooka,6,3,egg; event,horsea; kingdra; sableye-mega; remoraid; sableye; seadra
+Parabolic Charge,2,1,egg,bellibolt; tadbulb
+Peck,5,2,egg; virtual-console,dewgong; seel; togekiss; togepi; togetic
+Petal Dance,4,2,egg; event,bulbasaur; ivysaur; meowth; persian
+Poison Fang,9,5,egg,arbok; bruxish; ekans; mawile; mawile-mega; mightyena; poochyena; tyrantrum; tyrunt
+Poison Powder,8,4,egg,amoonguss; eldegoss; foongus; gossifleur; morelull; scatterbug; shiinotic; spewpa
+Poison Sting,2,1,egg,galvantula; joltik
+Powder,2,1,egg,cutiefly; ribombee
+Powder Snow,3,1,egg,vanillish; vanillite; vanilluxe
+Power Shift,2,2,tutor,avalugg-hisui; braviary-hisui
+Power Trick,11,4,egg,abra; alakazam; forretress; gligar; gliscor; kadabra; machamp; machoke; machop; alakazam-mega; pineco
+Power Trip,12,5,egg,annihilape; bombirdier; empoleon; incineroar; litten; mankey; pancham; pangoro; piplup; primeape; prinplup; torracat
+Psycho Boost,1,1,event,lugia
+Psyshield Bash,1,1,egg,stantler
+Quiver Dance,4,1,egg,oricorio-baile; oricorio-pau; oricorio-pom-pom; oricorio-sensu
+Raging Fury,2,1,egg,arcanine; growlithe
+Razor Leaf,13,5,egg,bellossom; budew; carnivine; cherrim; cherubi; gloom; lombre; lotad; ludicolo; oddish; roselia; roserade; vileplume
+Razor Shell,9,5,machine,carracosta; escavalier; slowbro-galar; slowking-galar; kabutops; slowbro-mega; mew; slowbro; slowking
+Reflect Type,8,5,dream-world; egg,castform; stunfisk-galar; gastly; haunter; kecleon; omanyte; omastar; stunfisk
+Roar of Time,3,2,event,arceus; darkrai; darkrai-mega
+Rock Throw,4,2,egg,carracosta; tirtouga; tyrantrum; tyrunt
+Rolling Kick,6,2,egg; virtual-console,electabuzz; electivire; elekid; machamp; machoke; machop
+Sacred Sword,4,1,egg,dewott; samurott-hisui; oshawott; samurott
+Shadow Force,1,1,event,arceus
+Shadow Punch,2,1,egg,grimer; muk
+Shadow Sneak,15,5,egg,grimer-alola; muk-alola; brambleghast; bramblin; gallade; gardevoir; greavard; grimer; houndstone; kirlia; gallade-mega; gardevoir-mega; misdreavus; muk; ralts
+Shell Smash,5,2,egg,chewtle; drednaw; grotle; torterra; turtwig
+Shift Gear,1,1,event,genesect
+Sky Uppercut,7,2,egg,buneary; lopunny; lucario; lopunny-mega; lucario-mega; lucario-mega-z; riolu
+Slack Off,3,1,egg,crocalor; fuecoco; skeledirge
+Sleep Powder,6,3,egg,budew; carnivine; eldegoss; gossifleur; roselia; roserade
+Sludge,10,3,egg,bulbasaur; gastrodon; ivysaur; marshtomp; swampert-mega; venusaur-mega; mudkip; shellos; swampert; venusaur
+Smog,5,3,egg,gastly; gulpin; skuntank; stunky; swalot
+Smokescreen,6,3,egg,exploud; loudred; magcargo; slugma; spiritomb; whismur
+Soft-Boiled,8,3,tutor,clefable; clefairy; cleffa; clefable-mega; mew; togekiss; togepi; togetic
+Sonic Boom,4,2,egg; virtual-console,ariados; munna; musharna; spinarak
+Spacial Rend,3,2,event,arceus; darkrai; darkrai-mega
+Spark,3,2,egg,barboach; stunfisk; whiscash
+Sparkling Aria,1,1,egg,lapras
+Spiky Shield,2,1,egg,pansage; simisage
+Spore,1,1,event,smeargle
+Sticky Web,8,4,egg,araquanid; blipbug; cutiefly; dewpider; dottler; orbeetle; ribombee; swirlix
+Storm Throw,2,1,egg,pancham; pangoro
+Stuff Cheeks,5,2,egg,gulpin; lechonk; oinkologne-male; oinkologne-female; swalot
+Stun Spore,5,3,egg,carnivine; eldegoss; gossifleur; morelull; shiinotic
+Sunsteel Strike,1,1,restricted,necrozma-dusk
+Synchronoise,21,5,egg,eevee; espeon; flareon; gallade; gardevoir; glaceon; golduck; jolteon; kirlia; leafeon; gallade-mega; gardevoir-mega; natu; psyduck; ralts; swoobat; sylveon; umbreon; vaporeon; woobat; xatu
+Tackle,1,1,virtual-console,furret
+Tail Whip,7,4,egg,cinccino; glameow; meowth; minccino; pachirisu; persian; purugly
+Tearful Look,9,5,egg,dedenne; flabebe; floette; florges; floette-mega; minun; patrat; plusle; watchog
+Tidy Up,4,2,egg,cinccino; furret; minccino; sentret
+Twineedle,10,5,egg,ariados; drapion; scolipede-mega; scolipede; shellder; skorupi; spinarak; togedemaru; venipede; whirlipede
+V-create,2,1,event,rayquaza-mega; rayquaza
+Vine Whip,4,1,egg,bayleef; chikorita; meganium-mega; meganium
+Vital Throw,3,2,egg,mienfoo; mienshao; passimian
+Volt Tackle,6,1,event; light-ball-egg; tutor,raichu-alola; raichu-mega-x; raichu-mega-y; pichu; pikachu; raichu
+Water Spout,6,2,egg,blastoise; blastoise-mega; octillery; remoraid; squirtle; wartortle
+Wing Attack,6,3,egg,charmander; charmeleon; gligar; gliscor; hoothoot; noctowl
+Wood Hammer,1,1,egg,maractus
+Wrap,1,1,egg,heatmor
+Wring Out,6,2,egg,bayleef; chikorita; meganium-mega; meganium; omanyte; omastar

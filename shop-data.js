@@ -209,7 +209,7 @@ const rawItemShopData = [
         "name":  "Adrenaline Orb",
         "tier":  "Level 1",
         "level":  1,
-        "price":  1000,
+        "price":  500,
         "category":  "Niche",
         "description":  ""
     },
@@ -245,7 +245,7 @@ const rawItemShopData = [
         "name":  "Focus Band",
         "tier":  "Level 1",
         "level":  1,
-        "price":  1000,
+        "price":  500,
         "category":  "Niche",
         "description":  ""
     },
@@ -263,7 +263,7 @@ const rawItemShopData = [
         "name":  "Mirror Herb",
         "tier":  "Level 1",
         "level":  1,
-        "price":  1000,
+        "price":  1500,
         "category":  "Niche",
         "description":  ""
     },
@@ -290,7 +290,7 @@ const rawItemShopData = [
         "name":  "Ability Shield",
         "tier":  "Level 1",
         "level":  1,
-        "price":  1000,
+        "price":  500,
         "category":  "Niche",
         "description":  ""
     },
@@ -299,7 +299,7 @@ const rawItemShopData = [
         "name":  "Punching Glove",
         "tier":  "Level 1",
         "level":  1,
-        "price":  1000,
+        "price":  750,
         "category":  "Niche",
         "description":  ""
     },
@@ -317,7 +317,7 @@ const rawItemShopData = [
         "name":  "Metronome",
         "tier":  "Level 1",
         "level":  1,
-        "price":  1500,
+        "price":  1250,
         "category":  "Pokemon Specific",
         "description":  ""
     },
@@ -326,7 +326,7 @@ const rawItemShopData = [
         "name":  "Thick Club",
         "tier":  "Level 1",
         "level":  1,
-        "price":  1500,
+        "price":  500,
         "category":  "Pokemon Specific",
         "description":  ""
     },
@@ -335,7 +335,7 @@ const rawItemShopData = [
         "name":  "Leek",
         "tier":  "Level 1",
         "level":  1,
-        "price":  1500,
+        "price":  500,
         "category":  "Pokemon Specific",
         "description":  ""
     },
@@ -344,7 +344,7 @@ const rawItemShopData = [
         "name":  "Deep Sea Tooth / Scale",
         "tier":  "Level 1",
         "level":  1,
-        "price":  1500,
+        "price":  500,
         "category":  "Pokemon Specific",
         "description":  ""
     },
@@ -353,7 +353,7 @@ const rawItemShopData = [
         "name":  "Light Ball",
         "tier":  "Level 1",
         "level":  1,
-        "price":  2000,
+        "price":  1000,
         "category":  "Pokemon Specific",
         "description":  ""
     },
@@ -362,7 +362,7 @@ const rawItemShopData = [
         "name":  "Type Resist Berries",
         "tier":  "Level 2",
         "level":  2,
-        "price":  400,
+        "price":  300,
         "category":  "Berries",
         "description":  ""
     },
@@ -407,7 +407,7 @@ const rawItemShopData = [
         "name":  "Muscle Band",
         "tier":  "Level 2",
         "level":  2,
-        "price":  1000,
+        "price":  750,
         "category":  "Useful",
         "description":  ""
     },
@@ -416,7 +416,7 @@ const rawItemShopData = [
         "name":  "Wise Glasses",
         "tier":  "Level 2",
         "level":  2,
-        "price":  1000,
+        "price":  750,
         "category":  "Useful",
         "description":  ""
     },
@@ -452,7 +452,7 @@ const rawItemShopData = [
         "name":  "Black Sludge",
         "tier":  "Level 2",
         "level":  2,
-        "price":  2000,
+        "price":  1500,
         "category":  "More Useful",
         "description":  ""
     },
@@ -578,7 +578,7 @@ const rawItemShopData = [
         "name":  "Weather Rock",
         "tier":  "Level 3",
         "level":  3,
-        "price":  1500,
+        "price":  2000,
         "category":  "Good",
         "description":  ""
     },
@@ -587,7 +587,7 @@ const rawItemShopData = [
         "name":  "White Herb",
         "tier":  "Level 3",
         "level":  3,
-        "price":  2000,
+        "price":  2500,
         "category":  "Good",
         "description":  ""
     },
@@ -1117,6 +1117,7 @@ function createDerivedItemShopEntry(parentName, choiceName, overrides = {}) {
   const parent = itemShopParentByName.get(parentName);
   if (!parent) return null;
   const id = overrides.id || `${parent.id}--${shopDataSlug(choiceName)}`;
+  const priceOverrides = overrides.prices && typeof overrides.prices === "object" ? overrides.prices : {};
   const choiceEligibility = itemShopMechanicEligibilityByName[choiceName] || null;
   const metadata = {
     ...itemShopMetadataFor(parent),
@@ -1127,7 +1128,7 @@ function createDerivedItemShopEntry(parentName, choiceName, overrides = {}) {
     ...parent,
     id,
     name: choiceName,
-    price: overrides.price ?? parent.price,
+    price: priceOverrides[choiceName] ?? overrides.price ?? parent.price,
     description: overrides.description || parent.description,
     parentShopItemName: parentName,
     spriteKey: overrides.spriteKey || choiceName,
@@ -1143,6 +1144,7 @@ function createDerivedItemShopEntry(parentName, choiceName, overrides = {}) {
 
 function createDerivedItemShopEntries(parentName, overrides = {}) {
   return itemShopChoiceNames(parentName)
+    .filter((choiceName) => !(overrides.exclude || []).includes(choiceName))
     .map((choiceName) => createDerivedItemShopEntry(parentName, choiceName, overrides))
     .filter(Boolean);
 }
@@ -1173,6 +1175,11 @@ const derivedItemShopData = [
     metadata: { shopGroup: "berry", roles: ["defense"], tags: ["type-boost"] }
   }),
   ...createDerivedItemShopEntries("Competitive Berries", {
+    prices: {
+      "Sitrus Berry": 2000,
+      "Lum Berry": 1500,
+      "Custap Berry": 1000
+    },
     metadata: { shopGroup: "berry", roles: ["recovery", "utility"], tags: ["status", "setup"] }
   }),
   ...createDerivedItemShopEntries("33% Heal Berry", {

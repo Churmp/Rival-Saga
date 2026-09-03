@@ -12,6 +12,7 @@ const rivalSagaMoveClassificationRules = Object.freeze({
     "Ally Switch",
     "Aromatic Mist",
     "Coaching",
+    "Dragon Cheer",
     "Follow Me",
     "Helping Hand",
     "Hold Hands",

@@ -86,6 +86,185 @@
 
 /* Do not scale hero typography when the stage grows. The extra space belongs to the art. */
 
+body.site-game-active .layout:has(.v2-action-phase-view:not(.hidden)){
+  padding:0;
+}
+
+body.site-game-active .workbench:has(.v2-action-phase-view:not(.hidden)){
+  border:0;
+  background:transparent;
+  box-shadow:none;
+  padding:0;
+}
+
+body.site-game-active:has(.v2-action-phase-screen) .layout,
+body.site-game-active:has(.v2-action-phase-screen) .workbench{
+  width:100vw;
+  max-width:none;
+  margin-inline:calc(50% - 50vw);
+  overflow:visible;
+}
+
+.v2-action-phase-view{
+  gap:0;
+  width:100vw;
+  max-width:none;
+  margin-inline:calc(50% - 50vw);
+}
+
+.v2-action-phase-view .action-compact-hud,
+.v2-action-phase-view .action-workspace-header,
+.v2-action-phase-view .action-location-meta{
+  display:none;
+}
+
+.v2-action-phase-view .action-alert-stack:has(.action-context-alert.hidden){
+  display:none;
+}
+
+body.site-game-active:has(.v2-action-phase-screen) .activity-log-tab{
+  display:none;
+}
+
+.v2-action-phase-view .action-workspace{
+  width:100vw;
+  max-width:none;
+  min-height:0;
+  height:calc(100dvh - var(--game-header-height,52px));
+  border:0;
+  border-radius:0;
+  background:transparent;
+  box-shadow:none;
+  padding:0;
+  overflow:hidden;
+}
+
+.v2-action-phase-view .action-workspace::before{
+  display:none;
+}
+
+.v2-action-phase-view .action-location-board.v2-action-phase-screen{
+  --game-shell-header-height:var(--game-header-height,52px);
+  height:calc(100dvh - var(--game-shell-header-height,52px));
+  min-height:0;
+  padding:var(--v2-action-shell-top-gap) 1.5vw 0;
+  display:flex;
+  flex-direction:column;
+  gap:var(--v2-action-shell-stage-gap);
+  overflow:hidden;
+  box-sizing:border-box;
+  min-width:0;
+}
+
+.v2-action-phase-screen .v2-action-destination-stage{
+  color:var(--ink);
+  clip-path:polygon(0 0, 98.8% 0, 100% 3.5%, 100% 100%, 1.1% 100%, 0 96.5%);
+  min-height:0;
+}
+
+.v2-action-phase-screen .stage-edge{
+  position:absolute;
+  inset:0;
+  border-left:10px solid var(--v2-action-destination-edge,rgba(131,47,54,.8));
+  pointer-events:none;
+  z-index:3;
+}
+
+.v2-action-phase-screen .hero-copy{
+  position:absolute;
+  left:clamp(42px,3.3vw,72px);
+  top:50%;
+  transform:translateY(-49%);
+  width:min(520px,34vw);
+  z-index:2;
+}
+
+.v2-action-phase-screen .eyebrow{
+  font-size:11px;
+  color:#e0c95f;
+  font-weight:950;
+  text-transform:uppercase;
+  letter-spacing:.04em;
+  margin-bottom:8px;
+}
+
+.v2-action-phase-screen .v2-action-destination-stage h1{
+  margin:0;
+  font-size:clamp(62px,5.1vw,92px);
+  line-height:.86;
+  letter-spacing:-.035em;
+  text-transform:uppercase;
+  font-weight:900;
+}
+
+.v2-action-phase-screen .v2-action-destination-stage p{
+  margin:14px 0 24px;
+  font-size:14px;
+  line-height:1.35;
+  font-weight:650;
+  max-width:500px;
+  color:#f0eee2;
+}
+
+.v2-action-phase-screen .cta-row{
+  display:flex;
+  align-items:center;
+  gap:14px;
+}
+
+.v2-action-phase-screen .cta{
+  border:0;
+  background:#94aa9e;
+  color:#07130d;
+  padding:14px 22px;
+  font-weight:900;
+  clip-path:polygon(4% 0,100% 0,96% 100%,0 100%);
+}
+
+.v2-action-phase-screen .preview{
+  font-size:11px;
+  font-weight:950;
+  color:#eee6c9;
+  text-transform:uppercase;
+}
+
+.v2-action-phase-screen .v2-battle-tent-status,
+.v2-action-phase-screen .v2-action-location-hud{
+  position:absolute;
+  right:clamp(24px,2.7vw,52px);
+  top:54px;
+  width:220px;
+  display:grid;
+  gap:7px;
+  z-index:2;
+}
+
+.v2-action-phase-screen .v2-battle-tent-status span,
+.v2-action-phase-screen .v2-action-location-hud span{
+  display:grid;
+  gap:2px;
+  padding:8px 11px;
+  background:linear-gradient(100deg, rgba(8,35,32,.88), rgba(14,76,57,.62));
+  border-left:2px solid rgba(216,197,104,.55);
+  font-size:12px;
+  font-weight:850;
+}
+
+.v2-action-phase-screen .v2-battle-tent-status small,
+.v2-action-phase-screen .v2-action-location-hud small{
+  display:block;
+  color:#e0c95f;
+  text-transform:uppercase;
+  font-size:9px;
+  margin-bottom:1px;
+}
+
+.v2-action-phase-screen .v2-battle-tent-status strong,
+.v2-action-phase-screen .v2-action-location-hud strong{
+  font-size:14px;
+  font-weight:950;
+}
+
 @media (max-height:760px){
   .v2-action-phase-screen{
     --v2-action-shell-top-gap:8px;
@@ -94,5 +273,16 @@
   }
   .v2-action-destination-stage{
     min-height:min(540px,calc(100dvh - 160px));
+  }
+}
+
+@media (max-width:1100px){
+  .v2-action-phase-screen .v2-battle-tent-status,
+  .v2-action-phase-screen .v2-action-location-hud{
+    display:none;
+  }
+
+  .v2-action-phase-screen .hero-copy{
+    width:42vw;
   }
 }

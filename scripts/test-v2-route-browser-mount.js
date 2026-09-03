@@ -7,6 +7,9 @@ const projectRoot = path.resolve(__dirname, "..");
 const appJs = fs.readFileSync(path.join(projectRoot, "app.js"), "utf8");
 const indexHtml = fs.readFileSync(path.join(projectRoot, "index.html"), "utf8");
 const cssSource = fs.readFileSync(path.join(projectRoot, "styles.css"), "utf8");
+const actionDestinationBarCss = fs.readFileSync(path.join(projectRoot, "ui", "action-destination-bar.css"), "utf8");
+const actionPhaseShellCss = fs.readFileSync(path.join(projectRoot, "ui", "action-phase-shell.css"), "utf8");
+const presentationCss = `${cssSource}\n${actionDestinationBarCss}\n${actionPhaseShellCss}`;
 const packageJson = JSON.parse(fs.readFileSync(path.join(projectRoot, "package.json"), "utf8"));
 
 function functionBody(name) {
@@ -35,13 +38,13 @@ function functionBody(name) {
 }
 
 function cssRule(selector) {
-  const start = cssSource.indexOf(selector);
+  const start = presentationCss.indexOf(selector);
   assert.notEqual(start, -1, `${selector} should exist`);
-  const bodyStart = cssSource.indexOf("{", start);
-  const bodyEnd = cssSource.indexOf("}", bodyStart);
+  const bodyStart = presentationCss.indexOf("{", start);
+  const bodyEnd = presentationCss.indexOf("}", bodyStart);
   assert.notEqual(bodyStart, -1, `${selector} should have a body`);
   assert.notEqual(bodyEnd, -1, `${selector} body should close`);
-  return cssSource.slice(bodyStart + 1, bodyEnd);
+  return presentationCss.slice(bodyStart + 1, bodyEnd);
 }
 
 test("new game UI exposes the current Action Phase version", () => {
@@ -63,7 +66,9 @@ test("renderActionPhase delegates directly to the current Route Action renderer"
 test("loading V2 renders Route Action without invoking V1 Encounter Wheel behavior", () => {
   const body = functionBody("renderV2RouteActionPhase");
   assert.match(body, /v2EnsureRouteSeriesState/);
-  assert.match(body, /renderV2RouteLanding|renderV2RouteBrowser|renderV2RouteResultPanel/);
+  assert.match(body, /renderV2ActionDestinationShell/);
+  assert.match(functionBody("renderV2RoutesDestination"), /renderV2RouteBrowser|renderV2RouteResultPanel/);
+  assert.match(functionBody("renderV2BattleTentPreview"), /Battle Frontier/);
   assert.doesNotMatch(body, /Encounter Wheel|encounterWheelDefinition|createWheelSession|openEncounter|startEncounter/i);
 });
 
@@ -339,6 +344,126 @@ test("mounted V2 route browser keeps rail and navigation geometry stable", () =>
   assert.match(appJs, /routeButton\.contains\(event\.relatedTarget\)/);
   const selectedRule = cssRule(".v2-route-menu-item.selected");
   const hoverRule = cssSource.match(/\.v2-route-menu-item:hover,[\s\S]*?\.v2-route-menu-item\.previewed\s*\{[\s\S]*?\n\}/)?.[0] || "";
+  assert.doesNotMatch(selectedRule, /transform|translate|scale|padding|margin|border-width|min-height|height|width/);
+  assert.doesNotMatch(hoverRule, /transform|translate|scale|padding|margin|border-width|min-height|height|width/);
+});
+
+test("V2 Action destinations preview client-locally without spending Actions", () => {
+  const defaultUiBody = functionBody("createDefaultRouteUiState");
+  const normalizeUiBody = functionBody("normalizeRouteUiState");
+  const selectedBody = functionBody("v2SelectedActionDestination");
+  const selectBody = functionBody("selectV2ActionDestination");
+  const previewBody = functionBody("setV2ActionDestinationPreview");
+  const resetBody = functionBody("resetV2ActionDestinationPreview");
+  const renderBody = functionBody("renderV2ActionDestinationShell");
+  const navigatorBody = functionBody("renderV2ActionDestinationNavigator");
+  assert.match(appJs, /const V2_ACTION_STANDARD_DESTINATIONS = Object\.freeze/);
+  assert.match(appJs, /const V2_ACTION_BONUS_DESTINATION = Object\.freeze/);
+  assert.match(appJs, /const V2_ACTION_DESTINATION_IDS = Object\.freeze\(V2_ACTION_DESTINATIONS\.map/);
+  assert.match(appJs, /const V2_ACTION_DESTINATIONS = Object\.freeze/);
+  assert.match(appJs, /label: "Battle Frontier"/);
+  assert.match(appJs, /label: "Department Store"/);
+  assert.match(appJs, /label: "Game Corner"/);
+  assert.match(appJs, /label: "Graveyard"/);
+  assert.match(appJs, /label: "Ranger Base"/);
+  assert.match(appJs, /label: "Pokémon Center"/);
+  assert.match(appJs, /label: "Bulletin Board"/);
+  assert.match(appJs, /ctaLabel: "Enter Department Store"/);
+  assert.match(appJs, /ctaLabel: "Enter Game Corner"/);
+  assert.match(appJs, /ctaLabel: "Enter Graveyard"/);
+  assert.match(appJs, /ctaLabel: "Enter Ranger Base"/);
+  assert.match(appJs, /ctaLabel: "Enter Pokémon Center"/);
+  assert.match(appJs, /ctaLabel: "View Bulletin Board"/);
+  const destinationConfig = appJs.slice(appJs.indexOf("const V2_ACTION_STANDARD_DESTINATIONS"), appJs.indexOf("const V2_ACTION_BONUS_DESTINATION"));
+  assert.doesNotMatch(destinationConfig, /label: "Day Care"|label: "Silph Co\. R&D"|label: "Dragon's Den"|id: "pc"|Hidden Grotto/);
+  assert.doesNotMatch(appJs, /const V2_ACTION_PREVIEW_STANDARD_SLOTS/);
+  assert.doesNotMatch(appJs, /id: "move"|id: "search"|id: "engage"|id: "rest"|id: "interact"|id: "scout"|id: "explore"/);
+  assert.match(defaultUiBody, /selectedActionDestinationBySeriesId/);
+  assert.match(defaultUiBody, /hoveredActionDestination/);
+  assert.match(normalizeUiBody, /selectedActionDestinationBySeriesId/);
+  assert.match(selectedBody, /normalizeV2ActionDestinationId[\s\S]*"routes"/);
+  assert.match(renderBody, /data-v2-action-destination-workspace/);
+  assert.match(renderBody, /v2-action-destination-stage/);
+  assert.match(renderBody, /v2ActionDestinationStageStyle\(activeDestinationId\)/);
+  assert.match(renderBody, /renderV2ActionDestinationNavigator\(selectedDestinationId, activeDestinationId, actionStatus\)/);
+  assert.match(navigatorBody, /data-v2-action-destination-navigator/);
+  assert.match(navigatorBody, /data-v2-action-destination-shell/);
+  assert.match(navigatorBody, /data-v2-action-destination-selected/);
+  assert.match(navigatorBody, /data-v2-action-destination-preview/);
+  assert.match(navigatorBody, /class="v2-action-destination-shell action-nav"/);
+  assert.match(navigatorBody, /class="topline"/);
+  assert.match(navigatorBody, /class="v2-action-destination-grid grid"/);
+  assert.match(navigatorBody, /class="v2-action-destination-card slot s\$\{slotNumber\}/);
+  assert.match(navigatorBody, /class="num"/);
+  assert.match(navigatorBody, /class="mark"/);
+  assert.match(navigatorBody, /class="name"/);
+  assert.match(navigatorBody, /class="tiny"/);
+  assert.doesNotMatch(navigatorBody, /class="[^"]*v2-action-destination-(navigator|slot|button|header|symbol|number|copy)/);
+  assert.doesNotMatch(navigatorBody, /data-v2-action-preview-bar/);
+  assert.match(navigatorBody, /data-v2-action-destination-bonus-granted/);
+  assert.match(navigatorBody, /data-v2-action-destination-select/);
+  assert.doesNotMatch(renderBody, /data-v2-action-destination-panel/);
+  assert.match(previewBody, /if \(normalized === current\) return false/);
+  assert.match(previewBody, /dataset\.v2ActionDestinationPreview = normalized/);
+  assert.match(previewBody, /workspaceTarget\.innerHTML = renderV2ActionDestinationWorkspace/);
+  assert.match(resetBody, /setV2ActionDestinationPreview\(shell\.dataset\.v2ActionDestinationSelected/);
+  assert.match(selectBody, /v2SetSelectedActionDestination/);
+  assert.match(selectBody, /saveClientUiState\(\)/);
+  assert.doesNotMatch(selectBody, /saveState|spentActionIds|v2CommitRouteAction|createLocationActionVisit/);
+  assert.match(functionBody("createPersistableStateSnapshot"), /delete snapshot\.routeUiState/);
+  assert.match(appJs, /data-v2-route-enter/);
+  assert.match(appJs, /data-v2-routes-landing/);
+});
+
+test("V2 Action destination selector geometry is stable across previews", () => {
+  const actionNavRule = cssRule(".action-nav");
+  const buttonRule = cssRule(".action-nav .slot");
+  const selectedRule = cssRule(".action-nav .slot.selected");
+  const hoverRule = cssSource.match(/\.action-nav \.slot:hover,[\s\S]*?\.action-nav \.slot\.previewed\s*\{[\s\S]*?\n\}/)?.[0] || "";
+  const screenRule = cssRule(".v2-action-phase-screen");
+  const destinationGridRule = cssRule(".action-nav .grid");
+  assert.match(actionNavRule, /overflow-anchor:\s*none/);
+  assert.match(indexHtml, /styles\.css[^]*ui\/action-destination-bar\.css[^]*ui\/action-phase-shell\.css/);
+  assert.match(screenRule, /height:\s*calc\(100dvh - var\(--game-shell-header-height,52px\)\)/);
+  assert.match(screenRule, /gap:\s*var\(--v2-action-shell-stage-gap\)/);
+  assert.match(actionDestinationBarCss, /\.action-nav\s*\{[\s\S]*flex:\s*0 0 auto/);
+  assert.match(cssSource, /\.action-nav \.topline\s*\{/);
+  assert.match(destinationGridRule, /grid-template-columns:\s*repeat\(10, minmax\(0, 1fr\)\)/);
+  assert.match(destinationGridRule, /grid-template-rows:\s*34px 34px/);
+  assert.match(cssSource, /\.action-nav \.s1\s*\{[\s\S]*grid-row:\s*1[\s\S]*grid-column:\s*2 \/ span 2/);
+  assert.match(cssSource, /\.action-nav \.s4\s*\{[\s\S]*grid-row:\s*1[\s\S]*grid-column:\s*8 \/ span 2/);
+  assert.match(cssSource, /\.action-nav \.s9\s*\{[\s\S]*grid-row:\s*2[\s\S]*grid-column:\s*9 \/ span 2/);
+  assert.match(cssSource, /\.action-nav\[data-v2-action-destination-bonus-granted="false"\] \.s9\s*\{[\s\S]*visibility:\s*hidden/);
+  assert.match(cssSource, /\.action-nav \*,\s*\.action-nav \*::before,\s*\.action-nav \*::after\s*\{[\s\S]*box-sizing:\s*border-box/);
+  assert.match(buttonRule, /height:\s*34px/);
+  assert.match(buttonRule, /clip-path:\s*polygon\(6% 0, 100% 0, 94% 100%, 0 100%\)/);
+  assert.doesNotMatch(functionBody("renderV2ActionDestinationNavigator"), /destination\.kicker \|\| "Action Location"/);
+  const shellStageRule = actionPhaseShellCss.match(/(?:^|\n)\.v2-action-destination-stage\s*\{[\s\S]*?\n\}/)?.[0] || "";
+  assert.match(shellStageRule, /flex:\s*1 1 auto/);
+  assert.match(shellStageRule, /overflow:\s*hidden/);
+  assert.match(actionPhaseShellCss, /background-image:\s*var\(--v2-action-destination-art\)/);
+  assert.match(actionPhaseShellCss, /filter:\s*brightness\(var\(--v2-action-art-brightness\)\) saturate\(var\(--v2-action-art-saturation\)\)/);
+  assert.ok(fs.existsSync(path.join(projectRoot, "assets", "action-phase", "route-encounter-plate.png")), "Route Encounter plate should be copied into repo assets");
+  assert.ok(fs.existsSync(path.join(projectRoot, "assets", "action-phase", "battle-frontier-plate.png")), "Battle Frontier plate should be copied into repo assets");
+  ["department-store", "game-corner", "graveyard", "ranger-base", "pokemon-center", "bulletin-board"].forEach((plateName) => {
+    assert.ok(fs.existsSync(path.join(projectRoot, "assets", "action-phase", `${plateName}-plate.png`)), `${plateName} plate should be copied into repo assets`);
+    assert.match(appJs, new RegExp(`assets/action-phase/${plateName}-plate\\.png`));
+  });
+  assert.match(functionBody("v2ActionDestinationStageArt"), /routes:\s*\{\s*image:\s*"\/assets\/action-phase\/route-encounter-plate\.png", position:\s*"63% center"/);
+  assert.match(functionBody("v2ActionDestinationStageArt"), /"battle-tent":\s*\{\s*image:\s*"\/assets\/action-phase\/battle-frontier-plate\.png", position:\s*"64% center"/);
+  assert.doesNotMatch(cssSource, /\.v2-route-scenery\s*\{/);
+  assert.doesNotMatch(cssSource, /\.v2-action-location-landing::before\s*\{[\s\S]*repeating-linear-gradient/);
+  assert.doesNotMatch(cssSource, /\.v2-battle-tent-op\s*\{/);
+  assert.doesNotMatch(shellStageRule, /overflow-y:\s*auto/);
+  assert.doesNotMatch(shellStageRule, /(?:^|\n)\s*height:\s*var\(--v2-action-destination-workspace/);
+  assert.doesNotMatch(cssSource, /\.v2-action-destination-strip\s*\{/);
+  assert.doesNotMatch(cssSource, /data-v2-action-preview-bar/);
+  assert.doesNotMatch(cssSource, /\.v2-action-preview-grid\s*\{/);
+  assert.doesNotMatch(cssSource, /\.v2-action-preview-slot\s*\{/);
+  assert.doesNotMatch(cssSource, /\.v2-action-destination-preview-stack/);
+  assert.doesNotMatch(cssSource, /\.v2-action-destination-panel/);
+  assert.doesNotMatch(presentationCss, /\.v2-action-destination-(navigator|header|slot|button|symbol|number|copy)\b/);
+  assert.doesNotMatch(buttonRule, /translate|scale/);
   assert.doesNotMatch(selectedRule, /transform|translate|scale|padding|margin|border-width|min-height|height|width/);
   assert.doesNotMatch(hoverRule, /transform|translate|scale|padding|margin|border-width|min-height|height|width/);
 });

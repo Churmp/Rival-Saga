@@ -223,7 +223,7 @@ function dedupeMoveCatalogById(moveCatalog = {}) {
   });
 }
 
-function mergeShowdownHistoricalLearnset(entry, pokemonKey, pokemonCatalog, moveCatalog) {
+function mergeShowdownHistoricalLearnset(entry, pokemonKey, pokemonCatalog, moveCatalog, learnsetRaw = null, allowedVersionGroups = null) {
   const species = showdownSpeciesForEntry(pokemonKey, entry, pokemonCatalog);
   if (!species) return { entry, matched: false };
 
@@ -251,6 +251,7 @@ function mergeShowdownHistoricalLearnset(entry, pokemonKey, pokemonCatalog, move
     const move = ensureShowdownMoveSeed(moveId, moveCatalog);
     if (!move) return;
     if (rivalSagaMoveIsExcluded(move.name)) return;
+    if (!rawLearnsetMoveAllowedForShowdownMerge(learnsetRaw, move, allowedVersionGroups)) return;
     const moveKey = Number(move.moveId || 0) || dataKey(move.name);
     const levelSource = sources
       .filter((source) => source.sourceCode === "L")
@@ -488,6 +489,35 @@ function rawMoveMatchesDetail(rawMove, detail) {
   return dataKey(rawMove.move?.name) === dataKey(detail.name || detail.move);
 }
 
+function rawMoveMatchesMove(rawMove, move) {
+  const moveId = Number(move?.moveId || 0);
+  if (moveId) return idFromUrl(rawMove.move?.url) === moveId;
+  return dataKey(rawMove.move?.name) === dataKey(move?.name || move?.move);
+}
+
+function rawMoveHasAllowedLearnsetSource(rawMove, allowedVersionGroups) {
+  return (rawMove?.version_group_details || [])
+    .some((source) => allowedVersionGroups.has(source.version_group?.name));
+}
+
+function rawMoveHasExplicitlyIgnoredLearnsetSource(rawMove, allowedVersionGroups) {
+  return (rawMove?.version_group_details || []).some((source) => {
+    const versionGroup = dataKey(source.version_group?.name);
+    return !allowedVersionGroups.has(source.version_group?.name)
+      && (excludedLearnsetVersionGroups.has(versionGroup)
+        || conditionallyExcludedLearnsetVersionGroups.has(versionGroup));
+  });
+}
+
+function rawLearnsetMoveAllowedForShowdownMerge(learnsetRaw, move, allowedVersionGroups) {
+  if (!learnsetRaw || !allowedVersionGroups?.size) return true;
+  const rawMove = (learnsetRaw.moves || [])
+    .find((candidate) => rawMoveMatchesMove(candidate, move));
+  if (!rawMove) return true;
+  return !rawMoveHasExplicitlyIgnoredLearnsetSource(rawMove, allowedVersionGroups)
+    || rawMoveHasAllowedLearnsetSource(rawMove, allowedVersionGroups);
+}
+
 function allowedBaseLearnsetSources(rawMove, allowedVersionGroups) {
   return (rawMove?.version_group_details || []).filter((source) => (
     baseLearnsetLearnMethods.has(source.move_learn_method?.name)
@@ -562,7 +592,9 @@ function ensureMoveSeed(rawMove, moveCatalog = {}) {
 function baseLearnsetDetailsFromRaw(entry, learnsetRaw, allowedVersionGroups, moveCatalog) {
   const details = levelUpMoveDetailsFor(entry)
     .filter((detail) => !rivalSagaMoveIsExcluded(detail.name || detail.move))
-    .filter((detail) => ["bulbapedia-rem", "pokemon-showdown"].includes(detail.source)
+    .filter((detail) => detail.source === "bulbapedia-rem"
+      || (detail.source === "pokemon-showdown"
+        && rawLearnsetMoveAllowedForShowdownMerge(learnsetRaw, detail, allowedVersionGroups))
       || hasAllowedBaseLearnsetSource(learnsetRaw, detail, allowedVersionGroups));
   const seen = new Set(details.map((detail) => Number(detail.moveId || 0) || dataKey(detail.name || detail.move)));
   (learnsetRaw.moves || []).forEach((rawMove) => {
@@ -734,7 +766,14 @@ async function main() {
       allowedVersionGroups,
       data.moves
     );
-    const showdownMerge = mergeShowdownHistoricalLearnset(filteredEntry, key, data.pokemon, data.moves);
+    const showdownMerge = mergeShowdownHistoricalLearnset(
+      filteredEntry,
+      key,
+      data.pokemon,
+      data.moves,
+      learnsetRaw,
+      allowedVersionGroups
+    );
     data.pokemon[key] = showdownMerge.entry;
     if (showdownMerge.matched) showdownMatchedPokemon += 1;
     else showdownMissingPokemon.push(key);

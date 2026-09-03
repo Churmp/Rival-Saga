@@ -5,7 +5,6 @@ var shopChoicePokemonTypes = Object.freeze([
 ]);
 
 const shopChoicePlateNames = Object.freeze({
-  Normal: "Blank Plate",
   Fire: "Flame Plate",
   Water: "Splash Plate",
   Electric: "Zap Plate",
@@ -134,7 +133,7 @@ var staticShopChoiceDefinitions = Object.freeze({
   "Buy One Type Plate": {
     label: "Choose Plate",
     note: "Pick one type plate.",
-    options: shopChoicePokemonTypes.map((type) => shopChoicePlateNames[type])
+    options: shopChoicePokemonTypes.map((type) => shopChoicePlateNames[type]).filter(Boolean)
   },
   "Buy One Type Boosting Item": {
     label: "Choose Type Booster",

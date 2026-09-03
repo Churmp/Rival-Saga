@@ -4,6 +4,9 @@ const TOKEN_IMAGE_SETTINGS_KEY = "rival-saga-token-images-v1";
 const BACKEND_GAME_ID_KEY = "rival-saga-backend-game-id";
 const SITE_PROFILE_ID_KEY = "rival-saga-site-profile-id";
 const CLIENT_UI_STATE_KEY = "rival-saga-client-ui-v1";
+const ITEM_SHOP_RECOMMENDATION_DRAWER_UI_KEY = "rival-saga-item-shop-recommendation-drawer-v1";
+const TM_SHOP_BROWSE_UI_KEY = "rival-saga-tm-shop-browse-ui-v2";
+const TM_SHOP_BROWSE_UI_SCHEMA_VERSION = 3;
 const SITE_VIEW_PARAM = "view";
 const SITE_GAME_PAGE_SIZE = 10;
 const SITE_SECTION_PATHS = Object.freeze({
@@ -119,6 +122,86 @@ const SANDBOX_SAFE_CLIENT_UI_KEYS = Object.freeze([
   "opponentDrawer",
   "routeUiState"
 ]);
+const V2_ACTION_STANDARD_DESTINATIONS = Object.freeze([
+  {
+    id: "routes",
+    label: "Routes",
+    symbol: "RT",
+    kicker: "Route Encounter",
+    description: "Scout permanent residents, shape encounter tools, and spend an Action only when exploring a Route."
+  },
+  {
+    id: "battle-tent",
+    label: "Battle Frontier",
+    symbol: "BF",
+    kicker: "Battle Operations",
+    description: "Preview the future training, research, trials, and certification destination."
+  },
+  {
+    id: "department-store",
+    label: "Department Store",
+    symbol: "DS",
+    kicker: "Action Market",
+    description: "Shop, sell, and hunt for discounted Item and TM inventory.",
+    ctaLabel: "Enter Department Store",
+    plateClass: "department-store"
+  },
+  {
+    id: "gamecorner",
+    label: "Game Corner",
+    symbol: "GC",
+    kicker: "Ticket Counter",
+    description: "Test your luck for Battle Tier Tickets and other Game Corner rewards.",
+    ctaLabel: "Enter Game Corner",
+    plateClass: "game-corner"
+  },
+  {
+    id: "graveyard",
+    label: "Graveyard",
+    symbol: "GY",
+    kicker: "Release Grounds",
+    description: "Release Pokémon and turn their value into dangerous Curse rewards.",
+    ctaLabel: "Enter Graveyard",
+    plateClass: "graveyard"
+  },
+  {
+    id: "ranger-base",
+    label: "Ranger Base",
+    symbol: "RB",
+    kicker: "Ranger Credits",
+    description: "Use specialized Ranger operations and build Ranger progression.",
+    ctaLabel: "Enter Ranger Base",
+    plateClass: "ranger-base"
+  },
+  {
+    id: "pokemon-center",
+    label: "Pokémon Center",
+    symbol: "PC",
+    kicker: "Recovery",
+    description: "Recover lost Pokémon and access emergency protection services.",
+    ctaLabel: "Enter Pokémon Center",
+    plateClass: "pokemon-center"
+  },
+  {
+    id: "bulletin-board",
+    label: "Bulletin Board",
+    symbol: "BB",
+    kicker: "Quests",
+    description: "Take on available challenges and claim their rewards.",
+    ctaLabel: "View Bulletin Board",
+    plateClass: "bulletin-board"
+  }
+]);
+const V2_ACTION_BONUS_DESTINATION = Object.freeze({
+  id: "bonus",
+  label: "Bonus",
+  symbol: "+",
+  kicker: "Gym Modifier",
+  description: "Reserved for a future Gym modifier destination slot.",
+  bonus: true
+});
+const V2_ACTION_DESTINATIONS = Object.freeze([...V2_ACTION_STANDARD_DESTINATIONS, V2_ACTION_BONUS_DESTINATION]);
+const V2_ACTION_DESTINATION_IDS = Object.freeze(V2_ACTION_DESTINATIONS.map((destination) => destination.id));
 const RIVAL_SAGA_RULES = Object.freeze({
   allowMultiStageEvolutionOnTeamReveal: true
 });
@@ -237,6 +320,7 @@ const tokenResultSummary = globalThis.rivalSagaTokenResultSummary || null;
 const tokenInventoryRuntime = globalThis.rivalSagaTokenInventoryRuntime || null;
 const shopSpriteData = globalThis.rivalSagaShopSpriteData || { items: {} };
 const shopBrowseData = globalThis.rivalSagaShopBrowseData || { placements: {} };
+const tmBrowseData = globalThis.rivalSagaTmBrowseData || { moves: {} };
 const TEAM_BUILD_MIN_SLOTS = 6;
 const TEAM_BUILD_MAX_SLOTS = 18;
 const teambuilderSpeciesBrowserByPlayerId = new Map();
@@ -249,7 +333,7 @@ const SHOP_DEPARTMENTS = Object.freeze({
   },
   tms: {
     title: "TMs",
-    subtitle: "Move discs by type, category, and battle role",
+    subtitle: "Build your move library",
     icon: "TM"
   },
   tokens: {
@@ -288,6 +372,35 @@ const ITEM_SHOP_TAGS = Object.freeze([
   { id: "z-move", label: "Z-Move" },
   { id: "tera", label: "Tera" }
 ]);
+const TM_BROWSE_FOLDERS = Object.freeze([
+  { id: "all", label: "All" },
+  { id: "damage", label: "Damage" },
+  { id: "setup", label: "Setup" },
+  { id: "disruption", label: "Disruption" },
+  { id: "field", label: "Field" },
+  { id: "support", label: "Support" }
+]);
+const TM_BROWSE_LANDING_FOLDERS = Object.freeze([
+  { id: "damage", title: "Damage", subtitle: "Attacks & coverage", icon: "DMG" },
+  { id: "setup", title: "Setup", subtitle: "Boosts & win conditions", icon: "UP" },
+  { id: "disruption", title: "Disruption", subtitle: "Status & control", icon: "!" },
+  { id: "field", title: "Field", subtitle: "Hazards, weather & screens", icon: "FLD" },
+  { id: "support", title: "Support", subtitle: "Recovery & utility", icon: "+" }
+]);
+const TM_BROWSE_SHELVES = Object.freeze([
+  { id: "staples", label: "Staples" },
+  { id: "main", label: "Main" },
+  { id: "niche", label: "Niche" },
+  { id: "junk", label: "Junk Drawer" }
+]);
+const TM_BROWSE_FOLDER_IDS = new Set(TM_BROWSE_FOLDERS.map((entry) => entry.id));
+const TM_BROWSE_SHELF_IDS = new Set(TM_BROWSE_SHELVES.map((entry) => entry.id));
+const TM_BROWSE_MOVE_CLASSES = new Set(["All", "Physical", "Special", "Status"]);
+const TM_DAMAGE_QUICK_TYPES = Object.freeze(["Normal", "Fire", "Water", "Electric", "Grass", "Ice", "Fighting", "Poison", "Ground", "Flying", "Psychic", "Bug", "Rock", "Ghost", "Dragon", "Dark", "Steel", "Fairy"]);
+const TM_DAMAGE_QUICK_MOVE_CLASSES = Object.freeze(["Physical", "Special"]);
+const TM_BROWSE_SHELF_PROMINENCE = Object.freeze({ staples: 4, main: 3, niche: 2, junk: 1 });
+const TM_BROWSE_METADATA_WARNING_LIMIT = 12;
+const tmBrowseMetadataWarnings = new Set();
 const ITEM_SHOP_MECHANIC_FAMILIES = Object.freeze([
   { id: "tera", label: "Terastallization", description: "Choose one Tera Type." },
   { id: "z-move", label: "Z-Moves", description: "Standard Z-Crystal choices." },
@@ -341,7 +454,7 @@ const ITEM_SHOP_FOLDERS = Object.freeze({
     parent: "berries",
     title: "Status Berries",
     description: "Self-cure berries for common status problems.",
-    items: ["Cheri Berry", "Chesto Berry", "Pecha Berry", "Rawst Berry", "Aspear Berry", "Persim Berry", "Lum Berry"]
+    items: ["Cheri Berry", "Chesto Berry", "Pecha Berry", "Rawst Berry", "Aspear Berry", "Persim Berry"]
   },
   "resist-berries": {
     id: "resist-berries",
@@ -355,14 +468,14 @@ const ITEM_SHOP_FOLDERS = Object.freeze({
     parent: "berries",
     title: "Competitive Berries",
     description: "Pinch, setup, and late-fight berry tools.",
-    items: ["Liechi Berry", "Ganlon Berry", "Salac Berry", "Petaya Berry", "Apicot Berry", "Lansat Berry", "Starf Berry", "Micle Berry", "Custap Berry", "Kee Berry", "Maranga Berry"]
+    items: ["Lum Berry", "Liechi Berry", "Ganlon Berry", "Salac Berry", "Petaya Berry", "Apicot Berry", "Lansat Berry", "Starf Berry", "Micle Berry", "Custap Berry", "Kee Berry", "Maranga Berry"]
   },
   "type-plates": {
     id: "type-plates",
     parent: "root",
     title: "Type Plates",
     description: "Arceus-style plates and type enhancers.",
-    items: ["Blank Plate", "Draco Plate", "Dread Plate", "Earth Plate", "Fist Plate", "Flame Plate", "Icicle Plate", "Insect Plate", "Iron Plate", "Meadow Plate", "Mind Plate", "Pixie Plate", "Sky Plate", "Splash Plate", "Spooky Plate", "Stone Plate", "Toxic Plate", "Zap Plate"]
+    items: ["Draco Plate", "Dread Plate", "Earth Plate", "Fist Plate", "Flame Plate", "Icicle Plate", "Insect Plate", "Iron Plate", "Meadow Plate", "Mind Plate", "Pixie Plate", "Sky Plate", "Splash Plate", "Spooky Plate", "Stone Plate", "Toxic Plate", "Zap Plate"]
   },
   "type-boosting-items": {
     id: "type-boosting-items",
@@ -2411,6 +2524,7 @@ function createCleanPlayer(template) {
     sagaPoints: 0,
     badgePoints: 0,
     badgePurchasesThisSeries: 0,
+    legacyTicketPurchasesThisSeries: 0,
     seriesWins: 0,
     currentBounty: 0,
     inventory: [],
@@ -2588,7 +2702,7 @@ const gameCornerTicketUtilityData = Object.freeze([
   { id: "master-gc-ticket", name: "Master Ticket", legacyNames: ["Master GC Ticket"], tokenType: "game-corner", type: "TICKET", tier: "Tickets", category: "Game Corner Tickets", price: 9000, gameCornerTierId: "master", gameCornerTier: "Master", description: "Game Corner Ticket for Master and Master Elite Battle Tier Pokémon." }
 ]);
 const legacyTicketUtilityData = Object.freeze([
-  { id: "legacy-ticket", legacyIds: ["legacy-token"], name: "Legacy Ticket", tokenType: "legacy", type: "TICKET", tier: "Tickets", category: "Legacy Tickets", price: 5000, description: "Use at the PC for Legacy access. Cannot be stolen or destroyed. Price increases by 1000 every time it is bought per series." }
+  { id: "legacy-ticket", legacyIds: ["legacy-token"], name: "Legacy Ticket", tokenType: "legacy", type: "TICKET", tier: "Tickets", category: "Legacy Tickets", price: 4000, dynamicPrice: true, description: "Use at the PC for Legacy access. Cannot be stolen or destroyed. Cost starts at $4,000 and increases by $1,000 every time it is bought per series." }
 ]);
 const utilityShopData = [
   {
@@ -2599,7 +2713,7 @@ const utilityShopData = [
     category: "Progress",
     price: 0,
     dynamicPrice: true,
-    description: "Gain +1 Badge Point. Cost starts at $5,000 and increases by $1,000 per purchase this series."
+    description: "Gain +1 Badge Point. Cost starts at $4,000 and increases by $1,000 per purchase this series."
   },
   ...gameCornerTicketUtilityData,
   ...legacyTicketUtilityData
@@ -2625,7 +2739,7 @@ const trainerResourceItemShopData = Object.freeze([
     price: 0,
     dynamicPrice: true,
     disableExternalSpriteLookup: true,
-    description: "Gain +1 Badge Point. Cost starts at $5,000 and increases by $1,000 per purchase this series."
+    description: "Gain +1 Badge Point. Cost starts at $4,000 and increases by $1,000 per purchase this series."
   }
 ]);
 battleItemShopData = Object.freeze([...itemShopData, ...trainerResourceItemShopData]);
@@ -17465,7 +17579,15 @@ function isPokemonLegalForSlot(pokemonTier, gymNumber, badgeBoost = 0) {
 }
 
 function getBadgePurchaseCost(player) {
-  return 5000 + Math.max(0, Number(player?.badgePurchasesThisSeries || 0)) * 1000;
+  return 4000 + Math.max(0, Number(player?.badgePurchasesThisSeries || 0)) * 1000;
+}
+
+function isLegacyTicketShopItem(item = {}) {
+  return slugify(item?.name) === "legacy-ticket" && (item.shopType === "items" || state.activeShop === "items");
+}
+
+function getLegacyTicketPurchaseCost(player, pendingCount = 0) {
+  return 4000 + Math.max(0, Number(player?.legacyTicketPurchasesThisSeries || 0) + Number(pendingCount || 0)) * 1000;
 }
 
 const evolutionFamilyTierAliasMap = Object.freeze({
@@ -18445,8 +18567,16 @@ const els = {
   itemShopAffordFilterGroup: document.querySelector("#itemShopAffordFilterGroup"),
   itemShopCanAffordFilter: document.querySelector("#itemShopCanAffordFilter"),
   itemShopAppliedFilters: document.querySelector("#itemShopAppliedFilters"),
+  tmBrowseControls: document.querySelector("#tmBrowseControls"),
+  tmBrowseFolderRail: document.querySelector("#tmBrowseFolderRail"),
+  tmBrowseShelfRail: document.querySelector("#tmBrowseShelfRail"),
+  tmDamageQuickFilters: document.querySelector("#tmDamageQuickFilters"),
+  tmDamageTypeRail: document.querySelector("#tmDamageTypeRail"),
+  tmDamageClassRail: document.querySelector("#tmDamageClassRail"),
+  tmShopFiltersToggle: document.querySelector("#tmShopFiltersToggle"),
   tmTypeFilter: document.querySelector("#tmTypeFilter"),
   tmDamageClassFilter: document.querySelector("#tmDamageClassFilter"),
+  tmCanAffordFilter: document.querySelector("#tmCanAffordFilter"),
   tmMoveFilters: document.querySelector("#tmMoveFilters"),
   shopSortSelect: document.querySelector("#shopSortSelect"),
   searchInput: document.querySelector("#searchInput"),
@@ -18875,6 +19005,8 @@ function normalizeClientLocalStateSnapshot(snapshot = {}) {
 
 function createDefaultRouteUiState() {
   return {
+    selectedActionDestinationBySeriesId: {},
+    hoveredActionDestination: "",
     routeWorkspaceBySeriesId: {},
     activeRouteActionIdBySeriesId: {},
     lastRouteAcquisitionMessage: "",
@@ -18884,6 +19016,12 @@ function createDefaultRouteUiState() {
     routeEffectsExpandedId: "",
     publicActivityToasts: []
   };
+}
+
+function normalizeV2ActionDestinationId(value, fallback = "") {
+  const normalized = String(value || "").trim();
+  if (V2_ACTION_DESTINATION_IDS.includes(normalized)) return normalized;
+  return fallback;
 }
 
 function normalizeV2RouteWorkspaceSnapshot(workspace = {}) {
@@ -18902,6 +19040,12 @@ function normalizeRouteUiState(routeUiState = {}) {
     ? routeUiState
     : {};
   const normalized = createDefaultRouteUiState();
+  Object.entries(source.selectedActionDestinationBySeriesId || {}).forEach(([seriesId, destinationId]) => {
+    const key = String(seriesId || "").trim();
+    const value = normalizeV2ActionDestinationId(destinationId);
+    if (key && value) normalized.selectedActionDestinationBySeriesId[key] = value;
+  });
+  normalized.hoveredActionDestination = normalizeV2ActionDestinationId(source.hoveredActionDestination);
   Object.entries(source.routeWorkspaceBySeriesId || {}).forEach(([seriesId, workspace]) => {
     const key = String(seriesId || "").trim();
     if (key) normalized.routeWorkspaceBySeriesId[key] = normalizeV2RouteWorkspaceSnapshot(workspace);
@@ -22230,6 +22374,7 @@ function normalizeState(nextState) {
     player.sagaPoints = Number.isFinite(Number(player.sagaPoints)) ? Number(player.sagaPoints) : 0;
     player.badgePoints = Math.max(0, Number.isFinite(Number(player.badgePoints)) ? Number(player.badgePoints) : 0);
     player.badgePurchasesThisSeries = Math.max(0, Number.isFinite(Number(player.badgePurchasesThisSeries)) ? Number(player.badgePurchasesThisSeries) : 0);
+    player.legacyTicketPurchasesThisSeries = Math.max(0, Number.isFinite(Number(player.legacyTicketPurchasesThisSeries)) ? Number(player.legacyTicketPurchasesThisSeries) : 0);
     player.momentum = Number.isFinite(Number(player.momentum)) ? Number(player.momentum) : 0;
     player.record ||= "0-0";
     player.seriesRecord ||= "0-0";
@@ -33421,6 +33566,12 @@ function cartQuantityTotal() {
   return currentCart().items.reduce((total, item) => total + Number(item.quantity || 0), 0);
 }
 
+function pendingLegacyTicketCartQuantity(cart = currentCart()) {
+  return (cart.items || [])
+    .filter((entry) => isLegacyTicketShopItem(entry))
+    .reduce((total, entry) => total + Number(entry.quantity || 0), 0);
+}
+
 function pulseCartTab() {
   els.cartTab.classList.add("cart-tab-pulse");
   clearTimeout(cartPulseTimer);
@@ -33455,6 +33606,7 @@ function actionShopDiscountPercent(player = activePlayer(), shop = state.activeS
 
 function discountedShopPrice(item, shop = state.activeShop, player = activePlayer()) {
   if (item?.shopAction === "badge-point") return getBadgePurchaseCost(player);
+  if (isLegacyTicketShopItem({ ...item, shopType: shop })) return getLegacyTicketPurchaseCost(player);
   const price = Number(item.price || 0);
   const discount = actionShopDiscountPercent(player, shop);
   if (!price || !discount || shop === "tokens" || shop === "utility") return price;
@@ -34125,9 +34277,9 @@ function setupControls() {
   seriesNames.forEach((series) => els.adminSeriesSelect.add(new Option(series, series)));
   for (let gym = 1; gym <= 9; gym += 1) els.adminGymSelect.add(new Option(`Gym ${gym}`, String(gym)));
   renderItemShopFilterControls();
-  tmTypeOrder.forEach((type) => els.tmTypeFilter.add(new Option(displayTmType(type), type)));
-  els.tmTypeFilter.value = "All";
-  els.tmDamageClassFilter.value = "All";
+  tmTypeOrder.forEach((type) => els.tmTypeFilter?.add(new Option(displayTmType(type), type)));
+  if (els.tmTypeFilter) els.tmTypeFilter.value = "All";
+  if (els.tmDamageClassFilter) els.tmDamageClassFilter.value = "All";
   if (els.shopSortSelect) els.shopSortSelect.value = `${state.shopSort?.mode || "price"}-${state.shopSort?.direction || "asc"}`;
   state.players.forEach((player) => els.targetPlayer.add(new Option(player.name, player.id)));
   state.players.forEach((player) => els.adminRepairPlayer.add(new Option(player.name, player.id)));
@@ -41481,18 +41633,24 @@ function clearSelectedActionLocation() {
       }
       workspace.screen = "route-list";
       workspace.selectedRouteNumber = 0;
-    } else if (workspace.screen === "route-list" || workspace.screen === "legacy" || workspace.screen === "result") {
+    } else if (workspace.screen === "result") {
       const actionPhase = v2EnsureActionPhase(state.series);
       const action = workspace.activeActionId ? v2FindAction(actionPhase, workspace.activeActionId) : null;
-      if (workspace.screen === "result" && action && action.settlementStatus !== "settled") {
+      if (action && action.settlementStatus !== "settled") {
         return;
       }
-      workspace.screen = "root";
+      workspace.screen = "route-list";
       workspace.selectedActionId = "";
       workspace.selectedRouteNumber = 0;
       workspace.activeActionId = "";
+    } else if (workspace.screen === "legacy") {
+      workspace.screen = "route-list";
+    } else if (workspace.screen === "route-list") {
+      workspace.screen = "root";
+      workspace.selectedActionId = "";
+      workspace.selectedRouteNumber = 0;
     }
-    saveState();
+    saveClientUiState();
     render();
     return;
   }
@@ -42836,6 +42994,26 @@ function v2RouteWorkspaceState(seriesId = state.series) {
   const workspace = normalizeV2RouteWorkspaceSnapshot(state.routeUiState.routeWorkspaceBySeriesId[normalizedSeriesId]);
   state.routeUiState.routeWorkspaceBySeriesId[normalizedSeriesId] = workspace;
   return workspace;
+}
+
+function v2SelectedActionDestination(seriesId = state.series) {
+  state.routeUiState = normalizeRouteUiState(state.routeUiState);
+  const normalizedSeriesId = v2Text(seriesId, "series-v2");
+  const selected = normalizeV2ActionDestinationId(state.routeUiState.selectedActionDestinationBySeriesId?.[normalizedSeriesId], "routes");
+  state.routeUiState.selectedActionDestinationBySeriesId[normalizedSeriesId] = selected;
+  return selected;
+}
+
+function v2SetSelectedActionDestination(destinationId, seriesId = state.series) {
+  const selected = normalizeV2ActionDestinationId(destinationId, "routes");
+  state.routeUiState = normalizeRouteUiState(state.routeUiState);
+  state.routeUiState.selectedActionDestinationBySeriesId[v2Text(seriesId, "series-v2")] = selected;
+  state.routeUiState.hoveredActionDestination = "";
+  return selected;
+}
+
+function v2ActionDestinationDefinition(destinationId) {
+  return V2_ACTION_DESTINATIONS.find((destination) => destination.id === destinationId) || V2_ACTION_DESTINATIONS[0];
 }
 
 function v2ActionLedgerFor(actionPhase, playerId) {
@@ -44762,7 +44940,6 @@ function renderV2RouteResultPanel(action, result, player) {
         <span class="v2-route-kicker">Route Encounter</span>
         <strong>No encounter is pending</strong>
         <small>Choose a route, then explore to spend 1 Action and reveal one encounter.</small>
-        <button class="ghost-button" type="button" data-v2-route-enter>Explore Routes</button>
       </section>
     `;
   }
@@ -45049,20 +45226,6 @@ function renderV2RouteBrowserTools(route, player) {
   return renderV2RouteEncounterRail(route, player);
 }
 
-function v2RouteLandingDiscoveryNames(routeState) {
-  const names = [];
-  const seen = new Set();
-  (routeState.routes || []).forEach((route) => {
-    v2PublicDiscoveryNames(route).forEach((name) => {
-      const key = normalizePokemonName(name);
-      if (!key || seen.has(key)) return;
-      seen.add(key);
-      names.push(name);
-    });
-  });
-  return names.slice(0, 5);
-}
-
 function renderV2RouteBlockAlert(message) {
   return message ? `<p class="action-context-alert v2-route-block-alert">${escapeHtml(message)}</p>` : "";
 }
@@ -45075,29 +45238,17 @@ function v2RouteExploreBlockReason(player, remaining) {
 }
 
 function renderV2RouteLanding(routeState, player, remaining) {
-  const discoveries = v2RouteLandingDiscoveryNames(routeState);
-  const unknownSlots = Math.max(0, 5 - discoveries.length);
   return `
-    <section class="v2-route-landing" aria-labelledby="v2RouteLandingTitle">
-      <div class="v2-route-landing-copy">
-        <h2 id="v2RouteLandingTitle">Route Encounter</h2>
-        <p>Explore Kanto's numbered routes, reveal public discoveries, and bring one encounter back to ${escapeHtml(player.name)}'s roster.</p>
-        <div class="v2-route-landing-actions">
-          <button class="buy-button v2-route-enter" type="button" data-v2-route-enter>Explore Routes</button>
-          <span>${remaining} Action${remaining === 1 ? "" : "s"} Remaining</span>
-        </div>
+    <div class="stage-edge"></div>
+    <div class="hero-copy v2-route-landing-copy">
+      <div class="eyebrow v2-route-kicker">Route Encounter</div>
+      <h1 id="v2RouteLandingTitle">Route<br>Encounter</h1>
+      <p>Explore Kanto's numbered routes, reveal public discoveries, and bring one encounter back to ${escapeHtml(player.name)}'s roster.</p>
+      <div class="cta-row v2-route-landing-actions">
+        <button class="cta buy-button v2-route-enter" type="button" data-v2-route-enter>Explore Routes</button>
+        <span class="preview">${remaining} Action${remaining === 1 ? "" : "s"} Remaining</span>
       </div>
-      <div class="v2-route-landing-art" aria-hidden="true">
-        <div class="v2-route-path-ribbon"></div>
-        <span class="v2-route-map-marker marker-a">R1</span>
-        <span class="v2-route-map-marker marker-b">R5</span>
-        <span class="v2-route-map-marker marker-c">R9</span>
-        <div class="v2-route-landing-sprites">
-          ${discoveries.map((name) => renderV2RouteSpriteChip(name, { large: true })).join("")}
-          ${Array.from({ length: unknownSlots }, () => renderV2RouteSpriteChip("", { large: true, unknown: true })).join("")}
-        </div>
-      </div>
-    </section>
+    </div>
   `;
 }
 
@@ -45117,6 +45268,10 @@ function renderV2RouteBrowser(routeState, workspace, player, remaining, blockedR
   }
   return `
     <section class="v2-route-browser${committedPending ? " committed" : ""}" data-v2-route-browser data-v2-route-browser-pinned="${escapeHtml(selectedRouteNumber)}" data-v2-route-browser-preview="${escapeHtml(selectedRouteNumber)}" aria-label="Choose a Route">
+      <div class="v2-route-browser-homebar">
+        <button class="ghost-button mini-button v2-route-browser-home" type="button" data-v2-routes-landing>Routes Home</button>
+        <span>Route Browser</span>
+      </div>
       <div class="v2-route-browser-layout">
         <nav class="v2-route-browser-menu" aria-label="V2 Routes" data-v2-route-menu>
           ${routes.map((route) => {
@@ -45169,6 +45324,172 @@ function renderV2RouteBrowser(routeState, workspace, player, remaining, blockedR
   `;
 }
 
+function v2RouteDestinationWorkspace(workspace = v2RouteWorkspaceState(state.series)) {
+  const screen = workspace.screen === "result"
+    ? "result"
+    : workspace.screen === "route-detail"
+      ? "route-detail"
+      : workspace.screen === "route-list"
+        ? "route-list"
+        : "root";
+  return {
+    ...workspace,
+    screen,
+    selectedActionId: screen === "root" ? workspace.selectedActionId : workspace.selectedActionId || "encounter",
+    selectedRouteNumber: screen === "root" ? workspace.selectedRouteNumber : workspace.selectedRouteNumber || 1
+  };
+}
+
+function renderV2RoutesDestination(routeState, workspace, player, remaining, blockedReason, latestAction, latestResult, options = {}) {
+  const routeWorkspace = v2RouteDestinationWorkspace(workspace);
+  if (routeWorkspace.screen === "root" || options.forceLanding) {
+    return renderV2RouteLanding(routeState, player, remaining);
+  }
+  if (routeWorkspace.screen === "result") {
+    const actionPhase = v2EnsureActionPhase(routeState.seriesId || state.series);
+    const action = routeWorkspace.activeActionId ? v2FindRouteActionOrOperation(actionPhase, state.series, routeWorkspace.activeActionId) : latestAction;
+    const result = action?.resultId ? v2FindResult(routeState, action.resultId).result : latestResult;
+    const note = normalizeRouteUiState(state.routeUiState).lastRouteAcquisitionMessage;
+    return `
+      <div class="v2-routes-destination-result">
+        ${renderV2RouteResultPanel(action, result, player)}
+        ${note ? `<p class="v2-route-acquisition-note">${escapeHtml(note)}</p>` : ""}
+      </div>
+    `;
+  }
+  return renderV2RouteBrowser(routeState, routeWorkspace, player, remaining, blockedReason);
+}
+
+function renderV2BattleTentPreview(player, remaining) {
+  return `
+    <div class="stage-edge"></div>
+    <div class="hero-copy v2-battle-tent-copy">
+      <div class="eyebrow v2-destination-kicker">Battle Operations</div>
+      <h1 id="v2BattleTentTitle">Battle<br>Frontier</h1>
+      <p>A lit-up training facility for preparation, research, trials, and rare certification work. The doors are open for navigation review; the counters are not taking Actions yet.</p>
+      <div class="cta-row v2-battle-frontier-entry">
+        <button class="cta buy-button v2-frontier-entry-button" type="button" disabled>Explore Battle Frontier</button>
+        <span class="preview">Preview Only</span>
+      </div>
+    </div>
+    <div class="v2-battle-tent-status" aria-label="Battle Frontier status">
+      <span><small>Trainer</small><strong>${escapeHtml(player.name)}</strong></span>
+      <span><small>Actions</small><strong>${escapeHtml(remaining)}</strong></span>
+      <span><small>Service Board</small><strong>Preview Only</strong></span>
+    </div>
+  `;
+}
+
+function renderV2ActionDestinationLanding(destination, player, remaining) {
+  const titleId = `v2ActionDestination${v2Text(destination.id, "preview").replace(/[^a-z0-9]+/gi, "")}Title`;
+  const ctaLabel = destination.ctaLabel || `Open ${destination.label}`;
+  return `
+    <div class="stage-edge"></div>
+    <div class="hero-copy v2-action-location-copy">
+      <div class="eyebrow v2-destination-kicker">${escapeHtml(destination.kicker || "Action Location")}</div>
+      <h1 id="${escapeHtml(titleId)}">${escapeHtml(destination.label)}</h1>
+      <p>${escapeHtml(destination.description || "This Action destination is reserved for the current V2 ruleset.")}</p>
+      <div class="cta-row v2-action-location-entry">
+        <button class="cta buy-button v2-action-location-button" type="button" disabled>${escapeHtml(ctaLabel)}</button>
+        <span class="preview">${destination.bonus ? "Locked" : "Preview Only"}</span>
+      </div>
+    </div>
+    <div class="v2-action-location-hud" aria-label="${escapeHtml(destination.label)} status">
+      <span><small>Trainer</small><strong>${escapeHtml(player.name)}</strong></span>
+      <span><small>Actions</small><strong>${escapeHtml(remaining)}</strong></span>
+      <span><small>Status</small><strong>${destination.bonus ? "Hidden Slot" : "Preview Only"}</strong></span>
+    </div>
+  `;
+}
+
+function renderV2ActionDestinationNavigator(selectedDestinationId, activeDestinationId, actionStatus = {}) {
+  const used = Math.max(0, Number(actionStatus.used || 0));
+  const playerName = actionStatus.playerName || "Trainer";
+  const available = Math.max(0, Number(actionStatus.available || 0));
+  const remaining = Math.max(0, available - used);
+  const standardCount = V2_ACTION_STANDARD_DESTINATIONS.length;
+  const bonusGranted = Boolean(actionStatus.bonusGranted || Number(actionStatus.destinationSlotCount || 0) > standardCount);
+  const playerCount = Number(actionStatus.playerCount || 0);
+  return `
+    <div class="v2-action-destination-shell action-nav" data-v2-action-destination-shell data-v2-action-destination-navigator data-v2-action-destination-selected="${escapeHtml(selectedDestinationId)}" data-v2-action-destination-preview="${escapeHtml(activeDestinationId)}" data-v2-action-destination-bonus-granted="${bonusGranted ? "true" : "false"}" role="navigation" aria-label="V2 Action destinations">
+      <div class="topline">
+        <span class="title">Action Destinations</span>
+        <span class="hud"><strong>${escapeHtml(playerName)}</strong> · ${escapeHtml(remaining)}/${escapeHtml(available)} Actions${playerCount ? ` · ${escapeHtml(playerCount)} Players` : ""}</span>
+      </div>
+      <div class="v2-action-destination-grid grid">
+        ${V2_ACTION_DESTINATIONS.map((destination, index) => {
+          const slotNumber = index + 1;
+          const selected = destination.id === selectedDestinationId;
+          const previewed = destination.id === activeDestinationId;
+          const lockedBonus = destination.bonus && !bonusGranted;
+          const formattedSlot = String(slotNumber).padStart(2, "0");
+          return `
+            <button class="v2-action-destination-card slot s${slotNumber}${selected ? " selected" : ""}${previewed ? " previewed" : ""}" type="button" data-v2-action-destination-slot="${escapeHtml(destination.id)}" data-v2-action-destination-select="${escapeHtml(destination.id)}" data-v2-action-destination-preview="${escapeHtml(destination.id)}" aria-current="${selected ? "page" : "false"}" title="${escapeHtml(destination.description || destination.label)}"${lockedBonus ? ' aria-hidden="true" disabled tabindex="-1"' : ""}>
+              <span class="num">${escapeHtml(formattedSlot)}</span><span class="mark">${escapeHtml(destination.symbol)}</span><span class="name">${escapeHtml(destination.label)}</span><span class="tiny"></span>
+            </button>
+          `;
+        }).join("")}
+      </div>
+      <div class="baseline"></div>
+    </div>
+  `;
+}
+
+function renderV2ActionDestinationWorkspace(destinationId, routeState, workspace, player, remaining, blockedReason, latestAction, latestResult, options = {}) {
+  if (destinationId === "battle-tent") return renderV2BattleTentPreview(player, remaining);
+  if (destinationId !== "routes") return renderV2ActionDestinationLanding(v2ActionDestinationDefinition(destinationId), player, remaining);
+  return renderV2RoutesDestination(routeState, workspace, player, remaining, blockedReason, latestAction, latestResult, options);
+}
+
+function v2ActionDestinationStageClass(destinationId) {
+  const destination = v2ActionDestinationDefinition(destinationId);
+  const key = destination.id === "routes" ? "routes" : destination.plateClass || destination.id;
+  return `stage-${String(key || "routes").replace(/[^a-z0-9-]+/gi, "-").toLowerCase()}`;
+}
+
+function v2ActionDestinationStageArt(destinationId) {
+  const destination = v2ActionDestinationDefinition(destinationId);
+  const key = destination.id === "routes" ? "routes" : destination.plateClass || destination.id;
+  const stageArt = {
+    routes: { image: "/assets/action-phase/route-encounter-plate.png", position: "63% center", edge: "rgba(66, 200, 115, 0.8)" },
+    "battle-tent": { image: "/assets/action-phase/battle-frontier-plate.png", position: "64% center", edge: "rgba(131, 47, 54, 0.8)" },
+    "department-store": { image: "/assets/action-phase/department-store-plate.png", position: "64% center", edge: "rgba(240, 200, 90, 0.8)" },
+    "game-corner": { image: "/assets/action-phase/game-corner-plate.png", position: "64% center", edge: "rgba(215, 179, 86, 0.8)" },
+    graveyard: { image: "/assets/action-phase/graveyard-plate.png", position: "63% center", edge: "rgba(143, 170, 255, 0.8)" },
+    "ranger-base": { image: "/assets/action-phase/ranger-base-plate.png", position: "65% center", edge: "rgba(150, 225, 166, 0.8)" },
+    "pokemon-center": { image: "/assets/action-phase/pokemon-center-plate.png", position: "64% center", edge: "rgba(240, 200, 90, 0.8)" },
+    "bulletin-board": { image: "/assets/action-phase/bulletin-board-plate.png", position: "65% center", edge: "rgba(225, 185, 94, 0.8)" }
+  };
+  return stageArt[key] || stageArt.routes;
+}
+
+function v2ActionDestinationStageStyle(destinationId) {
+  const art = v2ActionDestinationStageArt(destinationId);
+  return `--v2-action-destination-art: url(${escapeHtml(art.image)}); --v2-action-destination-art-position: ${escapeHtml(art.position)}; --v2-action-destination-edge: ${escapeHtml(art.edge)};`;
+}
+
+function v2ActionDestinationStageTitleId(destinationId) {
+  if (destinationId === "battle-tent") return "v2BattleTentTitle";
+  if (destinationId === "routes") return "v2RouteLandingTitle";
+  return `v2ActionDestination${v2Text(destinationId, "preview").replace(/[^a-z0-9]+/gi, "")}Title`;
+}
+
+function v2ActionDestinationUsesStage(destinationId, workspace, selectedDestinationId = v2SelectedActionDestination()) {
+  if (destinationId !== "routes") return true;
+  if (workspace.screen === "root") return true;
+  return selectedDestinationId !== "routes" && workspace.screen === "route-list";
+}
+
+function renderV2ActionDestinationShell({ selectedDestinationId, activeDestinationId, actionStatus, workspaceHtml, stageClass = "", stageExtraClass = "" }) {
+  const workspaceClass = `v2-action-destination-stage ${stageClass}${stageExtraClass ? ` ${stageExtraClass}` : ""}`;
+  return `
+    ${renderV2ActionDestinationNavigator(selectedDestinationId, activeDestinationId, actionStatus)}
+    <section class="${escapeHtml(workspaceClass)}" data-v2-action-destination-workspace="${escapeHtml(activeDestinationId)}" style="${v2ActionDestinationStageStyle(activeDestinationId)}" aria-labelledby="${escapeHtml(v2ActionDestinationStageTitleId(activeDestinationId))}">
+      ${workspaceHtml}
+    </section>
+  `;
+}
+
 function renderV2RouteActionPhase() {
   els.actionPhaseView?.classList.add("v2-action-phase-view");
   const player = activePlayer();
@@ -45200,53 +45521,44 @@ function renderV2RouteActionPhase() {
   const outOfPhase = currentPhase() !== "action";
   const routeBlockedReason = v2RouteExploreBlockReason(player, remaining);
   const workspaceEl = els.actionLocationBoard?.closest(".action-workspace");
-  if (workspaceEl) workspaceEl.dataset.v2Screen = workspace.screen;
+  const selectedDestinationId = v2SelectedActionDestination(seriesId);
+  state.routeUiState = normalizeRouteUiState(state.routeUiState);
+  const activeDestinationId = normalizeV2ActionDestinationId(state.routeUiState.hoveredActionDestination, selectedDestinationId);
+  const activeDefinition = v2ActionDestinationDefinition(activeDestinationId);
+  const actionTurn = actionTurnInfo(seriesId, state.gym);
+  if (workspaceEl) workspaceEl.dataset.v2Screen = workspace.screen === "result" ? "result" : "destinations";
   els.actionPhaseWarning.classList.toggle("hidden", !outOfPhase);
   els.actionPhaseWarning.textContent = outOfPhase
     ? `Current phase is ${phaseLabels[currentPhase()]}. V2 Route actions are normally made during Action Phase.`
     : "";
 
-  if (workspace.screen === "root") {
-    setActionWorkspaceChrome({ title: "Route Encounter", description: "Explore routes and resolve one encounter.", backHidden: true });
-    els.actionLocationBoard.className = "action-location-board v2-route-landing-stage";
-    els.actionLocationMeta.className = "action-location-meta v2-route-meta";
-    els.actionLocationBoard.innerHTML = renderV2RouteLanding(routeState, player, remaining);
-    els.actionLocationMeta.innerHTML = "";
-  } else if (workspace.screen === "route-list") {
-    setActionWorkspaceChrome({ title: "Choose a Route", description: "Preview freely. Explore spends 1 Action.", backLabel: "Route Encounter" });
-    els.actionLocationBoard.className = "action-location-board v2-route-browser-stage";
-    els.actionLocationMeta.className = "action-location-meta v2-route-meta";
-    els.actionLocationBoard.innerHTML = renderV2RouteBrowser(routeState, workspace, player, remaining, routeBlockedReason);
-    els.actionLocationMeta.innerHTML = "";
-  } else if (workspace.screen === "route-detail") {
-    const route = v2FindRoute(routeState, workspace.selectedRouteNumber);
-    const pending = Boolean(workspace.activeOpportunityId);
-    setActionWorkspaceChrome({
-      title: pending && route ? `Route ${route.routeNumber}` : "Choose a Route",
-      description: pending ? "The Action is committed; resolve the pending opportunity." : "Preview freely. Explore spends 1 Action.",
-      backLabel: pending ? "Committed" : "Routes",
-      backDisabled: pending
-    });
-    els.actionLocationBoard.className = "action-location-board v2-route-browser-stage";
-    els.actionLocationMeta.className = "action-location-meta v2-route-meta";
-    els.actionLocationBoard.innerHTML = renderV2RouteBrowser(routeState, workspace, player, remaining, routeBlockedReason);
-    els.actionLocationMeta.innerHTML = "";
-  } else if (workspace.screen === "result") {
-    const action = workspace.activeActionId ? v2FindRouteActionOrOperation(actionPhase, seriesId, workspace.activeActionId) : latestAction;
-    const result = action?.resultId ? v2FindResult(routeState, action.resultId).result : latestResult;
-    const settled = action?.settlementStatus === "settled";
-    setActionWorkspaceChrome({
-      title: settled ? "Route Encounter Settled" : "Encounter Result",
-      description: settled ? "The encounter has been acquired. You can return to Actions." : "The Action is committed; resolve the result here.",
-      backLabel: settled ? "Actions" : "Committed",
-      backDisabled: !settled
-    });
-    els.actionLocationBoard.className = "action-location-board v2-route-reveal-stage";
-    els.actionLocationMeta.className = "action-location-meta v2-route-meta";
-    els.actionLocationBoard.innerHTML = renderV2RouteResultPanel(action, result, player);
-    state.routeUiState = normalizeRouteUiState(state.routeUiState);
-    els.actionLocationMeta.innerHTML = state.routeUiState.lastRouteAcquisitionMessage ? `<p class="v2-route-acquisition-note">${escapeHtml(state.routeUiState.lastRouteAcquisitionMessage)}</p>` : "";
-  }
+  setActionWorkspaceChrome({
+    title: activeDefinition.label,
+    description: activeDefinition.description,
+    backHidden: workspace.screen !== "result",
+    backLabel: workspace.screen === "result" ? "Routes" : "Actions",
+    backDisabled: workspace.screen === "result" && latestAction && latestAction.settlementStatus !== "settled"
+  });
+  els.actionLocationBoard.className = "action-location-board v2-action-phase-screen";
+  els.actionLocationMeta.className = "action-location-meta v2-route-meta";
+  els.actionLocationMeta.innerHTML = "";
+  const forceRoutesLanding = activeDestinationId === "routes" && selectedDestinationId !== "routes" && workspace.screen === "route-list";
+  els.actionLocationBoard.innerHTML = renderV2ActionDestinationShell({
+    selectedDestinationId,
+    activeDestinationId,
+    actionStatus: {
+      playerName: player.name,
+      used,
+      available: ledger.available,
+      playerCount: actionTurn.orderIds.length
+    },
+    stageClass: v2ActionDestinationStageClass(activeDestinationId),
+    stageExtraClass: workspace.screen === "result" ? "v2-route-reveal-stage" : "",
+    workspaceHtml: renderV2ActionDestinationWorkspace(activeDestinationId, routeState, workspace, player, remaining, routeBlockedReason, latestAction, latestResult, {
+      forceLanding: forceRoutesLanding
+    })
+  });
+  bindV2ActionDestinationPreviewHandlers();
   applyV2RouteEffectsPosition();
 }
 
@@ -45279,6 +45591,171 @@ function resetV2RouteBrowserPreview() {
   const browser = els.actionLocationBoard?.querySelector("[data-v2-route-browser]");
   if (!browser) return false;
   return setV2RouteBrowserPreview(browser.dataset.v2RouteBrowserPinned);
+}
+
+function enterV2RouteBrowser() {
+  const workspace = v2RouteWorkspaceState();
+  if (workspace.screen === "route-detail" && workspace.activeOpportunityId) return;
+  workspace.screen = "route-list";
+  workspace.selectedActionId = "encounter";
+  workspace.selectedRouteNumber = workspace.selectedRouteNumber || 1;
+  saveClientUiState();
+  render();
+  focusV2RouteBrowserRoute(workspace.selectedRouteNumber);
+}
+
+function returnV2RoutesLanding({ renderAfter = true } = {}) {
+  const workspace = v2RouteWorkspaceState();
+  if (workspace.screen === "route-detail" && workspace.activeOpportunityId) return false;
+  if (workspace.screen === "result") {
+    const actionPhase = v2EnsureActionPhase(state.series);
+    const action = workspace.activeActionId ? v2FindAction(actionPhase, workspace.activeActionId) : null;
+    if (action && action.settlementStatus !== "settled") return false;
+    workspace.activeActionId = "";
+  }
+  workspace.screen = "root";
+  workspace.selectedActionId = "";
+  workspace.selectedRouteNumber = 0;
+  workspace.activeOpportunityId = "";
+  saveClientUiState();
+  if (renderAfter) render();
+  return true;
+}
+
+function setV2ActionDestinationPreview(destinationId) {
+  const shell = els.actionLocationBoard?.querySelector("[data-v2-action-destination-shell]");
+  if (!shell) return false;
+  const normalized = normalizeV2ActionDestinationId(destinationId, shell.dataset.v2ActionDestinationSelected || "routes");
+  const current = normalizeV2ActionDestinationId(shell.dataset.v2ActionDestinationPreview, shell.dataset.v2ActionDestinationSelected || "routes");
+  if (normalized === current) return false;
+  shell.dataset.v2ActionDestinationPreview = normalized;
+  shell.querySelectorAll("[data-v2-action-destination-preview]").forEach((button) => {
+    button.classList.toggle("previewed", button.dataset.v2ActionDestinationPreview === normalized);
+  });
+  const workspaceTarget = els.actionLocationBoard?.querySelector("[data-v2-action-destination-workspace]");
+  if (workspaceTarget) {
+    const player = activePlayer();
+    const seriesId = state.series;
+    const routeState = v2EnsureRouteSeriesState(seriesId);
+    const actionPhase = v2EnsureActionPhase(seriesId);
+    const ledger = v2ActionLedgerFor(actionPhase, player.id);
+    const used = ledger.spentActionIds.length;
+    const remaining = Math.max(0, Number(ledger.available || 0) - used);
+    const workspace = v2RouteWorkspaceState(seriesId);
+    const latestAction = workspace.activeActionId
+      ? v2FindRouteActionOrOperation(actionPhase, seriesId, workspace.activeActionId)
+      : v2LatestRouteActionForPlayer(actionPhase, player.id);
+    const latestResult = latestAction?.resultId ? v2FindResult(routeState, latestAction.resultId).result : null;
+    const selectedId = normalizeV2ActionDestinationId(shell.dataset.v2ActionDestinationSelected, "routes");
+    workspaceTarget.dataset.v2ActionDestinationWorkspace = normalized;
+    workspaceTarget.className = `v2-action-destination-stage ${v2ActionDestinationStageClass(normalized)}${workspace.screen === "result" ? " v2-route-reveal-stage" : ""}`;
+    workspaceTarget.setAttribute("style", v2ActionDestinationStageStyle(normalized));
+    workspaceTarget.setAttribute("aria-labelledby", v2ActionDestinationStageTitleId(normalized));
+    workspaceTarget.innerHTML = renderV2ActionDestinationWorkspace(normalized, routeState, workspace, player, remaining, v2RouteExploreBlockReason(player, remaining), latestAction, latestResult, {
+      forceLanding: normalized === "routes" && selectedId !== "routes" && workspace.screen === "route-list"
+    });
+    bindV2ActionDestinationPreviewHandlers();
+    applyV2RouteEffectsPosition();
+  }
+  const definition = v2ActionDestinationDefinition(normalized);
+  const routeWorkspace = v2RouteWorkspaceState();
+  const actionPhase = v2EnsureActionPhase(state.series);
+  const activeRouteAction = routeWorkspace.activeActionId ? v2FindRouteActionOrOperation(actionPhase, state.series, routeWorkspace.activeActionId) : null;
+  setActionWorkspaceChrome({
+    title: definition.label,
+    description: definition.description,
+    backHidden: routeWorkspace.screen !== "result",
+    backLabel: "Routes",
+    backDisabled: routeWorkspace.screen === "result" && activeRouteAction && activeRouteAction.settlementStatus !== "settled"
+  });
+  return true;
+}
+
+function resetV2ActionDestinationPreview() {
+  const shell = els.actionLocationBoard?.querySelector("[data-v2-action-destination-shell]");
+  if (!shell) return false;
+  return setV2ActionDestinationPreview(shell.dataset.v2ActionDestinationSelected || "routes");
+}
+
+function selectV2ActionDestination(destinationId) {
+  const selected = v2SetSelectedActionDestination(destinationId);
+  if (selected === "routes") returnV2RoutesLanding({ renderAfter: false });
+  const shell = els.actionLocationBoard?.querySelector("[data-v2-action-destination-shell]");
+  if (shell) {
+    shell.dataset.v2ActionDestinationSelected = selected;
+    shell.querySelectorAll("[data-v2-action-destination-select]").forEach((button) => {
+      const isSelected = button.dataset.v2ActionDestinationSelect === selected;
+      button.classList.toggle("selected", isSelected);
+      button.setAttribute("aria-current", isSelected ? "page" : "false");
+    });
+    setV2ActionDestinationPreview(selected);
+  }
+  const definition = v2ActionDestinationDefinition(selected);
+  const workspace = v2RouteWorkspaceState();
+  const actionPhase = v2EnsureActionPhase(state.series);
+  const activeRouteAction = workspace.activeActionId ? v2FindRouteActionOrOperation(actionPhase, state.series, workspace.activeActionId) : null;
+  setActionWorkspaceChrome({
+    title: definition.label,
+    description: definition.description,
+    backHidden: workspace.screen !== "result",
+    backLabel: "Routes",
+    backDisabled: workspace.screen === "result" && activeRouteAction && activeRouteAction.settlementStatus !== "settled"
+  });
+  saveClientUiState();
+  return selected;
+}
+
+function bindV2ActionDestinationPreviewHandlers() {
+  const board = els.actionLocationBoard;
+  if (!board) return;
+  board.querySelectorAll("[data-v2-action-destination-preview]").forEach((button) => {
+    if (button.dataset.v2DestinationPreviewBound === "true") return;
+    button.dataset.v2DestinationPreviewBound = "true";
+    const preview = () => {
+      const shell = button.closest("[data-v2-action-destination-shell]");
+      const destinationId = normalizeV2ActionDestinationId(button.dataset.v2ActionDestinationPreview);
+      const selectedId = normalizeV2ActionDestinationId(shell?.dataset.v2ActionDestinationSelected, "routes");
+      const previewId = normalizeV2ActionDestinationId(shell?.dataset.v2ActionDestinationPreview, selectedId);
+      if (!destinationId || destinationId === selectedId || destinationId === previewId) return;
+      state.routeUiState = normalizeRouteUiState(state.routeUiState);
+      state.routeUiState.hoveredActionDestination = destinationId;
+      setV2ActionDestinationPreview(destinationId);
+    };
+    const restore = () => {
+      const shell = button.closest("[data-v2-action-destination-shell]");
+      const destinationId = normalizeV2ActionDestinationId(button.dataset.v2ActionDestinationPreview);
+      const selectedId = normalizeV2ActionDestinationId(shell?.dataset.v2ActionDestinationSelected, "routes");
+      const previewId = normalizeV2ActionDestinationId(shell?.dataset.v2ActionDestinationPreview, selectedId);
+      if (destinationId && destinationId !== selectedId && previewId === destinationId) {
+        state.routeUiState = normalizeRouteUiState(state.routeUiState);
+        state.routeUiState.hoveredActionDestination = "";
+        resetV2ActionDestinationPreview();
+      }
+    };
+    button.addEventListener("mouseover", preview);
+    button.addEventListener("mousemove", preview);
+    button.addEventListener("focus", preview);
+    button.addEventListener("mouseout", restore);
+    button.addEventListener("blur", restore);
+  });
+  board.querySelectorAll("[data-v2-route-preview-target]").forEach((button) => {
+    if (button.dataset.v2RoutePreviewBound === "true") return;
+    button.dataset.v2RoutePreviewBound = "true";
+    const preview = () => setV2RouteBrowserPreview(button.dataset.v2RoutePreviewTarget);
+    const restore = () => {
+      const browser = button.closest("[data-v2-route-browser]");
+      const routeNumber = String(Number(button.dataset.v2RoutePreviewTarget || 0));
+      const pinned = String(Number(browser?.dataset.v2RouteBrowserPinned || 0));
+      if (browser && routeNumber !== pinned && String(Number(browser.dataset.v2RouteBrowserPreview || 0)) === routeNumber) {
+        resetV2RouteBrowserPreview();
+      }
+    };
+    button.addEventListener("mouseover", preview);
+    button.addEventListener("mousemove", preview);
+    button.addEventListener("focus", preview);
+    button.addEventListener("mouseout", restore);
+    button.addEventListener("blur", restore);
+  });
 }
 
 function focusV2RouteBrowserSibling(currentButton, delta) {
@@ -54578,6 +55055,9 @@ function restoreGymResultUndoData(undoData = {}) {
     if (undoData.previousBadgePurchasesThisSeries?.[player.id] !== undefined) {
       player.badgePurchasesThisSeries = Number(undoData.previousBadgePurchasesThisSeries[player.id] || 0);
     }
+    if (undoData.previousLegacyTicketPurchasesThisSeries?.[player.id] !== undefined) {
+      player.legacyTicketPurchasesThisSeries = Number(undoData.previousLegacyTicketPurchasesThisSeries[player.id] || 0);
+    }
   });
   if (undoData.previousMoneyLedger) {
     state.moneyLedger = structuredClone(undoData.previousMoneyLedger);
@@ -54617,6 +55097,7 @@ function applyGymResultToPlayers(result, existingResult = null) {
   const previousBalances = {};
   const previousBadgePoints = {};
   const previousBadgePurchasesThisSeries = {};
+  const previousLegacyTicketPurchasesThisSeries = {};
   const previousMoneyLedger = structuredClone(state.moneyLedger || []);
   const previousPerkSystem = structuredClone(state.perkSystem || {});
   const nextSagaPoints = {};
@@ -54624,6 +55105,7 @@ function applyGymResultToPlayers(result, existingResult = null) {
   const nextBalances = {};
   const nextBadgePoints = {};
   const nextBadgePurchasesThisSeries = {};
+  const nextLegacyTicketPurchasesThisSeries = {};
   const payoutBreakdowns = {};
   const moneyLedgerEntryIds = [];
   const seriesIndex = seriesNames.indexOf(result.series);
@@ -54634,6 +55116,7 @@ function applyGymResultToPlayers(result, existingResult = null) {
     previousBalances[player.id] = Number(player.balance || 0);
     previousBadgePoints[player.id] = Number(player.badgePoints || 0);
     previousBadgePurchasesThisSeries[player.id] = Number(player.badgePurchasesThisSeries || 0);
+    previousLegacyTicketPurchasesThisSeries[player.id] = Number(player.legacyTicketPurchasesThisSeries || 0);
   });
 
   if (existingResult?.undoData) {
@@ -54678,6 +55161,7 @@ function applyGymResultToPlayers(result, existingResult = null) {
     if (Number(result.gym) >= 9) {
       player.badgePoints = 0;
       player.badgePurchasesThisSeries = 0;
+      player.legacyTicketPurchasesThisSeries = 0;
     } else {
       player.badgePoints = Math.max(0, Number(player.badgePoints || 0)) + 1;
     }
@@ -54686,6 +55170,7 @@ function applyGymResultToPlayers(result, existingResult = null) {
     nextBalances[player.id] = Number(player.balance || 0);
     nextBadgePoints[player.id] = Number(player.badgePoints || 0);
     nextBadgePurchasesThisSeries[player.id] = Number(player.badgePurchasesThisSeries || 0);
+    nextLegacyTicketPurchasesThisSeries[player.id] = Number(player.legacyTicketPurchasesThisSeries || 0);
   });
 
   return {
@@ -54695,6 +55180,7 @@ function applyGymResultToPlayers(result, existingResult = null) {
     previousBalances,
     previousBadgePoints,
     previousBadgePurchasesThisSeries,
+    previousLegacyTicketPurchasesThisSeries,
     previousMoneyLedger,
     previousPerkSystem,
     nextSagaPoints,
@@ -54702,6 +55188,7 @@ function applyGymResultToPlayers(result, existingResult = null) {
     nextBalances,
     nextBadgePoints,
     nextBadgePurchasesThisSeries,
+    nextLegacyTicketPurchasesThisSeries,
     moneyLedgerEntryIds,
     payoutBreakdowns
   };
@@ -54763,7 +55250,7 @@ function finalizeGymResults({ skipPendingGuard = false } = {}) {
     action: "gym-results",
     category: "series",
     player: "Gym Results",
-    item: `${phaseCode(result.series, result.gym)} finalized: ${result.placements.map((entry) => `${entry.rank}. ${entry.playerName} +${entry.sagaPointsAwarded} SP, ${entry.momentumDecay ? `-${entry.momentumDecay}/` : ""}+${entry.momentumChange} Mom, ${formatMoney(entry.totalGymPayout)} payout`).join("; ")}. ${Number(result.gym) >= 9 ? "Badge Points reset for next series." : "Each player gained +1 Badge Point."}`,
+    item: `${phaseCode(result.series, result.gym)} finalized: ${result.placements.map((entry) => `${entry.rank}. ${entry.playerName} +${entry.sagaPointsAwarded} SP, ${entry.momentumDecay ? `-${entry.momentumDecay}/` : ""}+${entry.momentumChange} Mom, ${formatMoney(entry.totalGymPayout)} payout`).join("; ")}. ${Number(result.gym) >= 9 ? "Badge Points and trainer-resource purchase scaling reset for next series." : "Each player gained +1 Badge Point."}`,
     type: "gym-results",
     quantity: result.placements.reduce((total, entry) => total + entry.sagaPointsAwarded, 0),
     price: result.placements.reduce((total, entry) => total + (entry.totalGymPayout || 0), 0),
@@ -56551,7 +57038,7 @@ function renderTokenVisual(item, extraClass = "") {
 function renderShopEntryVisual(item) {
   if (state.activeShop === "tms") {
     const type = displayTmType(item?.type || "TM");
-    const typeClass = `type-${slugify(type || "tm")}`;
+    const typeClass = `tm-type-${slugify(type || "tm")}`;
     return `
       <span class="shop-entry-visual shop-entry-visual-tm ${escapeHtml(typeClass)}" title="${escapeHtml(type)}" aria-hidden="true">
         <span class="tm-disc-core">
@@ -57170,6 +57657,26 @@ function shopTmPower(item) {
   return Number.isFinite(power) && power > 0 ? power : null;
 }
 
+function shopTmPowerDisplay(item) {
+  const power = shopTmPower(item);
+  if (power !== null) return String(power);
+  const move = shopTmMoveData(item);
+  const description = `${move.effect || ""} ${move.shortDesc || ""} ${move.description || ""}`.toLowerCase();
+  return /\bpower\b.*\b(increases|decreases|varies|depends|higher|lower|maximum|capped)\b|\bmore damage\b|\bless damage\b/.test(description)
+    ? "VAR"
+    : "-";
+}
+
+function shopTmAccuracyDisplay(item) {
+  const accuracy = teambuilderMoveAccuracyValue(shopTmMoveData(item));
+  return accuracy && accuracy !== "-" ? accuracy.replace("%", "") : "-";
+}
+
+function shopTmPpDisplay(item) {
+  const pp = shopTmMoveData(item).pp;
+  return Number.isFinite(Number(pp)) ? String(Number(pp)) : "-";
+}
+
 function shopEntryInfoText(item, tokenMode = false) {
   if (state.activeShop !== "tms") {
     const choiceDefinition = shopChoiceDefinitionForItem(item);
@@ -57182,7 +57689,7 @@ function shopEntryInfoText(item, tokenMode = false) {
   const category = move.category || "Status";
   const power = shopTmPower(item);
   const accuracy = teambuilderMoveAccuracyValue(move);
-  const pp = Number.isFinite(Number(move.pp)) ? Number(move.pp) : "-";
+  const pp = shopTmPpDisplay(item);
   const description = teambuilderMoveDescription(move);
   return `${type} | ${category} | Base Power ${power ?? "-"} | Accuracy ${accuracy} | PP ${pp}\n${description}`;
 }
@@ -57357,6 +57864,386 @@ function itemShopRecommendedMechanicProducts(player = activePlayer()) {
     .filter((item) => ["mega", "z-move"].includes(item.mechanicFamily))
     .filter((item) => itemShopProductEligibilitySpeciesKeys(item).some((key) => ownedSpeciesKeys.has(key)))
     .filter((item) => !filters.canAfford || itemShopEntryIsAffordable(item, player));
+}
+
+function readItemShopRecommendationDrawerPrefs() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(ITEM_SHOP_RECOMMENDATION_DRAWER_UI_KEY) || "{}");
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function writeItemShopRecommendationDrawerPrefs(preferences) {
+  try {
+    localStorage.setItem(ITEM_SHOP_RECOMMENDATION_DRAWER_UI_KEY, JSON.stringify(preferences || {}));
+  } catch (error) {
+    console.warn("Rival Saga recommendation drawer preference could not be saved.", error);
+  }
+}
+
+function itemShopRecommendationDrawerScope(player = activePlayer()) {
+  const gameId = String(backendSync.gameId || backendGameId() || "default").trim() || "default";
+  const playerId = String(player?.id || state.activePlayerId || "").trim();
+  return { gameId, playerId };
+}
+
+function itemShopRecommendationDrawerCollapsed(player = activePlayer()) {
+  const { gameId, playerId } = itemShopRecommendationDrawerScope(player);
+  if (!playerId) return false;
+  const preference = readItemShopRecommendationDrawerPrefs()?.[gameId]?.[playerId];
+  return preference === true || preference?.collapsed === true;
+}
+
+function setItemShopRecommendationDrawerCollapsed(player = activePlayer(), collapsed = false) {
+  const { gameId, playerId } = itemShopRecommendationDrawerScope(player);
+  if (!playerId) return;
+  const preferences = readItemShopRecommendationDrawerPrefs();
+  preferences[gameId] = preferences[gameId] && typeof preferences[gameId] === "object" && !Array.isArray(preferences[gameId])
+    ? preferences[gameId]
+    : {};
+  preferences[gameId][playerId] = Boolean(collapsed);
+  writeItemShopRecommendationDrawerPrefs(preferences);
+}
+
+function tmBrowseFolderLabel(folderId) {
+  return TM_BROWSE_FOLDERS.find((entry) => entry.id === folderId)?.label || "All";
+}
+
+function tmBrowseShelfLabel(shelfId) {
+  return TM_BROWSE_SHELVES.find((entry) => entry.id === shelfId)?.label || "Staples";
+}
+
+function normalizeTmShopTypeFilters(value, fallback = []) {
+  const source = Array.isArray(value) ? value : fallback;
+  return [...new Set(source.map(String).filter((type) => type !== "All" && tmTypeOrder.includes(type)))];
+}
+
+function normalizeTmShopMoveClassFilters(value, fallback = []) {
+  const source = Array.isArray(value) ? value : fallback;
+  return [...new Set(source.map(String).filter((moveClass) => TM_BROWSE_MOVE_CLASSES.has(moveClass) && moveClass !== "All"))];
+}
+
+function normalizeTmShopBrowseUiState(value = {}, { allowSavedSelection = true } = {}) {
+  const source = value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  const types = normalizeTmShopTypeFilters(source.types, tmTypeOrder.includes(source.type) && source.type !== "All" ? [source.type] : []);
+  const moveClasses = normalizeTmShopMoveClassFilters(source.moveClasses, TM_BROWSE_MOVE_CLASSES.has(source.moveClass) && source.moveClass !== "All" ? [source.moveClass] : []);
+  const validSavedSelection = allowSavedSelection && source.schemaVersion === TM_SHOP_BROWSE_UI_SCHEMA_VERSION;
+  const view = validSavedSelection && source.view === "browse" ? "browse" : "landing";
+  return {
+    schemaVersion: TM_SHOP_BROWSE_UI_SCHEMA_VERSION,
+    view,
+    folder: validSavedSelection && TM_BROWSE_FOLDER_IDS.has(source.folder) ? source.folder : "all",
+    shelf: validSavedSelection && TM_BROWSE_SHELF_IDS.has(source.shelf) ? source.shelf : "staples",
+    types,
+    moveClasses,
+    type: types[0] || "All",
+    moveClass: moveClasses.length === 1 ? moveClasses[0] : "All",
+    canAfford: Boolean(source.canAfford),
+    expanded: Boolean(source.expanded)
+  };
+}
+
+function readTmShopBrowsePrefs() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(TM_SHOP_BROWSE_UI_KEY) || "{}");
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function writeTmShopBrowsePrefs(preferences) {
+  try {
+    localStorage.setItem(TM_SHOP_BROWSE_UI_KEY, JSON.stringify(preferences || {}));
+  } catch (error) {
+    console.warn("Rival Saga TM browse preference could not be saved.", error);
+  }
+}
+
+function tmShopBrowseScope(player = activePlayer()) {
+  const gameId = String(backendSync.gameId || backendGameId() || "default").trim() || "default";
+  const playerId = String(player?.id || state.activePlayerId || "").trim();
+  return { gameId, playerId };
+}
+
+function tmShopBrowseState(player = activePlayer()) {
+  const { gameId, playerId } = tmShopBrowseScope(player);
+  const prefs = readTmShopBrowsePrefs();
+  return normalizeTmShopBrowseUiState(prefs?.[gameId]?.[playerId]);
+}
+
+function setTmShopBrowseState(patch = {}, player = activePlayer()) {
+  const { gameId, playerId } = tmShopBrowseScope(player);
+  if (!playerId) return;
+  const preferences = readTmShopBrowsePrefs();
+  const normalizedPatch = patch && typeof patch === "object" && !Array.isArray(patch) ? { ...patch } : {};
+  if ("type" in normalizedPatch && !("types" in normalizedPatch)) {
+    normalizedPatch.types = normalizedPatch.type && normalizedPatch.type !== "All" ? [normalizedPatch.type] : [];
+  }
+  if ("moveClass" in normalizedPatch && !("moveClasses" in normalizedPatch)) {
+    normalizedPatch.moveClasses = normalizedPatch.moveClass && normalizedPatch.moveClass !== "All" ? [normalizedPatch.moveClass] : [];
+  }
+  preferences[gameId] = preferences[gameId] && typeof preferences[gameId] === "object" && !Array.isArray(preferences[gameId])
+    ? preferences[gameId]
+    : {};
+  preferences[gameId][playerId] = normalizeTmShopBrowseUiState({
+    ...tmShopBrowseState(player),
+    ...normalizedPatch
+  }, { allowSavedSelection: true });
+  writeTmShopBrowsePrefs(preferences);
+}
+
+function reportTmBrowseMetadataIssue(itemName, reason) {
+  const key = `${itemName || "Unknown TM"}:${reason}`;
+  if (tmBrowseMetadataWarnings.has(key)) return;
+  tmBrowseMetadataWarnings.add(key);
+  if (tmBrowseMetadataWarnings.size <= TM_BROWSE_METADATA_WARNING_LIMIT) {
+    console.warn(`TM browse metadata issue for ${itemName || "Unknown TM"}: ${reason}`);
+  } else if (tmBrowseMetadataWarnings.size === TM_BROWSE_METADATA_WARNING_LIMIT + 1) {
+    console.warn("Additional TM browse metadata issues suppressed.");
+  }
+}
+
+function tmBrowseMetadataForItem(item = {}) {
+  const itemName = item?.name || "";
+  const source = tmBrowseData.moves?.[itemName];
+  if (!source || typeof source !== "object" || Array.isArray(source)) {
+    reportTmBrowseMetadataIssue(itemName, "missing placement metadata");
+    return { placements: {} };
+  }
+  if ("shelf" in source || "folders" in source) {
+    reportTmBrowseMetadataIssue(itemName, "old global shelf/folders metadata shape is not supported");
+  }
+  if (!source.placements || typeof source.placements !== "object" || Array.isArray(source.placements)) {
+    reportTmBrowseMetadataIssue(itemName, "placements must be an object");
+    return { placements: {} };
+  }
+  const placements = Object.entries(source.placements).reduce((acc, [folder, shelf]) => {
+    if (!TM_BROWSE_FOLDER_IDS.has(folder) || folder === "all") {
+      reportTmBrowseMetadataIssue(itemName, `invalid folder '${folder}'`);
+      return acc;
+    }
+    if (!TM_BROWSE_SHELF_IDS.has(shelf)) {
+      reportTmBrowseMetadataIssue(itemName, `invalid shelf '${shelf}' for ${folder}`);
+      return acc;
+    }
+    acc[folder] = shelf;
+    return acc;
+  }, {});
+  if (!Object.keys(placements).length) reportTmBrowseMetadataIssue(itemName, "no valid placements");
+  return { placements };
+}
+
+function tmBrowsePlacementEntries(item = {}) {
+  return Object.entries(tmBrowseMetadataForItem(item).placements || {})
+    .filter(([folder, shelf]) => TM_BROWSE_FOLDER_IDS.has(folder) && folder !== "all" && TM_BROWSE_SHELF_IDS.has(shelf));
+}
+
+function tmBrowseEffectiveAllShelf(item = {}) {
+  return tmBrowsePlacementEntries(item)
+    .map(([, shelf]) => shelf)
+    .sort((a, b) => (TM_BROWSE_SHELF_PROMINENCE[b] || 0) - (TM_BROWSE_SHELF_PROMINENCE[a] || 0))[0] || "";
+}
+
+function tmBrowsePlacementShelf(item = {}, folderId = "all") {
+  if (folderId === "all") return tmBrowseEffectiveAllShelf(item);
+  const shelf = tmBrowseMetadataForItem(item).placements?.[folderId];
+  return TM_BROWSE_SHELF_IDS.has(shelf) ? shelf : "";
+}
+
+function tmBrowsePlacementContext(item = {}, { compact = false } = {}) {
+  const entries = tmBrowsePlacementEntries(item);
+  const sorted = entries.sort((a, b) => {
+    const prominence = (TM_BROWSE_SHELF_PROMINENCE[b[1]] || 0) - (TM_BROWSE_SHELF_PROMINENCE[a[1]] || 0);
+    return prominence || tmBrowseFolderLabel(a[0]).localeCompare(tmBrowseFolderLabel(b[0]));
+  });
+  return sorted.map(([folder, shelf]) => `${tmBrowseFolderLabel(folder)} · ${tmBrowseShelfLabel(shelf)}`)
+    .slice(0, compact ? 3 : sorted.length)
+    .join(" / ");
+}
+
+function tmShopAllEntries() {
+  return tmShopData || [];
+}
+
+function tmShopEntryIsAffordable(item, player = activePlayer()) {
+  return !item?.cannotPurchase && discountedShopPrice(item, "tms", player) <= Number(player?.balance || 0);
+}
+
+function tmShopEntryMatchesAdvancedFilters(item, filters = tmShopBrowseState(), player = activePlayer()) {
+  const move = shopTmMoveData(item);
+  const type = move.type && move.type !== "Unknown" ? move.type : item.type;
+  const moveClass = shopTmDamageClass(item);
+  const selectedTypes = normalizeTmShopTypeFilters(filters.types, filters.type && filters.type !== "All" ? [filters.type] : []);
+  const selectedClasses = normalizeTmShopMoveClassFilters(filters.moveClasses, filters.moveClass && filters.moveClass !== "All" ? [filters.moveClass] : []);
+  if (selectedTypes.length && !selectedTypes.includes(type)) return false;
+  if (selectedClasses.length && !selectedClasses.includes(moveClass)) return false;
+  if (filters.canAfford && !tmShopEntryIsAffordable(item, player)) return false;
+  return true;
+}
+
+function tmShopEntriesForFolderShelf(folderId = "all", shelfId = "staples") {
+  return tmShopAllEntries().filter((item) => {
+    return tmBrowsePlacementShelf(item, folderId) === shelfId;
+  });
+}
+
+function tmShopShelfCounts(folderId = "all") {
+  return TM_BROWSE_SHELVES.reduce((counts, shelf) => {
+    counts[shelf.id] = tmShopEntriesForFolderShelf(folderId, shelf.id).length;
+    return counts;
+  }, {});
+}
+
+function tmShopActiveFilterChips(filters = tmShopBrowseState()) {
+  const chips = [];
+  const selectedTypes = normalizeTmShopTypeFilters(filters.types, filters.type && filters.type !== "All" ? [filters.type] : []);
+  const selectedClasses = normalizeTmShopMoveClassFilters(filters.moveClasses, filters.moveClass && filters.moveClass !== "All" ? [filters.moveClass] : []);
+  selectedTypes.forEach((type) => chips.push({ type: "type", value: type, label: displayTmType(type) }));
+  selectedClasses.forEach((moveClass) => chips.push({ type: "moveClass", value: moveClass, label: moveClass }));
+  if (filters.canAfford) chips.push({ type: "canAfford", label: "Can Afford" });
+  return chips;
+}
+
+function tmShopVisibleEntries(player = activePlayer(), search = "") {
+  const filters = tmShopBrowseState(player);
+  const searching = Boolean(search);
+  const browseEntries = searching
+    ? tmShopAllEntries()
+    : tmShopEntriesForFolderShelf(filters.folder, filters.shelf);
+  return browseEntries
+    .filter((item) => !searching || shopEntrySearchText(item).includes(search))
+    .filter((item) => tmShopEntryMatchesAdvancedFilters(item, filters, player));
+}
+
+function renderTmShopDamageQuickFilters(filters = tmShopBrowseState()) {
+  const showQuickFilters = filters.view === "browse" && filters.folder === "damage";
+  els.tmDamageQuickFilters?.classList.toggle("hidden", !showQuickFilters);
+  if (!showQuickFilters) {
+    els.tmDamageTypeRail?.replaceChildren();
+    els.tmDamageClassRail?.replaceChildren();
+    return;
+  }
+  const selectedTypes = new Set(normalizeTmShopTypeFilters(filters.types, filters.type && filters.type !== "All" ? [filters.type] : []));
+  const selectedClasses = new Set(normalizeTmShopMoveClassFilters(filters.moveClasses, filters.moveClass && filters.moveClass !== "All" ? [filters.moveClass] : []));
+  if (els.tmDamageTypeRail) {
+    const allTypes = document.createElement("button");
+    allTypes.type = "button";
+    allTypes.dataset.tmDamageType = "All";
+    allTypes.className = `tm-type-filter-chip${selectedTypes.size ? "" : " active"}`;
+    allTypes.setAttribute("aria-pressed", selectedTypes.size ? "false" : "true");
+    allTypes.textContent = "All Types";
+    const typeButtons = TM_DAMAGE_QUICK_TYPES.map((type) => {
+      const button = document.createElement("button");
+      const active = selectedTypes.has(type);
+      button.type = "button";
+      button.dataset.tmDamageType = type;
+      button.className = `tm-type-filter-chip tm-type-${slugify(type)}${active ? " active" : ""}`;
+      button.setAttribute("aria-pressed", active ? "true" : "false");
+      button.textContent = displayTmType(type);
+      return button;
+    });
+    els.tmDamageTypeRail.replaceChildren(allTypes, ...typeButtons);
+  }
+  if (els.tmDamageClassRail) {
+    els.tmDamageClassRail.replaceChildren(...TM_DAMAGE_QUICK_MOVE_CLASSES.map((moveClass) => {
+      const button = document.createElement("button");
+      const active = selectedClasses.has(moveClass);
+      button.type = "button";
+      button.dataset.tmDamageClass = moveClass;
+      button.className = `tm-class-filter-chip${active ? " active" : ""}`;
+      button.setAttribute("aria-pressed", active ? "true" : "false");
+      button.textContent = moveClass;
+      return button;
+    }));
+  }
+}
+
+function renderTmShopBrowseControls(player = activePlayer(), { search = "" } = {}) {
+  const tmMode = state.activeShop === "tms";
+  const filters = tmShopBrowseState(player);
+  const browsing = tmMode && filters.view === "browse" && !search;
+  els.tmBrowseControls?.classList.toggle("hidden", !browsing);
+  els.tmShopFiltersToggle?.classList.toggle("hidden", !tmMode);
+  els.tmShopFiltersToggle?.setAttribute("aria-expanded", tmMode && filters.expanded ? "true" : "false");
+  els.tmMoveFilters?.classList.toggle("hidden", !tmMode || !filters.expanded);
+  if (!tmMode) {
+    els.tmDamageQuickFilters?.classList.add("hidden");
+    return;
+  }
+  if (!browsing) {
+    els.tmBrowseFolderRail?.replaceChildren();
+    els.tmBrowseShelfRail?.replaceChildren();
+    els.tmDamageQuickFilters?.classList.add("hidden");
+  }
+  if (!browsing) {
+    if (els.tmTypeFilter) els.tmTypeFilter.value = filters.types.length === 1 ? filters.types[0] : "All";
+    if (els.tmDamageClassFilter) els.tmDamageClassFilter.value = filters.moveClasses.length === 1 ? filters.moveClasses[0] : "All";
+    if (els.tmCanAffordFilter) els.tmCanAffordFilter.checked = filters.canAfford;
+    return;
+  }
+
+  const shelfCounts = tmShopShelfCounts(filters.folder);
+  if (els.tmBrowseFolderRail) {
+    els.tmBrowseFolderRail.replaceChildren(...TM_BROWSE_FOLDERS.map((folder) => {
+      const button = document.createElement("button");
+      const active = filters.folder === folder.id;
+      button.type = "button";
+      button.dataset.tmBrowseFolder = folder.id;
+      button.className = `tm-browse-tab${active ? " active" : ""}`;
+      button.setAttribute("role", "tab");
+      button.setAttribute("aria-selected", String(active));
+      button.textContent = folder.label;
+      return button;
+    }));
+  }
+  if (els.tmBrowseShelfRail) {
+    els.tmBrowseShelfRail.replaceChildren(...TM_BROWSE_SHELVES.map((shelf) => {
+      const button = document.createElement("button");
+      const active = filters.shelf === shelf.id;
+      button.type = "button";
+      button.dataset.tmBrowseShelf = shelf.id;
+      button.className = `tm-shelf-tab${active ? " active" : ""}`;
+      button.setAttribute("role", "tab");
+      button.setAttribute("aria-selected", String(active));
+      button.innerHTML = `<span>${escapeHtml(shelf.label)}</span><b>${shelfCounts[shelf.id] || 0}</b>`;
+      return button;
+    }));
+  }
+  renderTmShopDamageQuickFilters(filters);
+  if (els.tmTypeFilter) els.tmTypeFilter.value = filters.types.length === 1 ? filters.types[0] : "All";
+  if (els.tmDamageClassFilter) els.tmDamageClassFilter.value = filters.moveClasses.length === 1 ? filters.moveClasses[0] : "All";
+  if (els.tmCanAffordFilter) els.tmCanAffordFilter.checked = filters.canAfford;
+}
+
+function renderTmShopAppliedFilters(count, player = activePlayer()) {
+  if (!els.itemShopAppliedFilters) return;
+  const tmMode = state.activeShop === "tms";
+  const chips = tmMode ? tmShopActiveFilterChips(tmShopBrowseState(player)) : [];
+  els.itemShopAppliedFilters.classList.toggle("hidden", !tmMode || !chips.length);
+  if (!tmMode || !chips.length) {
+    els.itemShopAppliedFilters.replaceChildren();
+    return;
+  }
+  const summary = document.createElement("strong");
+  summary.textContent = `${count} TM${count === 1 ? "" : "s"}`;
+  const chipButtons = chips.map((chip) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.dataset.tmShopRemoveFilter = chip.type;
+    if (chip.value) button.dataset.value = chip.value;
+    button.textContent = `${chip.label} x`;
+    return button;
+  });
+  els.itemShopAppliedFilters.replaceChildren(summary, ...chipButtons);
+  const clear = document.createElement("button");
+  clear.type = "button";
+  clear.className = "clear-all";
+  clear.dataset.tmShopClearFilters = "true";
+  clear.textContent = "Clear";
+  els.itemShopAppliedFilters.append(clear);
 }
 
 function itemShopPresentationCardsForCurrentFolder(player = activePlayer()) {
@@ -57623,6 +58510,8 @@ function renderShop(player) {
     els.shopHeaderBalance && (els.shopHeaderBalance.textContent = `$${formatMoney(Number(player?.balance || 0))}`);
     els.tokenShopHeader?.classList.add("hidden");
     els.tokenShopChips?.classList.add("hidden");
+    els.tmBrowseControls?.classList.add("hidden");
+    els.tmShopFiltersToggle?.classList.add("hidden");
     els.tmMoveFilters?.classList.add("hidden");
     els.itemShopFiltersToggle?.classList.add("hidden");
     els.itemShopAdvancedFilters?.classList.add("hidden");
@@ -57635,11 +58524,10 @@ function renderShop(player) {
     return;
   }
   const search = els.searchInput.value.trim().toLowerCase();
-  const tmType = els.tmTypeFilter.value || "All";
-  const tmDamageClass = els.tmDamageClassFilter.value || "All";
   const minPrice = null;
   const maxPrice = null;
   const itemMode = state.activeShop === "items";
+  const tmMode = state.activeShop === "tms";
   const itemFilters = itemShopFiltersState();
   const tokenMode = state.activeShop === "tokens";
   const tokenFilter = state.tokenShopCategoryFilter || "all";
@@ -57649,18 +58537,25 @@ function renderShop(player) {
   if (els.shopDepartmentSubtitle) els.shopDepartmentSubtitle.textContent = department.subtitle;
   els.shopHeaderBalance && (els.shopHeaderBalance.textContent = `$${formatMoney(Number(player?.balance || 0))}`);
   els.shopView?.classList.toggle("item-shop-mode", itemMode);
+  els.shopView?.classList.toggle("tm-shop-mode", tmMode);
+  if (els.searchInput) els.searchInput.placeholder = tmMode ? "Search TMs..." : "Search items or effects...";
   document.querySelectorAll(".tab[data-shop]").forEach((tab) => {
     const active = tab.dataset.shop === state.activeShop;
     tab.classList.toggle("active", active);
     tab.setAttribute("aria-pressed", String(active));
     tab.setAttribute("aria-current", active ? "page" : "false");
   });
-  els.tmMoveFilters?.classList.toggle("hidden", state.activeShop !== "tms");
+  if (!tmMode) {
+    els.tmBrowseControls?.classList.add("hidden");
+    els.tmShopFiltersToggle?.classList.add("hidden");
+    els.tmMoveFilters?.classList.add("hidden");
+  }
   els.itemShopBreadcrumb?.classList.toggle("hidden", !itemMode);
   els.itemShopRoleFilterGroup?.classList.toggle("hidden", !itemMode);
   els.itemShopTagFilterGroup?.classList.toggle("hidden", !itemMode);
   els.itemShopAffordFilterGroup?.classList.toggle("hidden", !itemMode);
   renderItemShopFilterControls();
+  renderTmShopBrowseControls(player, { search });
   syncShopSortControl();
 
   if (itemMode) {
@@ -57692,9 +58587,29 @@ function renderShop(player) {
     return;
   }
 
+  if (tmMode) {
+    const filters = tmShopBrowseState(player);
+    if (!search && filters.view !== "browse") {
+      const landingCount = tmShopAllEntries().filter((item) => tmShopEntryMatchesAdvancedFilters(item, filters, player)).length;
+      renderTokenShopChrome(player, landingCount);
+      renderTmShopAppliedFilters(landingCount, player);
+      els.shopGrid.replaceChildren(createTmShopLandingSection());
+      requestAnimationFrame(updateShopTooltipSides);
+      return;
+    }
+    const entries = tmShopVisibleEntries(player, search);
+    renderTokenShopChrome(player, entries.length);
+    renderTmShopAppliedFilters(entries.length, player);
+    if (entries.length === 0) {
+      els.shopGrid.innerHTML = `<p class="empty-state">No TMs match these filters.</p>`;
+      return;
+    }
+    els.shopGrid.replaceChildren(createTmShopResultSection(entries, player, { search }));
+    requestAnimationFrame(updateShopTooltipSides);
+    return;
+  }
+
   const entries = shopEntriesForActiveShop()
-    .filter((item) => state.activeShop !== "tms" || tmType === "All" || item.type === tmType)
-    .filter((item) => state.activeShop !== "tms" || tmDamageClass === "All" || shopTmDamageClass(item) === tmDamageClass)
     .filter((item) => !tokenMode || tokenFilter === "all" || tokenShopCategoryKey(item) === tokenFilter)
     .filter((item) => !search || shopEntrySearchText(item).includes(search));
   renderTokenShopChrome(player, entries.length);
@@ -57778,6 +58693,7 @@ function createItemShopPresentationSection(folder, cards, player, options = {}) 
         ${options.description ? `<p>${escapeHtml(options.description)}</p>` : ""}
       </div>
       <div class="shop-tier-actions">
+        ${options.showRecommendationRestore ? `<button class="item-shop-recommendation-restore" type="button" data-item-shop-recommendations-restore title="Show recommendations">Show recommendations</button>` : ""}
         <span>${cards.length} ${escapeHtml(options.countLabel || "entry")}${cards.length === 1 ? "" : "s"}</span>
       </div>
     </div>
@@ -57805,6 +58721,7 @@ function createItemShopRecommendationSection(recommendations, player) {
       </div>
       <div class="shop-tier-actions">
         <span>${recommendations.length} recommendation${recommendations.length === 1 ? "" : "s"}</span>
+        <button class="item-shop-recommendation-dismiss" type="button" data-item-shop-recommendations-dismiss title="Hide recommendations" aria-label="Hide recommendations">×</button>
       </div>
     </div>
     <div class="shop-card-grid item-shop-recommendation-grid" role="list"></div>
@@ -57822,16 +58739,18 @@ function createItemShopRecommendationSection(recommendations, player) {
 function createItemShopPresentationSections(folder, cards, player) {
   if (folder.id !== "root") return [createItemShopPresentationSection(folder, cards, player)];
   const recommendations = itemShopRecommendedMechanicProducts(player);
+  const recommendationsCollapsed = recommendations.length > 0 && itemShopRecommendationDrawerCollapsed(player);
   const folderCards = cards.filter((card) => card.kind === "folder");
   const itemCards = cards.filter((card) => card.kind !== "folder");
   return [
-    recommendations.length ? createItemShopRecommendationSection(recommendations, player) : null,
+    recommendations.length && !recommendationsCollapsed ? createItemShopRecommendationSection(recommendations, player) : null,
     createItemShopPresentationSection(folder, itemCards, player, {
       className: "item-shop-main-section",
       eyebrow: "Main Page",
       title: "Main Shop",
       description: "Core items and trainer resources.",
-      countLabel: "main item"
+      countLabel: "main item",
+      showRecommendationRestore: recommendationsCollapsed
     }),
     createItemShopPresentationSection(folder, folderCards, player, {
       className: "item-shop-collections-section",
@@ -57877,6 +58796,153 @@ function createItemShopResultSections(entries, player) {
     description: "Matching products across Items.",
     className: "item-shop-results-section item-shop-results-filtered"
   })];
+}
+
+function tmShopFolderTotalCount(folderId) {
+  const counts = tmShopShelfCounts(folderId);
+  return TM_BROWSE_SHELVES.reduce((total, shelf) => total + Number(counts[shelf.id] || 0), 0);
+}
+
+function createTmShopLandingSection() {
+  const section = document.createElement("section");
+  section.className = "tm-shop-landing";
+  section.innerHTML = `
+    <div class="tm-shop-landing-header">
+      <div>
+        <p class="eyebrow">Move Library</p>
+        <h3>Choose a TM folder</h3>
+      </div>
+      <button class="ghost-button tm-shop-browse-all" type="button" data-tm-browse-all="true">Browse All ${tmShopAllEntries().length} TMs</button>
+    </div>
+    <div class="tm-shop-folder-tiles" role="list">
+      ${TM_BROWSE_LANDING_FOLDERS.map((folder) => `
+        <button class="tm-shop-folder-tile" type="button" data-tm-folder-entry="${escapeHtml(folder.id)}" role="listitem">
+          <span class="tm-shop-folder-icon" aria-hidden="true">${escapeHtml(folder.icon)}</span>
+          <span class="tm-shop-folder-copy">
+            <strong>${escapeHtml(folder.title)}</strong>
+            <small>${escapeHtml(folder.subtitle)}</small>
+          </span>
+          <span class="tm-shop-folder-count">${tmShopFolderTotalCount(folder.id)} TMs</span>
+        </button>
+      `).join("")}
+    </div>
+  `;
+  return section;
+}
+
+function createTmShopCard(item, player, { showContext = false, folderId = "all" } = {}) {
+  const row = document.createElement("article");
+  const move = shopTmMoveData(item);
+  const type = move.type && move.type !== "Unknown" ? move.type : displayTmType(item.type || "Unknown");
+  const moveClass = shopTmDamageClass(item);
+  const currentPrice = discountedShopPrice(item, "tms", player);
+  const discount = actionShopDiscountPercent(player, "tms");
+  const infoText = shopEntryInfoText(item, false);
+  const power = shopTmPowerDisplay(item);
+  const accuracy = shopTmAccuracyDisplay(item);
+  const pp = shopTmPpDisplay(item);
+  const visibleShelf = tmBrowsePlacementShelf(item, folderId);
+  const context = showContext
+    ? tmBrowsePlacementContext(item, { compact: true })
+    : "";
+  const priceLabel = item.cannotPurchase
+    ? "Unavailable"
+    : item.dynamicPrice || item.price > 0
+      ? `${formatMoney(currentPrice)}${discount ? ` <small>${discount}% off</small>` : ""}`
+      : "Reward";
+  row.className = "shop-row shop-card tm-shop-card";
+  row.dataset.tmName = item.name;
+  row.dataset.tmType = type;
+  row.dataset.tmClass = moveClass;
+  row.dataset.tmShelf = visibleShelf;
+  row.dataset.tmPlacements = tmBrowsePlacementContext(item);
+  row.dataset.tmPp = pp;
+  row.role = "listitem";
+  row.innerHTML = `
+    <div class="tm-card-visual">
+      ${renderShopEntryVisual(item)}
+    </div>
+    <div class="tm-card-body">
+      <div class="tm-card-topline">
+        <div class="shop-name-cell">
+          <strong>${escapeHtml(item.name)}</strong>
+          ${context ? `<span class="tm-card-context">${escapeHtml(context)}</span>` : ""}
+        </div>
+        <div class="tm-card-price-info">
+          <strong class="price">${priceLabel}</strong>
+          ${infoText ? `<button class="shop-entry-info" type="button" aria-label="About ${escapeHtml(item.name)}" data-tooltip="${escapeHtml(infoText)}">i</button>` : ""}
+        </div>
+      </div>
+      <div class="tm-card-identity">
+        <span class="tm-card-type tm-type-${escapeHtml(slugify(type))}">${escapeHtml(type.toUpperCase())}</span>
+        <span aria-hidden="true">·</span>
+        <span>${escapeHtml(moveClass.toUpperCase())}</span>
+      </div>
+      <div class="tm-card-stat-strip">
+        <span><b>POW</b> <em>${escapeHtml(power)}</em></span>
+        <span><b>ACC</b> <em>${escapeHtml(accuracy)}</em></span>
+        <span><b>PP</b> <em>${escapeHtml(pp)}</em></span>
+      </div>
+    </div>
+  `;
+
+  const addButton = document.createElement("button");
+  addButton.className = "buy-button shop-buy-button";
+  addButton.type = "button";
+  const buyNowButton = document.createElement("button");
+  buyNowButton.className = "ghost-button shop-buy-now-button";
+  buyNowButton.type = "button";
+  buyNowButton.textContent = "Buy";
+
+  const updateButton = () => {
+    const unlocked = itemIsUnlocked(item, player);
+    row.classList.toggle("locked", !unlocked);
+    addButton.textContent = item.cannotPurchase ? "Unavailable" : !unlocked ? "Locked" : "Add";
+    addButton.disabled = !unlocked || item.cannotPurchase;
+    buyNowButton.disabled = !unlocked || item.cannotPurchase || currentPrice > Number(player?.balance || 0);
+    addButton.setAttribute("aria-label", item.cannotPurchase ? "Unavailable" : !unlocked ? "Locked" : `Add ${item.name} to cart`);
+    buyNowButton.setAttribute("aria-label", `Buy ${item.name} now`);
+  };
+
+  addButton.addEventListener("click", () => addToCart(item, 1));
+  buyNowButton.addEventListener("click", () => buyItem(item, 1));
+  const controls = document.createElement("div");
+  const buttonGroup = document.createElement("div");
+  controls.className = "tm-card-actions shop-card-controls";
+  buttonGroup.className = "shop-card-button-pair";
+  buttonGroup.append(addButton, buyNowButton);
+  controls.append(buttonGroup);
+  row.append(controls);
+  updateButton();
+  return row;
+}
+
+function createTmShopResultSection(entries, player, { search = "" } = {}) {
+  const filters = tmShopBrowseState(player);
+  const section = document.createElement("section");
+  const heading = search ? "Search Results" : `${tmBrowseFolderLabel(filters.folder)} · ${tmBrowseShelfLabel(filters.shelf)}`;
+  const description = search
+    ? "Matching TMs across all folders and shelves."
+    : "Browse TMs by purpose and shelf prominence.";
+  section.className = "shop-tier-section tm-shop-results-section";
+  section.innerHTML = `
+    <div class="shop-tier-header tm-shop-results-header">
+      <div>
+        <p class="eyebrow">${escapeHtml(heading)}</p>
+        <h3>${entries.length} shown · ${tmShopAllEntries().length} total TMs</h3>
+        <span>${escapeHtml(description)}</span>
+      </div>
+    </div>
+  `;
+  const grid = document.createElement("div");
+  grid.className = "tm-shop-grid";
+  grid.role = "list";
+  grid.replaceChildren(...entries.map((item) => createTmShopCard(item, player, {
+    showContext: Boolean(search) || filters.folder === "all",
+    folderId: search ? "all" : filters.folder
+  })));
+  section.append(grid);
+  return section;
 }
 
 function shopEntrySearchText(item) {
@@ -58692,7 +59758,12 @@ function addToCart(item, quantity = 1) {
   activeCart.playerId = player.id;
   activeCart.open = Boolean(activeCart.open);
   const shopType = state.activeShop;
-  const price = discountedShopPrice(item, shopType, player);
+  const pendingLegacyTickets = isLegacyTicketShopItem({ ...item, shopType })
+    ? pendingLegacyTicketCartQuantity(activeCart)
+    : 0;
+  const price = isLegacyTicketShopItem({ ...item, shopType })
+    ? getLegacyTicketPurchaseCost(player, pendingLegacyTickets)
+    : discountedShopPrice(item, shopType, player);
   const discountPercent = actionShopDiscountPercent(player, shopType);
   const key = `${shopType}:${item.id}:${price}:${discountPercent}`;
   const existing = activeCart.items.find((entry) => entry.key === key);
@@ -58753,6 +59824,7 @@ function renderCart() {
     const row = document.createElement("div");
     const quantity = document.createElement("input");
     const remove = document.createElement("button");
+    const steppedLegacyTicket = isLegacyTicketShopItem(entry);
     row.className = "cart-item";
     row.innerHTML = `
       <div class="cart-item-main">
@@ -58764,8 +59836,9 @@ function renderCart() {
     `;
     quantity.type = "number";
     quantity.min = "1";
-    quantity.max = "99";
+    quantity.max = steppedLegacyTicket ? "1" : "99";
     quantity.value = String(entry.quantity);
+    quantity.disabled = steppedLegacyTicket;
     quantity.className = "quantity-input";
     quantity.setAttribute("aria-label", `Cart quantity for ${entry.name}`);
     quantity.addEventListener("change", () => {
@@ -58824,6 +59897,7 @@ function finalizeCartPurchase() {
   const previousBalance = Number(player.balance || 0);
   const previousInventory = structuredClone(player.inventory || []);
   const previousMoneyLedger = structuredClone(state.moneyLedger || []);
+  const previousLegacyTicketPurchasesThisSeries = Number(player.legacyTicketPurchasesThisSeries || 0);
   const purchasedLines = structuredClone(cart.items);
   const moneyChange = applyPlayerMoneyChange(player, -total, {
     direction: "spend",
@@ -58851,6 +59925,12 @@ function finalizeCartPurchase() {
       });
     }
   });
+  const legacyTicketQuantity = purchasedLines
+    .filter((entry) => isLegacyTicketShopItem(entry))
+    .reduce((sum, entry) => sum + Number(entry.quantity || 0), 0);
+  if (legacyTicketQuantity) {
+    player.legacyTicketPurchasesThisSeries = previousLegacyTicketPurchasesThisSeries + legacyTicketQuantity;
+  }
   addLogEntry({
     action: "purchase",
     category: "purchases",
@@ -58871,7 +59951,8 @@ function finalizeCartPurchase() {
       balanceAfter: player.balance,
       ledgerEntryIds: moneyChange.ledgerEntry?.id ? [moneyChange.ledgerEntry.id] : [],
       previousInventory,
-      previousMoneyLedger
+      previousMoneyLedger,
+      previousLegacyTicketPurchasesThisSeries
     }
   });
   clearCart();
@@ -58897,6 +59978,7 @@ function buyItem(item, quantity = 1) {
   const previousBalance = Number(player.balance || 0);
   const previousInventory = structuredClone(player.inventory || []);
   const previousMoneyLedger = structuredClone(state.moneyLedger || []);
+  const previousLegacyTicketPurchasesThisSeries = Number(player.legacyTicketPurchasesThisSeries || 0);
   const purchasedLines = [{
     key: `${shopType}:${item.id}:${price}:${discountPercent}`,
     id: item.id,
@@ -58936,6 +60018,9 @@ function buyItem(item, quantity = 1) {
       purchasedAt: new Date().toISOString()
     });
   }
+  if (isLegacyTicketShopItem({ ...item, shopType })) {
+    player.legacyTicketPurchasesThisSeries = previousLegacyTicketPurchasesThisSeries + quantity;
+  }
 
   addLogEntry({
     action: "purchase",
@@ -58957,7 +60042,8 @@ function buyItem(item, quantity = 1) {
       balanceAfter: player.balance,
       ledgerEntryIds: moneyChange.ledgerEntry?.id ? [moneyChange.ledgerEntry.id] : [],
       previousInventory,
-      previousMoneyLedger
+      previousMoneyLedger,
+      previousLegacyTicketPurchasesThisSeries
     }
   });
 
@@ -59472,6 +60558,9 @@ function undoLogEntry(logId) {
     if (!player) return;
     player.balance = Number(undoData.balanceBefore ?? player.balance ?? 0);
     player.inventory = structuredClone(undoData.previousInventory || []);
+    if (undoData.previousLegacyTicketPurchasesThisSeries !== undefined) {
+      player.legacyTicketPurchasesThisSeries = Number(undoData.previousLegacyTicketPurchasesThisSeries || 0);
+    }
     state.moneyLedger = structuredClone(undoData.previousMoneyLedger || []);
   } else if (undoData.actionType === "undoPhaseAdvance") {
     const previous = undoData.previousState;
@@ -60023,8 +61112,6 @@ function bindEvents() {
       document.querySelectorAll(".tab[data-shop]").forEach((item) => item.classList.remove("active"));
       tab.classList.add("active");
       state.activeShop = tab.dataset.shop;
-      els.tmTypeFilter.value = "All";
-      els.tmDamageClassFilter.value = "All";
       if (state.activeShop !== "items") resetItemShopFilters();
       saveState();
       render();
@@ -60032,8 +61119,65 @@ function bindEvents() {
   });
 
   els.searchInput.addEventListener("input", render);
-  els.tmTypeFilter.addEventListener("change", render);
-  els.tmDamageClassFilter.addEventListener("change", render);
+  els.tmBrowseFolderRail?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-tm-browse-folder]");
+    if (!button) return;
+    setTmShopBrowseState({ view: "browse", folder: button.dataset.tmBrowseFolder || "all", shelf: "staples" }, activePlayer());
+    render();
+  });
+  els.tmBrowseShelfRail?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-tm-browse-shelf]");
+    if (!button) return;
+    setTmShopBrowseState({ view: "browse", shelf: button.dataset.tmBrowseShelf || "staples" }, activePlayer());
+    render();
+  });
+  els.tmDamageTypeRail?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-tm-damage-type]");
+    if (!button) return;
+    const filters = tmShopBrowseState(activePlayer());
+    const type = button.dataset.tmDamageType || "All";
+    if (type === "All") {
+      setTmShopBrowseState({ types: [], type: "All" }, activePlayer());
+    } else {
+      const current = normalizeTmShopTypeFilters(filters.types, filters.type && filters.type !== "All" ? [filters.type] : []);
+      const next = current.includes(type)
+        ? current.filter((entry) => entry !== type)
+        : [...current, type];
+      setTmShopBrowseState({ types: next, type: next[0] || "All" }, activePlayer());
+    }
+    render();
+  });
+  els.tmDamageClassRail?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-tm-damage-class]");
+    if (!button) return;
+    const filters = tmShopBrowseState(activePlayer());
+    const moveClass = button.dataset.tmDamageClass || "";
+    const current = normalizeTmShopMoveClassFilters(filters.moveClasses, filters.moveClass && filters.moveClass !== "All" ? [filters.moveClass] : []);
+    const next = current.includes(moveClass)
+      ? current.filter((entry) => entry !== moveClass)
+      : [...current, moveClass];
+    setTmShopBrowseState({ moveClasses: next, moveClass: next.length === 1 ? next[0] : "All" }, activePlayer());
+    render();
+  });
+  els.tmShopFiltersToggle?.addEventListener("click", () => {
+    const filters = tmShopBrowseState(activePlayer());
+    setTmShopBrowseState({ expanded: !filters.expanded }, activePlayer());
+    render();
+  });
+  els.tmTypeFilter?.addEventListener("change", () => {
+    const type = els.tmTypeFilter.value || "All";
+    setTmShopBrowseState({ type, types: type === "All" ? [] : [type] }, activePlayer());
+    render();
+  });
+  els.tmDamageClassFilter?.addEventListener("change", () => {
+    const moveClass = els.tmDamageClassFilter.value || "All";
+    setTmShopBrowseState({ moveClass, moveClasses: moveClass === "All" ? [] : [moveClass] }, activePlayer());
+    render();
+  });
+  els.tmCanAffordFilter?.addEventListener("change", () => {
+    setTmShopBrowseState({ canAfford: Boolean(els.tmCanAffordFilter.checked) }, activePlayer());
+    render();
+  });
   els.shopSortSelect?.addEventListener("change", () => {
     const [mode, direction] = String(els.shopSortSelect.value || "price-asc").split("-");
     state.shopSort = { mode, direction };
@@ -60057,6 +61201,34 @@ function bindEvents() {
     render();
   });
   els.shopGrid?.addEventListener("click", (event) => {
+    const browseAllTms = event.target.closest("[data-tm-browse-all]");
+    if (browseAllTms && state.activeShop === "tms") {
+      event.preventDefault();
+      setTmShopBrowseState({ view: "browse", folder: "all", shelf: "staples" }, activePlayer());
+      render();
+      return;
+    }
+    const tmFolderEntry = event.target.closest("[data-tm-folder-entry]");
+    if (tmFolderEntry && state.activeShop === "tms") {
+      event.preventDefault();
+      setTmShopBrowseState({ view: "browse", folder: tmFolderEntry.dataset.tmFolderEntry || "damage", shelf: "staples" }, activePlayer());
+      render();
+      return;
+    }
+    const dismissRecommendations = event.target.closest("[data-item-shop-recommendations-dismiss]");
+    if (dismissRecommendations && state.activeShop === "items") {
+      event.preventDefault();
+      setItemShopRecommendationDrawerCollapsed(activePlayer(), true);
+      render();
+      return;
+    }
+    const restoreRecommendations = event.target.closest("[data-item-shop-recommendations-restore]");
+    if (restoreRecommendations && state.activeShop === "items") {
+      event.preventDefault();
+      setItemShopRecommendationDrawerCollapsed(activePlayer(), false);
+      render();
+      return;
+    }
     const folderCard = event.target.closest("[data-item-shop-folder]");
     if (!folderCard || state.activeShop !== "items") return;
     itemShopNavigateToFolder(folderCard.dataset.itemShopFolder);
@@ -60097,6 +61269,30 @@ function bindEvents() {
     render();
   });
   els.itemShopAppliedFilters?.addEventListener("click", (event) => {
+    if (state.activeShop === "tms") {
+      const clearTm = event.target.closest("[data-tm-shop-clear-filters]");
+      if (clearTm) {
+        setTmShopBrowseState({ type: "All", types: [], moveClass: "All", moveClasses: [], canAfford: false }, activePlayer());
+        render();
+        return;
+      }
+      const tmButton = event.target.closest("[data-tm-shop-remove-filter]");
+      if (!tmButton) return;
+      const type = tmButton.dataset.tmShopRemoveFilter;
+      const value = tmButton.dataset.value || "";
+      const filters = tmShopBrowseState(activePlayer());
+      if (type === "type") {
+        const next = normalizeTmShopTypeFilters(filters.types, filters.type && filters.type !== "All" ? [filters.type] : []).filter((entry) => entry !== value);
+        setTmShopBrowseState({ types: next, type: next[0] || "All" }, activePlayer());
+      }
+      if (type === "moveClass") {
+        const next = normalizeTmShopMoveClassFilters(filters.moveClasses, filters.moveClass && filters.moveClass !== "All" ? [filters.moveClass] : []).filter((entry) => entry !== value);
+        setTmShopBrowseState({ moveClasses: next, moveClass: next.length === 1 ? next[0] : "All" }, activePlayer());
+      }
+      if (type === "canAfford") setTmShopBrowseState({ canAfford: false }, activePlayer());
+      render();
+      return;
+    }
     const clear = event.target.closest("[data-item-shop-clear-filters]");
     if (clear) {
       resetItemShopFilters();
@@ -61299,14 +62495,80 @@ function bindEvents() {
   });
   els.cancelActionVisit.addEventListener("click", clearSelectedActionLocation);
   els.actionLocationBoard.addEventListener("mouseover", (event) => {
-    if (activeActionPhaseVersion() !== ACTION_PHASE_VERSION_V2) return;
+    const destinationButton = event.target.closest("[data-v2-action-destination-preview]");
+    if (destinationButton && els.actionLocationBoard.contains(destinationButton)) {
+      if (destinationButton.contains(event.relatedTarget)) return;
+      const shell = destinationButton.closest("[data-v2-action-destination-shell]");
+      const destinationId = normalizeV2ActionDestinationId(destinationButton.dataset.v2ActionDestinationPreview);
+      const selectedId = normalizeV2ActionDestinationId(shell?.dataset.v2ActionDestinationSelected, "routes");
+      if (!destinationId || destinationId === selectedId) return;
+      state.routeUiState = normalizeRouteUiState(state.routeUiState);
+      state.routeUiState.hoveredActionDestination = destinationId;
+      setV2ActionDestinationPreview(destinationId);
+      return;
+    }
     const routeButton = event.target.closest("[data-v2-route-preview-target]");
     if (!routeButton || !els.actionLocationBoard.contains(routeButton) || routeButton.disabled) return;
     if (routeButton.contains(event.relatedTarget)) return;
     setV2RouteBrowserPreview(routeButton.dataset.v2RoutePreviewTarget);
   });
+  els.actionLocationBoard.addEventListener("mousemove", (event) => {
+    const destinationButton = event.target.closest("[data-v2-action-destination-preview]");
+    if (destinationButton && els.actionLocationBoard.contains(destinationButton)) {
+      const shell = destinationButton.closest("[data-v2-action-destination-shell]");
+      const destinationId = normalizeV2ActionDestinationId(destinationButton.dataset.v2ActionDestinationPreview);
+      const selectedId = normalizeV2ActionDestinationId(shell?.dataset.v2ActionDestinationSelected, "routes");
+      const previewId = normalizeV2ActionDestinationId(shell?.dataset.v2ActionDestinationPreview, selectedId);
+      if (!destinationId || destinationId === selectedId || destinationId === previewId) return;
+      state.routeUiState = normalizeRouteUiState(state.routeUiState);
+      state.routeUiState.hoveredActionDestination = destinationId;
+      setV2ActionDestinationPreview(destinationId);
+      return;
+    }
+    const routeButton = event.target.closest("[data-v2-route-preview-target]");
+    if (!routeButton || !els.actionLocationBoard.contains(routeButton) || routeButton.disabled) return;
+    const browser = routeButton.closest("[data-v2-route-browser]");
+    const routeNumber = String(Number(routeButton.dataset.v2RoutePreviewTarget || 0));
+    if (!browser || String(Number(browser.dataset.v2RouteBrowserPreview || 0)) === routeNumber) return;
+    setV2RouteBrowserPreview(routeButton.dataset.v2RoutePreviewTarget);
+  });
+  document.addEventListener("mousemove", (event) => {
+    const hoverTarget = document.elementFromPoint(event.clientX, event.clientY);
+    if (!hoverTarget || !els.actionLocationBoard?.contains(hoverTarget)) return;
+    const destinationButton = hoverTarget.closest("[data-v2-action-destination-preview]");
+    if (destinationButton && els.actionLocationBoard.contains(destinationButton)) {
+      const shell = destinationButton.closest("[data-v2-action-destination-shell]");
+      const destinationId = normalizeV2ActionDestinationId(destinationButton.dataset.v2ActionDestinationPreview);
+      const selectedId = normalizeV2ActionDestinationId(shell?.dataset.v2ActionDestinationSelected, "routes");
+      const previewId = normalizeV2ActionDestinationId(shell?.dataset.v2ActionDestinationPreview, selectedId);
+      if (!destinationId || destinationId === selectedId || destinationId === previewId) return;
+      state.routeUiState = normalizeRouteUiState(state.routeUiState);
+      state.routeUiState.hoveredActionDestination = destinationId;
+      setV2ActionDestinationPreview(destinationId);
+      return;
+    }
+    const routeButton = hoverTarget.closest("[data-v2-route-preview-target]");
+    if (!routeButton || !els.actionLocationBoard.contains(routeButton) || routeButton.disabled) return;
+    const browser = routeButton.closest("[data-v2-route-browser]");
+    const routeNumber = String(Number(routeButton.dataset.v2RoutePreviewTarget || 0));
+    if (!browser || String(Number(browser.dataset.v2RouteBrowserPreview || 0)) === routeNumber) return;
+    setV2RouteBrowserPreview(routeButton.dataset.v2RoutePreviewTarget);
+  });
   els.actionLocationBoard.addEventListener("mouseout", (event) => {
-    if (activeActionPhaseVersion() !== ACTION_PHASE_VERSION_V2) return;
+    const destinationButton = event.target.closest("[data-v2-action-destination-preview]");
+    if (destinationButton && els.actionLocationBoard.contains(destinationButton)) {
+      if (destinationButton.contains(event.relatedTarget)) return;
+      const shell = destinationButton.closest("[data-v2-action-destination-shell]");
+      const destinationId = normalizeV2ActionDestinationId(destinationButton.dataset.v2ActionDestinationPreview);
+      const selectedId = normalizeV2ActionDestinationId(shell?.dataset.v2ActionDestinationSelected, "routes");
+      const previewId = normalizeV2ActionDestinationId(shell?.dataset.v2ActionDestinationPreview, selectedId);
+      if (destinationId && destinationId !== selectedId && previewId === destinationId) {
+        state.routeUiState = normalizeRouteUiState(state.routeUiState);
+        state.routeUiState.hoveredActionDestination = "";
+        resetV2ActionDestinationPreview();
+      }
+      return;
+    }
     const routeButton = event.target.closest("[data-v2-route-preview-target]");
     if (!routeButton || !els.actionLocationBoard.contains(routeButton) || routeButton.disabled) return;
     if (routeButton.contains(event.relatedTarget)) return;
@@ -61319,13 +62581,22 @@ function bindEvents() {
     }
   });
   els.actionLocationBoard.addEventListener("focusin", (event) => {
-    if (activeActionPhaseVersion() !== ACTION_PHASE_VERSION_V2) return;
+    const destinationButton = event.target.closest("[data-v2-action-destination-preview]");
+    if (destinationButton && els.actionLocationBoard.contains(destinationButton)) {
+      const shell = destinationButton.closest("[data-v2-action-destination-shell]");
+      const destinationId = normalizeV2ActionDestinationId(destinationButton.dataset.v2ActionDestinationPreview);
+      const selectedId = normalizeV2ActionDestinationId(shell?.dataset.v2ActionDestinationSelected, "routes");
+      if (destinationId && destinationId !== selectedId) setV2ActionDestinationPreview(destinationId);
+      return;
+    }
     const routeButton = event.target.closest("[data-v2-route-preview-target]");
     if (!routeButton || !els.actionLocationBoard.contains(routeButton) || routeButton.disabled) return;
     setV2RouteBrowserPreview(routeButton.dataset.v2RoutePreviewTarget);
   });
   els.actionLocationBoard.addEventListener("mouseleave", () => {
-    if (activeActionPhaseVersion() !== ACTION_PHASE_VERSION_V2) return;
+    state.routeUiState = normalizeRouteUiState(state.routeUiState);
+    state.routeUiState.hoveredActionDestination = "";
+    resetV2ActionDestinationPreview();
     resetV2RouteBrowserPreview();
   });
   els.actionLocationBoard.addEventListener("keydown", (event) => {
@@ -61374,28 +62645,24 @@ function bindEvents() {
     startV2RouteEffectsDrag(event);
   });
   els.actionLocationBoard.addEventListener("click", (event) => {
+    const destinationButton = event.target.closest("[data-v2-action-destination-select]");
+    if (destinationButton && els.actionLocationBoard.contains(destinationButton) && activeActionPhaseVersion() === ACTION_PHASE_VERSION_V2) {
+      event.preventDefault();
+      const destinationId = normalizeV2ActionDestinationId(destinationButton.dataset.v2ActionDestinationSelect, "routes");
+      if (destinationId === v2SelectedActionDestination()) return;
+      selectV2ActionDestination(destinationId);
+      return;
+    }
     const routeEnterButton = event.target.closest("[data-v2-route-enter]");
     if (routeEnterButton && els.actionLocationBoard.contains(routeEnterButton) && activeActionPhaseVersion() === ACTION_PHASE_VERSION_V2) {
       event.preventDefault();
-      const workspace = v2RouteWorkspaceState();
-      workspace.screen = "route-list";
-      workspace.selectedActionId = "encounter";
-      workspace.selectedRouteNumber = workspace.selectedRouteNumber || 1;
-      saveState();
-      render();
-      focusV2RouteBrowserRoute(workspace.selectedRouteNumber);
+      enterV2RouteBrowser();
       return;
     }
-    const routeContinueButton = event.target.closest("[data-v2-route-continue]");
-    if (routeContinueButton && els.actionLocationBoard.contains(routeContinueButton) && activeActionPhaseVersion() === ACTION_PHASE_VERSION_V2) {
+    const routesLandingButton = event.target.closest("[data-v2-routes-landing]");
+    if (routesLandingButton && els.actionLocationBoard.contains(routesLandingButton) && activeActionPhaseVersion() === ACTION_PHASE_VERSION_V2) {
       event.preventDefault();
-      const workspace = v2RouteWorkspaceState();
-      workspace.screen = "root";
-      workspace.selectedActionId = "";
-      workspace.selectedRouteNumber = 0;
-      workspace.activeActionId = "";
-      saveState();
-      render();
+      returnV2RoutesLanding();
       return;
     }
     const routeConfirmButton = event.target.closest("[data-v2-route-confirm]");
@@ -61510,7 +62777,7 @@ function bindEvents() {
       workspace.screen = "route-list";
       workspace.selectedActionId = "encounter";
       workspace.selectedRouteNumber = Number(routeButton.dataset.v2RouteSelect || 0);
-      saveState();
+      saveClientUiState();
       render();
       focusV2RouteBrowserRoute(workspace.selectedRouteNumber);
       return;
