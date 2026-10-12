@@ -1,0 +1,48 @@
+/* Saga trainer-frame candidate. Keep player data in HTML and frame PNG-free. */
+.rs-trainer-card{--rs-accent:var(--theme-accent,#f0c879);--rs-glass:rgba(6,17,33,.22);color:#fff8ef;position:relative;width:min(1200px,95vw);aspect-ratio:1200/390;min-height:340px;margin:0 auto;isolation:isolate;font:500 14px/1.28 system-ui,sans-serif}
+.rs-trainer-card *{box-sizing:border-box}
+.rs-trainer-card[data-frame="tidal-elegance"]{--rs-accent:#75d6eb}
+.rs-trainer-card[data-frame="solar-dawn"]{--rs-accent:#f3bb6d}
+.rs-trainer-card[data-frame="celestial-moonlit"]{--rs-accent:#bbcaff}
+.rs-trainer-card[data-frame="art-nouveau"]{--rs-accent:#a6d4b6}
+.rs-trainer-card[data-use-site-accent="true"]{--rs-accent:var(--theme-accent,var(--site-accent,#dbb873))}
+.rs-trainer-card__ornament{position:absolute;inset:0;width:100%;height:100%;object-fit:fill;z-index:4;pointer-events:none}
+.rs-trainer-card__glass{position:absolute;z-index:0;background:var(--rs-glass);border-radius:35px;backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px)}
+.rs-trainer-card__glass--left{left:5.4%;top:25%;width:33.5%;height:41%}
+.rs-trainer-card__glass--right{right:5.4%;top:25%;width:33.5%;height:41%}
+.rs-trainer-card__glass--lower{left:4.1%;right:4.1%;top:74%;bottom:4.5%;background:rgba(5,12,27,.29);border-radius:28px}
+.rs-trainer-card__name{position:absolute;z-index:5;left:50%;top:5.5%;transform:translateX(-50%);white-space:nowrap;margin:0;max-width:34%;overflow:hidden;text-overflow:ellipsis;text-align:center;font:700 clamp(19px,2.1vw,30px)/1.12 Georgia,serif;text-shadow:0 2px 6px #000a}
+.rs-trainer-card__identity{position:absolute;z-index:3;top:23.5%;left:50%;transform:translateX(-50%);width:15.5%;text-align:center}
+.rs-trainer-card__portrait{display:block;width:min(100%,158px);aspect-ratio:1;margin:auto;object-fit:cover;border-radius:50%;background:rgba(4,19,31,.45);border:2px solid var(--rs-accent)}
+.rs-trainer-card__class{display:block;max-width:145%;margin:2px -22% 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:600 clamp(10px,1.05vw,15px)/1.2 Georgia,serif;text-shadow:0 1px 4px #000;background:rgba(7,12,29,.54);border:1px solid var(--rs-accent);border-radius:15px;padding:3px 6px}
+.rs-trainer-card__stats{position:absolute;z-index:3;width:31%;top:25.5%;height:40%;display:grid;grid-template-rows:repeat(3,minmax(0,1fr))}
+.rs-trainer-card__stats--left{left:8.25%}.rs-trainer-card__stats--right{right:8.25%}
+.rs-trainer-card__stat{display:flex;align-items:center;gap:8px;min-width:0;padding:0 7px}
+.rs-trainer-card__stat-icon{display:grid;place-items:center;flex:none;width:27px;height:27px;border:1px solid var(--rs-accent);border-radius:50%;background:rgba(5,14,23,.44);font-size:14px;color:var(--rs-accent)}
+.rs-trainer-card__stat-copy{display:flex;flex-direction:column;gap:0;min-width:0;text-shadow:0 1px 4px #000c}
+.rs-trainer-card__stat-label{font-size:clamp(10px,.92vw,13px)}
+.rs-trainer-card__stat-value{font:700 clamp(14px,1.25vw,19px)/1.16 Georgia,serif;color:#fff0c2;font-variant-numeric:tabular-nums}
+.rs-trainer-card__lower{position:absolute;z-index:3;left:6%;right:6%;top:75.3%;bottom:7.5%;display:grid;grid-template-columns:38% 62%;align-items:center}
+.rs-trainer-card__lower-pane{min-width:0;display:flex;align-items:center;gap:10px;padding:2px 3.5%}
+.rs-trainer-card__lower-title{font:600 clamp(11px,1.04vw,15px)/1.1 Georgia,serif;white-space:nowrap;text-shadow:0 1px 3px #000}
+.rs-trainer-card__perk-slots,.rs-trainer-card__effects{display:flex;align-items:center;flex-wrap:wrap;gap:5px}
+.rs-trainer-card__perk,.rs-trainer-card__effect{display:inline-flex;justify-content:center;align-items:center;border-radius:8px;background:rgba(4,14,28,.58);border:1px solid #fff5;color:#fff;cursor:default}
+.rs-trainer-card__perk{width:min(2.5vw,34px);height:min(2.5vw,34px);min-width:23px;min-height:23px}
+.rs-trainer-card__perk[data-rarity="crystal"]{border-color:#d986fc;color:#df89ff}.rs-trainer-card__perk[data-rarity="gold"]{border-color:#d8ae51;color:#fac660}.rs-trainer-card__perk[data-rarity="silver"]{border-color:#96b0c5;color:#b8cddd}
+.rs-trainer-card__effect{min-height:23px;padding:2px 7px}.rs-trainer-card__effect--buff{border-color:#47cb95}.rs-trainer-card__effect--nerf{border-color:#f86a8c}
+.rs-trainer-card__perk:focus-visible,.rs-trainer-card__effect:focus-visible{outline:2px solid white;outline-offset:3px}
+.rs-trainer-card__empty{color:#eeeff8;font-size:12px;font-style:italic;text-shadow:0 1px 3px #000}
+@media(max-width:760px){
+.rs-trainer-card{width:min(100%,580px);aspect-ratio:auto;min-height:0;padding:32px 12px 12px;background:#06132377;backdrop-filter:blur(5px);border:1px solid var(--rs-accent);border-radius:22px}
+.rs-trainer-card__ornament,.rs-trainer-card__glass{display:none}
+.rs-trainer-card__name{position:static;transform:none;max-width:100%;margin-bottom:8px}
+.rs-trainer-card__identity{position:static;transform:none;width:100%;margin-bottom:12px}
+.rs-trainer-card__portrait{width:94px}.rs-trainer-card__class{max-width:230px;margin:5px auto}
+.rs-trainer-card__stats{position:static;width:100%;height:auto;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px}
+.rs-trainer-card__stats--left{margin-bottom:4px}
+.rs-trainer-card__stat{min-height:52px;padding:6px 2px;gap:4px;align-items:start}
+.rs-trainer-card__stat-icon{width:23px;height:23px;font-size:12px}
+.rs-trainer-card__stat-label{font-size:10px}.rs-trainer-card__stat-value{font-size:15px}
+.rs-trainer-card__lower{position:static;display:grid;grid-template-columns:1fr;gap:7px;margin-top:12px;padding-top:10px;border-top:1px solid var(--rs-accent)}
+.rs-trainer-card__lower-pane{padding:4px}.rs-trainer-card__perk{width:33px;height:33px}
+}
