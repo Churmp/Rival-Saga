@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Saga Trainer Theme Preview</title><link rel="stylesheet" href="./trainer-card-theme.css">
+<style>
+html,body{margin:0;min-height:100%;font-family:system-ui,sans-serif;background:radial-gradient(ellipse at 55% 20%,#f18b82,#6d4d87 43%,#11283c 78%,#091725);color:#fff}
+header{height:54px;display:flex;align-items:center;justify-content:space-between;padding:0 24px;background:#230c1cd9;border-bottom:1px solid #af305e}main{padding:8px 12px 50px}
+.chooser{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin:8px 0 12px}
+.chooser button{border:1px solid #d7b781;color:#fff;border-radius:7px;background:#0c213cc9;padding:7px 12px;cursor:pointer}
+.chooser button[aria-pressed="true"]{background:#814753;border-color:#fff}
+p{margin:4px auto;max-width:900px;text-align:center;color:#f0dbe8;font-size:12px}
+</style></head><body><header><b>Rival Saga · Trainer Theme Preview</b><span>Design only — no gameplay state</span></header>
+<main><div class="chooser" id="choose" aria-label="Select trainer frame"></div><div id="card"></div>
+<p>Compact six-stat symmetrical layout · six small perk icons · hoverable effects · transparent vector ornament</p>
+</main><script type="module">
+import {mountSagaTrainerCard} from './trainer-card-theme.mjs';
+const portrait='data:image/svg+xml;charset=utf-8,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160"><rect width="160" height="160" fill="#183a50"/><circle cx="80" cy="56" r="21" fill="#afc2cd"/><path d="M35 160v-29q7-38 45-38t45 38v29" fill="#7f9ba6"/></svg>');
+const data={name:'Steevee',portraitUrl:portrait,trainerClass:'Game Master',balance:968999,momentum:99,badges:100,seriesRecord:'0–0',overallRecord:'0–0',sagaPoints:0,perks:[],effects:[{name:'Headstart',description:'Example buff',kind:'buff',icon:'↑'},{name:'Cold Wave',description:'Example nerf',kind:'nerf',icon:'↓'}]};
+const themes=[['tidal-elegance','Tidal Elegance'],['solar-dawn','Solar Dawn'],['celestial-moonlit','Celestial Moonlit'],['art-nouveau','Art Nouveau']];
+const card=mountSagaTrainerCard(document.getElementById('card'),data,{assetRoot:'../assets/trainer-frames'});
+const chooser=document.getElementById('choose');
+themes.forEach(([id,label],i)=>{const b=document.createElement('button');b.textContent=label;b.type='button';b.setAttribute('aria-pressed',i===0?'true':'false');b.onclick=()=>{card.setFrameStyle(id);for(const c of chooser.children)c.setAttribute('aria-pressed',String(c===b));};chooser.append(b);});
+</script></body></html>
